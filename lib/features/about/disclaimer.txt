@@ -1,0 +1,4 @@
+Disclaimer
+This app aggregates content via publicly available RSS feeds and official links.
+All news, articles, logos, and brands are property of their respective owners.
+We do not host any content. We redirect users to the official source.

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "92831175770",
+    "project_id": "droid-e9db9",
+    "storage_bucket": "droid-e9db9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:92831175770:android:40fc17be01d7222293f463",
+        "android_client_info": {
+          "package_name": "com.example.droid"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCeSxbjb0TIYG0kWuLMm-j7TdbZ0nXt8go"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
