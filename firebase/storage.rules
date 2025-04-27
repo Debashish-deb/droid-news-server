@@ -1,0 +1,33 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Allow users to manage their own uploads
+    match /user_uploads/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 10 * 1024 * 1024 // Max 10MB
+        && (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
+    }
+
+    // Public files: anyone can read, but writing must be authenticated and limited
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 5 * 1024 * 1024 // Max 5MB
+        && (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('text/.*'));
+    }
+
+    // Private user files
+    match /private/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 20 * 1024 * 1024; // Max 20MB
+    }
+
+    // Everything else denied
+    match /{allOtherPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
