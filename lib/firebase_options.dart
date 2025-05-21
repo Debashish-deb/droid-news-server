@@ -27,10 +27,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.macOS:
         return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -55,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCeSxbjb0TIYG0kWuLMm-j7TdbZ0nXt8go',
-    appId: '1:92831175770:android:40fc17be01d7222293f463',
+    appId: '1:92831175770:android:2b0309d5b85ef55a93f463',
     messagingSenderId: '92831175770',
     projectId: 'droid-e9db9',
     storageBucket: 'droid-e9db9.firebasestorage.app',
@@ -63,11 +60,13 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyA0Vsaayr2jDfB_FEyHQ7PCJ30A51WUsc8',
-    appId: '1:92831175770:ios:b69407f94ea150b993f463',
+    appId: '1:92831175770:ios:0e16728d7bc3edea93f463',
     messagingSenderId: '92831175770',
     projectId: 'droid-e9db9',
     storageBucket: 'droid-e9db9.firebasestorage.app',
-    iosBundleId: 'com.example.droid',
+    androidClientId: '92831175770-69mrb0h4gslfr4q93q2kf4scugi7c1tf.apps.googleusercontent.com',
+    iosClientId: '92831175770-lr8jl26158284kfk114r7rvh4caj2q5c.apps.googleusercontent.com',
+    iosBundleId: 'com.bd.bdnewsreader',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -76,6 +75,19 @@ class DefaultFirebaseOptions {
     messagingSenderId: '92831175770',
     projectId: 'droid-e9db9',
     storageBucket: 'droid-e9db9.firebasestorage.app',
+    androidClientId: '92831175770-69mrb0h4gslfr4q93q2kf4scugi7c1tf.apps.googleusercontent.com',
+    iosClientId: '92831175770-kr1cu4c0u4emu4amuimcfk2432q4ntgk.apps.googleusercontent.com',
     iosBundleId: 'com.example.droid',
   );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyDHaDNvv-pLn4NYcpS139J2Bv6r2VQDA-g',
+    appId: '1:92831175770:web:2df2e34aba8e687793f463',
+    messagingSenderId: '92831175770',
+    projectId: 'droid-e9db9',
+    authDomain: 'droid-e9db9.firebaseapp.com',
+    storageBucket: 'droid-e9db9.firebasestorage.app',
+    measurementId: 'G-YM7G0LQ61T',
+  );
+
 }

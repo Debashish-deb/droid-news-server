@@ -1,0 +1,4965 @@
+{
+    "newspapers": [
+      {
+        "id": "bd-bn-1",
+        "name": "Prothom Alo",
+        "description": "Leading Bengali daily newspaper known for its investigative journalism.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn",
+        "region": "national",
+        "founded": 1998,
+        "headquarters": "Dhaka",
+        "founder": "Matihur Rahman",
+        "premium": false,
+        "formats": ["print", "web", "app", "epaper"],
+        "coverage": {
+          "national": 9
+        },
+        "contact": {
+          "website": "https://www.prothomalo.com/",
+          "email": "info@prothomalo.com",
+          "phone": "+8802-8180078"
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/prothomalo/",
+          "twitter": "https://twitter.com/prothomalo",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150/007bff/ffffff?Text=Prothom+Alo",
+          "logo_small": "https://via.placeholder.com/50/007bff/ffffff?Text=PA",
+          "logo_medium": "https://via.placeholder.com/100/007bff/ffffff?Text=Prothom+Alo"
+        },
+        "metadata": {
+          "awards": ["IPDC Award", "UNESCO Prize"],
+          "circulation": "500,000+",
+          "parent_company": "Transcom Group"
+        },
+        "tags": [
+          "all",
+          "bangla",
+          "bangla(bd)",
+          "national",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-2",
+        "name": "The Daily Star",
+        "description": "Leading English daily offering balanced national reporting from Bangladesh.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "en",
+        "region": "national",
+        "founded": 1991,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web", "app", "epaper"],
+        "coverage": {
+          "national": 9
+        },
+        "contact": {
+          "website": "https://www.thedailystar.net/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/thedailystar",
+          "twitter": "https://twitter.com/thedailystar",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Daily+Star",
+          "logo_small": "https://via.placeholder.com/50?Text=DS",
+          "logo_medium": "https://via.placeholder.com/100?Text=Daily+Star"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "all",
+          "english",
+          "national",
+          "bd",
+          "bangla"
+        ]
+      },
+      {
+        "id": "bd-bn-3",
+        "name": "Bangladesh Pratidin",
+        "description": "Mass-circulation Bengali daily newspaper focusing on national news.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web", "epaper"],
+        "coverage": {
+          "national": 8
+        },
+        "contact": {
+          "website": "https://www.bd-pratidin.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=BD+Pratidin",
+          "logo_small": "https://via.placeholder.com/50?Text=BPD",
+          "logo_medium": "https://via.placeholder.com/100?Text=BD+Pratidin"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "all",
+          "bangla",
+          "national",
+          "bd",
+          "bangla"
+        ]
+      },
+      {
+        "id": "bd-bn-4",
+        "name": "Janakantha",
+        "description": "Established Bengali daily with a focus on political news.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web", "epaper"],
+        "coverage": {
+          "national": 8
+        },
+        "contact": {
+          "website": "https://www.dailyjanakantha.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Janakantha",
+          "logo_small": "https://via.placeholder.com/50?Text=JK",
+          "logo_medium": "https://via.placeholder.com/100?Text=Janakantha"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "all",
+          "bangla",
+          "national",
+          "politics",
+          "bd",
+          "bangla"
+        ]
+      },
+      {
+        "id": "bd-bn-5",
+        "name": "Ittefaq",
+        "description": "Historic Bengali newspaper founded in 1953.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn",
+        "region": "national",
+        "founded": 1953,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web", "epaper"],
+        "coverage": {
+          "national": 8
+        },
+        "contact": {
+          "website": "https://www.ittefaq.com.bd/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Ittefaq",
+          "logo_small": "https://via.placeholder.com/50?Text=ITQ",
+          "logo_medium": "https://via.placeholder.com/100?Text=Ittefaq"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "all",
+          "bangla",
+          "historic",
+          "national",
+          "bd",
+          "bangla"
+        ]
+      },
+      {
+        "id": "bd-bn-6",
+        "name": "New Age",
+        "description": "Left-leaning independent English daily from Bangladesh.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "en",
+        "region": "national",
+        "founded": 2010,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web", "epaper"],
+        "coverage": {
+          "national": 8
+        },
+        "contact": {
+          "website": "https://newagebd.net/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/NewAgeBD",
+          "twitter": "https://twitter.com/NewAgeBD",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=New+Age",
+          "logo_small": "https://via.placeholder.com/50?Text=NA",
+          "logo_medium": "https://via.placeholder.com/100?Text=New+Age"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "all",
+          "english",
+          "national",
+          "left-leaning",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-7",
+        "name": "Samakal",
+        "description": "Respected Bengali daily with a focus on agricultural and national issues.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web", "epaper"],
+        "coverage": {
+          "national": 8
+        },
+        "contact": {
+          "website": "https://samakal.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Samakal",
+          "logo_small": "https://via.placeholder.com/50?Text=SKL",
+          "logo_medium": "https://via.placeholder.com/100?Text=Samakal"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "all",
+          "bangla",
+          "agriculture",
+          "national",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-8",
+        "name": "Manab Zamin",
+        "description": "Popular Bengali tabloid with mass appeal focusing on national news.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web", "epaper"],
+        "coverage": {
+          "national": 7
+        },
+        "contact": {
+          "website": "https://mzamin.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Manab+Zamin",
+          "logo_small": "https://via.placeholder.com/50?Text=MZ",
+          "logo_medium": "https://via.placeholder.com/100?Text=Manab+Zamin"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "all",
+          "bangla",
+          "tabloid",
+          "national",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-9",
+        "name": "Amader Shomoy",
+        "description": "Growing Bengali daily with a youth-oriented perspective.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web", "epaper"],
+        "coverage": {
+          "national": 7
+        },
+        "contact": {
+          "website": "https://dailyshomoy.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Amader+Shomoy",
+          "logo_small": "https://via.placeholder.com/50?Text=AS",
+          "logo_medium": "https://via.placeholder.com/100?Text=Amader+Shomoy"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "all",
+          "bangla",
+          "youth",
+          "national",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-10",
+        "name": "Jugantor",
+        "description": "Widely circulated Bengali daily that covers national news.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web", "epaper"],
+        "coverage": {
+          "national": 8
+        },
+        "contact": {
+          "website": "https://www.jugantor.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/Jugantor",
+          "twitter": "https://twitter.com/Jugantor",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Jugantor",
+          "logo_small": "https://via.placeholder.com/50?Text=JT",
+          "logo_medium": "https://via.placeholder.com/100?Text=Jugantor"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "all",
+          "bangla",
+          "national",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-11",
+        "name": "Sylheter Dak",
+        "description": "Regional newspaper focusing on news from the Sylhet area.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn",
+        "region": "regional",
+        "founded": null,
+        "headquarters": "Sylhet",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "regional": 7
+        },
+        "contact": {
+          "website": "https://sylheterdak.com.bd/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Sylheter+Dak",
+          "logo_small": "https://via.placeholder.com/50?Text=SD",
+          "logo_medium": "https://via.placeholder.com/100?Text=Sylheter+Dak"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "regional",
+          "bangla",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-12",
+        "name": "Khulna Gazette",
+        "description": "Newspaper covering news from southwest Bangladesh.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn",
+        "region": "regional",
+        "founded": null,
+        "headquarters": "Khulna",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "regional": 7
+        },
+        "contact": {
+          "website": "https://khulnagazette.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Khulna+Gazette",
+          "logo_small": "https://via.placeholder.com/50?Text=KG",
+          "logo_medium": "https://via.placeholder.com/100?Text=Khulna+Gazette"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "regional",
+          "bangla",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-13",
+        "name": "Chittagong Post",
+        "description": "Regional news outlet focusing on Chittagong and southeast Bangladesh.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "en",
+        "region": "regional",
+        "founded": null,
+        "headquarters": "Chittagong",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "regional": 7
+        },
+        "contact": {
+          "website": "https://www.thechittagongpost.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Chittagong+Post",
+          "logo_small": "https://via.placeholder.com/50?Text=CP",
+          "logo_medium": "https://via.placeholder.com/100?Text=Chittagong+Post"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "regional",
+          "english",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-14",
+        "name": "Bangla Tribune",
+        "description": "Digital-first Bengali platform known for mobile-centric, data-driven journalism.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web", "app"],
+        "coverage": {
+          "national": 8
+        },
+        "contact": {
+          "website": "https://www.banglatribune.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/banglatribune",
+          "twitter": "https://twitter.com/banglatribune",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Bangla+Tribune",
+          "logo_small": "https://via.placeholder.com/50?Text=BT",
+          "logo_medium": "https://via.placeholder.com/100?Text=Bangla+Tribune"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "digital",
+          "bangla",
+          "national",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-15",
+        "name": "RisingBD",
+        "description": "Digital news specialist focusing on breaking news from Bangladesh.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "en",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web", "app"],
+        "coverage": {
+          "national": 8
+        },
+        "contact": {
+          "website": "https://risingbd.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=RisingBD",
+          "logo_small": "https://via.placeholder.com/50?Text=RBD",
+          "logo_medium": "https://via.placeholder.com/100?Text=RisingBD"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "digital",
+          "english",
+          "national",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-16",
+        "name": "BD News 24",
+        "description": "Pioneer in 24/7 online news from Bangladesh.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "en",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web", "app"],
+        "coverage": {
+          "national": 8
+        },
+        "contact": {
+          "website": "https://bdnews24.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/bdnews24",
+          "twitter": "https://twitter.com/bdnews24",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=BD+News+24",
+          "logo_small": "https://via.placeholder.com/50?Text=BDN24",
+          "logo_medium": "https://via.placeholder.com/100?Text=BD+News+24"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "digital",
+          "english",
+          "national",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-17",
+        "name": "Dhaka Post",
+        "description": "Digital-only investigative platform from Bangladesh.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "en",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "national": 8
+        },
+        "contact": {
+          "website": "https://www.dhakapost.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Dhaka+Post",
+          "logo_small": "https://via.placeholder.com/50?Text=DP",
+          "logo_medium": "https://via.placeholder.com/100?Text=Dhaka+Post"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "digital",
+          "english",
+          "national",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-18",
+        "name": "Anandabazar Patrika",
+        "description": "West Bengal’s premier Bengali daily with cultural and regional coverage.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "bn",
+        "region": "cultural",
+        "founded": 1922,
+        "headquarters": "Kolkata",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web", "epaper"],
+        "coverage": {
+          "national": 8
+        },
+        "contact": {
+          "website": "https://www.anandabazar.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/anandabazar",
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Anandabazar+Patrika",
+          "logo_small": "https://via.placeholder.com/50?Text=AP",
+          "logo_medium": "https://via.placeholder.com/100?Text=Anandabazar+Patrika"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "bangla",
+          "cultural",
+          "india"
+        ]
+      },
+      {
+        "id": "bd-bn-19",
+        "name": "Sangbad Pratidin",
+        "description": "Kolkata-based Bengali newspaper focused on cultural coverage.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "bn",
+        "region": "cultural",
+        "founded": null,
+        "headquarters": "Kolkata",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web", "epaper"],
+        "coverage": {
+          "national": 7
+        },
+        "contact": {
+          "website": "https://sangbadpratidin.in/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Sangbad+Pratidin",
+          "logo_small": "https://via.placeholder.com/50?Text=SP",
+          "logo_medium": "https://via.placeholder.com/100?Text=Sangbad+Pratidin"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "bangla",
+          "cultural",
+          "india"
+        ]
+      },
+      {
+        "id": "bd-bn-20",
+        "name": "Kolkata TV Digital",
+        "description": "Digital platform emphasizing Bengali arts and heritage from Kolkata.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "bn",
+        "region": "cultural",
+        "founded": null,
+        "headquarters": "Kolkata",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "national": 7
+        },
+        "contact": {
+          "website": "https://kolkatatv.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Kolkata+TV+Digital",
+          "logo_small": "https://via.placeholder.com/50?Text=KTD",
+          "logo_medium": "https://via.placeholder.com/100?Text=Kolkata+TV+Digital"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "digital",
+          "bangla",
+          "cultural",
+          "india"
+        ]
+      },
+      {
+        "id": "bd-bn-21",
+        "name": "BSS News",
+        "description": "State-run news agency providing official updates from Bangladesh.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "national": 8
+        },
+        "contact": {
+          "website": "https://bssnews.net/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=BSS+News",
+          "logo_small": "https://via.placeholder.com/50?Text=BSS",
+          "logo_medium": "https://via.placeholder.com/100?Text=BSS+News"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "State-run"
+        },
+        "tags": [
+          "government",
+          "bangla",
+          "national",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-22",
+        "name": "The Financial Express (BD)",
+        "description": "Newspaper with an economic policy focus from Bangladesh.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "en",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web", "epaper"],
+        "coverage": {
+          "national": 7
+        },
+        "contact": {
+          "website": "https://thefinancialexpress.com.bd/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Fin+Express+BD",
+          "logo_small": "https://via.placeholder.com/50?Text=FE",
+          "logo_medium": "https://via.placeholder.com/100?Text=Fin+Express+BD"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "business",
+          "english",
+          "national",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-23",
+        "name": "Bangladesh Today",
+        "description": "Government-oriented English daily presenting a state perspective.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "en",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "national": 7
+        },
+        "contact": {
+          "website": "https://bangladeshtoday.net/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Bangladesh+Today",
+          "logo_small": "https://via.placeholder.com/50?Text=BT",
+          "logo_medium": "https://via.placeholder.com/100?Text=Bangladesh+Today"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Government"
+        },
+        "tags": [
+          "government",
+          "english",
+          "national",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-24",
+        "name": "The Confluence",
+        "description": "Emerging, youth-led English news platform from Bangladesh.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "en",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "national": 7
+        },
+        "contact": {
+          "website": "https://theconfluence.news/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Confluence",
+          "logo_small": "https://via.placeholder.com/50?Text=TC",
+          "logo_medium": "https://via.placeholder.com/100?Text=The+Confluence"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "digital",
+          "english",
+          "youth",
+          "national",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-25",
+        "name": "Bangla Insider",
+        "description": "Newspaper focusing on business–political analysis from Bangladesh.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "en",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "national": 7
+        },
+        "contact": {
+          "website": "https://banglainsider.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Bangla+Insider",
+          "logo_small": "https://via.placeholder.com/50?Text=BI",
+          "logo_medium": "https://via.placeholder.com/100?Text=Bangla+Insider"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "business",
+          "politics",
+          "english",
+          "national",
+          "bd"
+        ]
+      },
+      {
+        "id": "bd-bn-26",
+        "name": "Dhaka Courier",
+        "description": "Weekly English magazine-style newspaper from Bangladesh.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "en",
+        "region": "national",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "national": 7
+        },
+        "contact": {
+          "website": "https://dhakacourier.com.bd/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Dhaka+Courier",
+          "logo_small": "https://via.placeholder.com/50?Text=DC",
+          "logo_medium": "https://via.placeholder.com/100?Text=Dhaka+Courier"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "english",
+          "magazine",
+          "national",
+          "bd"
+        ]
+      },
+      {
+        "id": "in-bn-1",
+        "name": "Anandabazar Patrika",
+        "description": "Leading Bengali daily newspaper in India with a vast readership.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "bn",
+        "region": "international",
+        "founded": 1922,
+        "headquarters": "Kolkata",
+        "founder": "Suresh Chandra Majumdar",
+        "premium": false,
+        "formats": ["print", "web", "app", "epaper"],
+        "coverage": {
+          "international": 9
+        },
+        "contact": {
+          "website": "https://www.anandabazar.com/",
+          "email": "info@abp.in",
+          "phone": "+91-33-22822260"
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/anandabazarpatrika",
+          "twitter": "https://twitter.com/abpanandabazar",
+          "instagram": "https://www.instagram.com/anandabazarpatrika",
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150/ff6600/ffffff?Text=Anandabazar",
+          "logo_small": "https://via.placeholder.com/50/ff6600/ffffff?Text=ABP",
+          "logo_medium": "https://via.placeholder.com/100/ff6600/ffffff?Text=Anandabazar"
+        },
+        "metadata": {
+          "awards": ["Ramnath Goenka Excellence Award"],
+          "circulation": "1,130,167+",
+          "parent_company": "ABP Group"
+        },
+        "tags": [
+          "all",
+          "bangla",
+          "bangla(in)",
+          "international",
+          "in"
+        ]
+      },
+      {
+        "id": "in-bn-2",
+        "name": "Bartaman Patrika",
+        "description": "Popular Bengali-language daily newspaper published from Kolkata.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "bn",
+        "region": "international",
+        "founded": 1984,
+        "headquarters": "Kolkata",
+        "founder": "Barun Sengupta",
+        "premium": false,
+        "formats": ["print", "web", "app"],
+        "coverage": {
+          "international": 8
+        },
+        "contact": {
+          "website": "https://bartamanpatrika.com/",
+          "email": "editor@bartamanpatrika.com",
+          "phone": "+91-33-22277651"
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/BartamanPatrika",
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150/009933/ffffff?Text=Bartaman",
+          "logo_small": "https://via.placeholder.com/50/009933/ffffff?Text=BP",
+          "logo_medium": "https://via.placeholder.com/100/009933/ffffff?Text=Bartaman"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "500,000+",
+          "parent_company": "Bartaman Pvt Ltd"
+        },
+        "tags": [
+          "all",
+          "bangla",
+          "bangla(in)",
+          "international",
+          "in"
+        ]
+      },
+      {
+        "id": "in-bn-3",
+        "name": "Ei Samay",
+        "description": "Bengali daily owned by The Times Group, India.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "bn",
+        "region": "international",
+        "founded": 2012,
+        "headquarters": "Kolkata",
+        "founder": "The Times Group",
+        "premium": false,
+        "formats": ["print", "web", "app", "epaper"],
+        "coverage": {
+          "international": 7
+        },
+        "contact": {
+          "website": "https://eisamay.com/",
+          "email": "info@eisamay.com",
+          "phone": "+91-22-67545000"
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/eisamay",
+          "twitter": "https://twitter.com/eisamay",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150/ff0033/ffffff?Text=EiSamay",
+          "logo_small": "https://via.placeholder.com/50/ff0033/ffffff?Text=ES",
+          "logo_medium": "https://via.placeholder.com/100/ff0033/ffffff?Text=EiSamay"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "200,000+",
+          "parent_company": "The Times Group"
+        },
+        "tags": [
+          "all",
+          "bangla",
+          "bangla(in)",
+          "international",
+          "in"
+        ]
+      },
+      {
+        "id": "in-bn-4",
+        "name": "Sangbad Pratidin",
+        "description": "A leading Bengali newspaper catering to West Bengal and beyond.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "bn",
+        "region": "international",
+        "founded": 1992,
+        "headquarters": "Kolkata",
+        "founder": "Swapan Sadhan Bose",
+        "premium": false,
+        "formats": ["print", "web", "app"],
+        "coverage": {
+          "international": 7
+        },
+        "contact": {
+          "website": "https://sangbadpratidin.in/",
+          "email": "info@sangbadpratidin.in",
+          "phone": "+91-33-22170910"
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/sangbadpratidin",
+          "twitter": "https://twitter.com/sangbadpratidin",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150/663399/ffffff?Text=Sangbad",
+          "logo_small": "https://via.placeholder.com/50/663399/ffffff?Text=SP",
+          "logo_medium": "https://via.placeholder.com/100/663399/ffffff?Text=SP"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "300,000+",
+          "parent_company": "Sangbad Pratidin Pvt Ltd"
+        },
+        "tags": [
+          "all",
+          "bangla",
+          "bangla(in)",
+          "international",
+          "in"
+        ]
+      },
+      {
+        "id": "in-bn-5",
+        "name": "Ganashakti",
+        "description": "Prominent Bengali daily aligned with leftist political ideologies.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "bn",
+        "region": "international",
+        "founded": 1967,
+        "headquarters": "Kolkata",
+        "founder": "Communist Party of India (Marxist)",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "international": 6
+        },
+        "contact": {
+          "website": "https://ganashakti.com/",
+          "email": "info@ganashakti.com",
+          "phone": "+91-33-22374251"
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/ganashakti",
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150/cc0000/ffffff?Text=Ganashakti",
+          "logo_small": "https://via.placeholder.com/50/cc0000/ffffff?Text=GS",
+          "logo_medium": "https://via.placeholder.com/100/cc0000/ffffff?Text=Ganashakti"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "100,000+",
+          "parent_company": "CPI(M)"
+        },
+        "tags": [
+          "all",
+          "bangla",
+          "bangla(in)",
+          "international",
+          "in"
+        ]
+      }
+      ,{
+        "id": "int-1",
+        "name": "The New York Times",
+        "description": "Renowned global newspaper known for its investigative journalism and world coverage.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "international",
+        "founded": 1851,
+        "headquarters": "New York",
+        "founder": "Henry Jarvis Raymond & George Jones",
+        "premium": true,
+        "formats": ["print", "web", "app"],
+        "coverage": {
+          "international": 9
+        },
+        "contact": {
+          "website": "https://www.nytimes.com/section/world",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/NYTimes",
+          "twitter": "https://twitter.com/nytimes",
+          "instagram": "https://www.instagram.com/nytimes/",
+          "youtube": "https://www.youtube.com/NYTimes",
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=NYT",
+          "logo_small": "https://via.placeholder.com/50?Text=NYT",
+          "logo_medium": "https://via.placeholder.com/100?Text=NYT"
+        },
+        "metadata": {
+          "awards": ["Pulitzer Prize"],
+          "circulation": "N/A",
+          "parent_company": "The New York Times Company"
+        },
+        "tags": [
+          "international",
+          "english",
+          "US"
+        ]
+      },
+      {
+        "id": "int-2",
+        "name": "The Washington Post",
+        "description": "American daily known for its in‐depth coverage of world affairs and U.S. politics.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "international",
+        "founded": 1877,
+        "headquarters": "Washington, D.C.",
+        "founder": "Stilson Hutchins",
+        "premium": true,
+        "formats": ["print", "web", "app"],
+        "coverage": {
+          "international": 9
+        },
+        "contact": {
+          "website": "https://www.washingtonpost.com/world",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/washingtonpost",
+          "twitter": "https://twitter.com/washingtonpost",
+          "instagram": "https://www.instagram.com/washingtonpost/",
+          "youtube": "https://www.youtube.com/washingtonpost",
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=WaPo",
+          "logo_small": "https://via.placeholder.com/50?Text=WP",
+          "logo_medium": "https://via.placeholder.com/100?Text=WaPo"
+        },
+        "metadata": {
+          "awards": ["Pulitzer Prize"],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "international",
+          "english",
+          "US"
+        ]
+      },
+      {
+        "id": "int-3",
+        "name": "The Guardian",
+        "description": "British newspaper offering progressive global news and in‐depth international analysis.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "international",
+        "founded": 1821,
+        "headquarters": "London",
+        "founder": "John Edward Taylor",
+        "premium": false,
+        "formats": ["print", "web", "app"],
+        "coverage": {
+          "international": 9
+        },
+        "contact": {
+          "website": "https://www.theguardian.com/world",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/theguardian",
+          "twitter": "https://twitter.com/guardian",
+          "instagram": "https://www.instagram.com/theguardian/",
+          "youtube": "https://www.youtube.com/theguardian",
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Guardian",
+          "logo_small": "https://via.placeholder.com/50?Text=TGU",
+          "logo_medium": "https://via.placeholder.com/100?Text=Guardian"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Guardian Media Group"
+        },
+        "tags": [
+          "international",
+          "english",
+          "UK"
+        ]
+      },
+      {
+        "id": "int-4",
+        "name": "Le Monde Diplomatique",
+        "description": "Monthly publication offering left-leaning, in-depth geopolitical analysis.",
+        "type": "newspaper",
+        "country": "FR",
+        "language": "en",
+        "region": "international",
+        "founded": 1954,
+        "headquarters": "Paris",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "international": 8
+        },
+        "contact": {
+          "website": "https://mondediplo.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": "https://twitter.com/LeMondeDiplom",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Le+Monde+Diplomatique",
+          "logo_small": "https://via.placeholder.com/50?Text=LMD",
+          "logo_medium": "https://via.placeholder.com/100?Text=Le+Monde+Diplomatique"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "international",
+          "analysis",
+          "english"
+        ]
+      },
+      {
+        "id": "int-5",
+        "name": "EU Observer",
+        "description": "Online newspaper focused on EU policies and European expansion.",
+        "type": "newspaper",
+        "country": "EU",
+        "language": "en",
+        "region": "international",
+        "founded": null,
+        "headquarters": "Brussels",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "international": 8
+        },
+        "contact": {
+          "website": "https://euobserver.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/euobserver",
+          "twitter": "https://twitter.com/euobserver",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=EU+Observer",
+          "logo_small": "https://via.placeholder.com/50?Text=EUO",
+          "logo_medium": "https://via.placeholder.com/100?Text=EU+Observer"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "international",
+          "EU",
+          "english"
+        ]
+      },
+      {
+        "id": "int-6",
+        "name": "The Hindu",
+        "description": "Indian newspaper known for detailed and neutral reporting on international events.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "en",
+        "region": "international",
+        "founded": 1878,
+        "headquarters": "Chennai",
+        "founder": "G. Subramania Iyer",
+        "premium": false,
+        "formats": ["print", "web", "app"],
+        "coverage": {
+          "international": 9
+        },
+        "contact": {
+          "website": "https://www.thehindu.com/news/international/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/thehindu",
+          "twitter": "https://twitter.com/the_hindu",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=The+Hindu",
+          "logo_small": "https://via.placeholder.com/50?Text=TH",
+          "logo_medium": "https://via.placeholder.com/100?Text=The+Hindu"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "The Hindu Group"
+        },
+        "tags": [
+          "international",
+          "english",
+          "IN"
+        ]
+      },
+      {
+        "id": "int-7",
+        "name": "Indian Express – World",
+        "description": "The world section of the Indian Express, offering concise global updates.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "en",
+        "region": "international",
+        "founded": 1995,
+        "headquarters": "New Delhi",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "international": 8
+        },
+        "contact": {
+          "website": "https://indianexpress.com/section/world/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/IndianExpress",
+          "twitter": "https://twitter.com/indianexpress",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Indian+Express",
+          "logo_small": "https://via.placeholder.com/50?Text=IE",
+          "logo_medium": "https://via.placeholder.com/100?Text=Indian+Express"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Indian Express Group"
+        },
+        "tags": [
+          "international",
+          "english",
+          "IN"
+        ]
+      },
+      {
+        "id": "int-8",
+        "name": "Foreign Policy",
+        "description": "Digital publication specializing in geopolitical analysis and global affairs.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "international",
+        "founded": null,
+        "headquarters": "Washington, D.C.",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["web"],
+        "coverage": {
+          "international": 8
+        },
+        "contact": {
+          "website": "https://foreignpolicy.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/foreignpolicy",
+          "twitter": "https://twitter.com/ForeignPolicy",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Foreign+Policy",
+          "logo_small": "https://via.placeholder.com/50?Text=FP",
+          "logo_medium": "https://via.placeholder.com/100?Text=Foreign+Policy"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "international",
+          "analysis",
+          "english",
+          "US"
+        ]
+      },
+      {
+        "id": "int-9",
+        "name": "The Economist",
+        "description": "Weekly publication featuring deep dives into global affairs and economic policy.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "international",
+        "founded": 1843,
+        "headquarters": "London",
+        "founder": "James Wilson",
+        "premium": true,
+        "formats": ["print", "web", "app"],
+        "coverage": {
+          "international": 9
+        },
+        "contact": {
+          "website": "https://www.economist.com/international",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/theeconomist",
+          "twitter": "https://twitter.com/theeconomist",
+          "instagram": "https://www.instagram.com/theeconomist/",
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Economist",
+          "logo_small": "https://via.placeholder.com/50?Text=TE",
+          "logo_medium": "https://via.placeholder.com/100?Text=Economist"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "The Economist Group"
+        },
+        "tags": [
+          "international",
+          "economics",
+          "english",
+          "UK"
+        ]
+      },
+      {
+        "id": "int-10",
+        "name": "Associated Press Global",
+        "description": "Global news service known for unbiased, fact-based reporting on world events.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "international",
+        "founded": null,
+        "headquarters": "New York",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["wire"],
+        "coverage": {
+          "international": 9
+        },
+        "contact": {
+          "website": "https://apnews.com/hub/world-news",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/APNews",
+          "twitter": "https://twitter.com/AP",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=AP",
+          "logo_small": "https://via.placeholder.com/50?Text=AP",
+          "logo_medium": "https://via.placeholder.com/100?Text=AP"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Associated Press"
+        },
+        "tags": [
+          "international",
+          "wire",
+          "english"
+        ]
+      },
+      {
+        "id": "int-11",
+        "name": "Reuters World News",
+        "description": "Leading international wire service offering timely world news.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "international",
+        "founded": 1851,
+        "headquarters": "London",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["wire", "web"],
+        "coverage": {
+          "international": 9
+        },
+        "contact": {
+          "website": "https://www.reuters.com/world",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/Reuters",
+          "twitter": "https://twitter.com/Reuters",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Reuters",
+          "logo_small": "https://via.placeholder.com/50?Text=Reuters",
+          "logo_medium": "https://via.placeholder.com/100?Text=Reuters"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Thomson Reuters"
+        },
+        "tags": [
+          "international",
+          "wire",
+          "english",
+          "UK"
+        ]
+      },
+      {
+        "id": "int-12",
+        "name": "Al Jazeera English",
+        "description": "News channel providing a Global South perspective on international conflicts.",
+        "type": "newspaper",
+        "country": "QA",
+        "language": "en",
+        "region": "international",
+        "founded": 1996,
+        "headquarters": "Doha",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["TV", "web"],
+        "coverage": {
+          "international": 8
+        },
+        "contact": {
+          "website": "https://www.aljazeera.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/aljazeera",
+          "twitter": "https://twitter.com/ajenglish",
+          "instagram": "https://www.instagram.com/aljazeera/",
+          "youtube": "https://www.youtube.com/aljazeeraenglish",
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Al+Jazeera",
+          "logo_small": "https://via.placeholder.com/50?Text=AJ",
+          "logo_medium": "https://via.placeholder.com/100?Text=Al+Jazeera"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Al Jazeera Media Network"
+        },
+        "tags": [
+          "international",
+          "english",
+          "Global South"
+        ]
+      },
+      {
+        "id": "int-13",
+        "name": "South China Morning Post",
+        "description": "Hong Kong–based newspaper with a China-centric view on global affairs.",
+        "type": "newspaper",
+        "country": "HK",
+        "language": "en",
+        "region": "international",
+        "founded": 1903,
+        "headquarters": "Hong Kong",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["print", "web", "app"],
+        "coverage": {
+          "international": 8
+        },
+        "contact": {
+          "website": "https://www.scmp.com/news/world",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/scmpnews",
+          "twitter": "https://twitter.com/scmpnews",
+          "instagram": "https://www.instagram.com/scmp/",
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=SCMP",
+          "logo_small": "https://via.placeholder.com/50?Text=SCMP",
+          "logo_medium": "https://via.placeholder.com/100?Text=SCMP"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "international",
+          "english",
+          "HK"
+        ]
+      },
+      {
+        "id": "int-14",
+        "name": "The Diplomat",
+        "description": "Online magazine focused on Indo‑Pacific security and regional strategy.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "international",
+        "founded": 2002,
+        "headquarters": "Washington, D.C.",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "international": 8
+        },
+        "contact": {
+          "website": "https://thediplomat.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/thediplomat",
+          "twitter": "https://twitter.com/thediplomat",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Diplomat",
+          "logo_small": "https://via.placeholder.com/50?Text=TD",
+          "logo_medium": "https://via.placeholder.com/100?Text=Diplomat"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "international",
+          "indopacific",
+          "english",
+          "US"
+        ]
+      },
+      {
+        "id": "biz-1",
+        "name": "Financial Times",
+        "description": "Global business daily covering markets, trade, and economic policy.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "business",
+        "founded": 1888,
+        "headquarters": "London",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["print", "web", "app"],
+        "coverage": {
+          "business": 9
+        },
+        "contact": {
+          "website": "https://www.ft.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/FinancialTimes",
+          "twitter": "https://twitter.com/FT",
+          "instagram": "https://www.instagram.com/financialtimes/",
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=FT",
+          "logo_small": "https://via.placeholder.com/50?Text=FT",
+          "logo_medium": "https://via.placeholder.com/100?Text=FT"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Pearson"
+        },
+        "tags": [
+          "business",
+          "international",
+          "english",
+          "UK"
+        ]
+      },
+      {
+        "id": "biz-2",
+        "name": "The Wall Street Journal",
+        "description": "US-based business daily that covers both domestic and international financial news.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "business",
+        "founded": 1889,
+        "headquarters": "New York",
+        "founder": "Charles Dow, Edward Jones, Charles Bergstresser",
+        "premium": true,
+        "formats": ["print", "web", "app"],
+        "coverage": {
+          "business": 9
+        },
+        "contact": {
+          "website": "https://www.wsj.com/news/markets",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/wsj",
+          "twitter": "https://twitter.com/WSJ",
+          "instagram": "https://www.instagram.com/wsj/",
+          "youtube": "https://www.youtube.com/wsj",
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=WSJ",
+          "logo_small": "https://via.placeholder.com/50?Text=WSJ",
+          "logo_medium": "https://via.placeholder.com/100?Text=WSJ"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "News Corp"
+        },
+        "tags": [
+          "business",
+          "international",
+          "english",
+          "US"
+        ]
+      },
+      {
+        "id": "biz-3",
+        "name": "Bloomberg News",
+        "description": "Real-time financial and market reporting on global corporate news.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "business",
+        "founded": null,
+        "headquarters": "New York",
+        "founder": "Michael Bloomberg",
+        "premium": false,
+        "formats": ["web", "app"],
+        "coverage": {
+          "business": 9
+        },
+        "contact": {
+          "website": "https://www.bloomberg.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/Bloomberg",
+          "twitter": "https://twitter.com/business",
+          "instagram": null,
+          "youtube": "https://www.youtube.com/bloomberg",
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Bloomberg",
+          "logo_small": "https://via.placeholder.com/50?Text=BB",
+          "logo_medium": "https://via.placeholder.com/100?Text=Bloomberg"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Bloomberg L.P."
+        },
+        "tags": [
+          "business",
+          "international",
+          "english",
+          "US"
+        ]
+      },
+      {
+        "id": "biz-4",
+        "name": "The Economic Times",
+        "description": "India’s top financial daily offering market news and policy updates.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "en",
+        "region": "business",
+        "founded": 1961,
+        "headquarters": "Mumbai",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "business": 9
+        },
+        "contact": {
+          "website": "https://economictimes.indiatimes.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/EconomicTimes",
+          "twitter": "https://twitter.com/EconTimes",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Econ+Times",
+          "logo_small": "https://via.placeholder.com/50?Text=ET",
+          "logo_medium": "https://via.placeholder.com/100?Text=Econ+Times"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "The Times Group"
+        },
+        "tags": [
+          "business",
+          "english",
+          "IN"
+        ]
+      },
+      {
+        "id": "biz-5",
+        "name": "Mint",
+        "description": "Policy-focused business newspaper known for its macroeconomic coverage in India.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "en",
+        "region": "business",
+        "founded": 2007,
+        "headquarters": "New Delhi",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "business": 8
+        },
+        "contact": {
+          "website": "https://www.livemint.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/livemint",
+          "twitter": "https://twitter.com/livemint",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Mint",
+          "logo_small": "https://via.placeholder.com/50?Text=MT",
+          "logo_medium": "https://via.placeholder.com/100?Text=Mint"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "HT Media"
+        },
+        "tags": [
+          "business",
+          "english",
+          "IN"
+        ]
+      },
+      {
+        "id": "biz-6",
+        "name": "Business Standard",
+        "description": "In-depth analysis of Indian and global markets.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "en",
+        "region": "business",
+        "founded": 1998,
+        "headquarters": "New Delhi",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "business": 8
+        },
+        "contact": {
+          "website": "https://www.business-standard.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/businessstandard",
+          "twitter": "https://twitter.com/bsindia",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Business+Standard",
+          "logo_small": "https://via.placeholder.com/50?Text=BS",
+          "logo_medium": "https://via.placeholder.com/100?Text=Business+Standard"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "business",
+          "english",
+          "IN"
+        ]
+      },
+      {
+        "id": "biz-7",
+        "name": "Nikkei Asia – Markets Section",
+        "description": "Provides insights into Japan, ASEAN markets with focus on China–US trade.",
+        "type": "newspaper",
+        "country": "JP",
+        "language": "en",
+        "region": "business",
+        "founded": null,
+        "headquarters": "Tokyo",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["web", "app"],
+        "coverage": {
+          "business": 8
+        },
+        "contact": {
+          "website": "https://asia.nikkei.com/Markets",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": "https://twitter.com/NikkeiAsia",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Nikkei+Asia",
+          "logo_small": "https://via.placeholder.com/50?Text=NA",
+          "logo_medium": "https://via.placeholder.com/100?Text=Nikkei+Asia"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Nikkei Inc."
+        },
+        "tags": [
+          "business",
+          "english",
+          "JP",
+          "ASEAN"
+        ]
+      },
+      {
+        "id": "biz-8",
+        "name": "Handelsblatt Global",
+        "description": "German/European business daily offering in-depth coverage of fiscal and industrial trends.",
+        "type": "newspaper",
+        "country": "DE",
+        "language": "en",
+        "region": "business",
+        "founded": 1946,
+        "headquarters": "Düsseldorf",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["print", "web"],
+        "coverage": {
+          "business": 8
+        },
+        "contact": {
+          "website": "https://www.handelsblatt.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/handelsblatt",
+          "twitter": "https://twitter.com/handelsblatt",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Handelsblatt",
+          "logo_small": "https://via.placeholder.com/50?Text=HB",
+          "logo_medium": "https://via.placeholder.com/100?Text=Handelsblatt"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "business",
+          "english",
+          "DE"
+        ]
+      },
+      {
+        "id": "tech-1",
+        "name": "TechCrunch",
+        "description": "Global platform covering startups and technological innovations.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "tech",
+        "founded": 2005,
+        "headquarters": "San Francisco",
+        "founder": "Michael Arrington",
+        "premium": false,
+        "formats": ["web", "app"],
+        "coverage": {
+          "tech": 9
+        },
+        "contact": {
+          "website": "https://techcrunch.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/TechCrunch",
+          "twitter": "https://twitter.com/TechCrunch",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=TechCrunch",
+          "logo_small": "https://via.placeholder.com/50?Text=TC",
+          "logo_medium": "https://via.placeholder.com/100?Text=TechCrunch"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Verizon Media"
+        },
+        "tags": [
+          "tech",
+          "english",
+          "startup"
+        ]
+      },
+      {
+        "id": "tech-2",
+        "name": "The Verge",
+        "description": "US-based digital platform covering technology and digital culture.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "tech",
+        "founded": 2011,
+        "headquarters": "New York",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web", "app"],
+        "coverage": {
+          "tech": 8
+        },
+        "contact": {
+          "website": "https://www.theverge.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/theverge",
+          "twitter": "https://twitter.com/verge",
+          "instagram": "https://www.instagram.com/theverge/",
+          "youtube": "https://www.youtube.com/theverge",
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=The+Verge",
+          "logo_small": "https://via.placeholder.com/50?Text=TV",
+          "logo_medium": "https://via.placeholder.com/100?Text=The+Verge"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "tech",
+          "english",
+          "digital"
+        ]
+      },
+      {
+        "id": "tech-3",
+        "name": "Wired",
+        "description": "Magazine covering global technology trends and digital innovation.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "tech",
+        "founded": 1993,
+        "headquarters": "San Francisco",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["print", "web", "app"],
+        "coverage": {
+          "tech": 9
+        },
+        "contact": {
+          "website": "https://www.wired.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/wired",
+          "twitter": "https://twitter.com/Wired",
+          "instagram": "https://www.instagram.com/wired/",
+          "youtube": "https://www.youtube.com/wired",
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Wired",
+          "logo_small": "https://via.placeholder.com/50?Text=WR",
+          "logo_medium": "https://via.placeholder.com/100?Text=Wired"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Condé Nast"
+        },
+        "tags": [
+          "tech",
+          "english"
+        ]
+      },
+      {
+        "id": "tech-4",
+        "name": "CNET",
+        "description": "US-based platform known for consumer tech reviews and news.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "tech",
+        "founded": 1994,
+        "headquarters": "San Francisco",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web", "app"],
+        "coverage": {
+          "tech": 8
+        },
+        "contact": {
+          "website": "https://www.cnet.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/CNET",
+          "twitter": "https://twitter.com/CNET",
+          "instagram": "https://www.instagram.com/cnet/",
+          "youtube": "https://www.youtube.com/cnet",
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=CNET",
+          "logo_small": "https://via.placeholder.com/50?Text=CNET",
+          "logo_medium": "https://via.placeholder.com/100?Text=CNET"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "CBS Interactive"
+        },
+        "tags": [
+          "tech",
+          "english"
+        ]
+      },
+      {
+        "id": "tech-5",
+        "name": "BBC Technology",
+        "description": "Technology section of the BBC covering global tech stories.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "tech",
+        "founded": 1922,
+        "headquarters": "London",
+        "founder": "BBC",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "tech": 8
+        },
+        "contact": {
+          "website": "https://www.bbc.com/news/technology",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/bbcnews",
+          "twitter": "https://twitter.com/BBCNews",
+          "instagram": "https://www.instagram.com/bbcnews",
+          "youtube": "https://www.youtube.com/bbcnews",
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=BBC+Tech",
+          "logo_small": "https://via.placeholder.com/50?Text=BBC+T",
+          "logo_medium": "https://via.placeholder.com/100?Text=BBC+Tech"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "BBC"
+        },
+        "tags": [
+          "tech",
+          "english",
+          "UK"
+        ]
+      },
+      {
+        "id": "tech-6",
+        "name": "Engadget",
+        "description": "Digital media platform offering broad coverage of tech news and reviews.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "tech",
+        "founded": 2004,
+        "headquarters": "New York",
+        "founder": "Peter Rojas",
+        "premium": false,
+        "formats": ["web", "app"],
+        "coverage": {
+          "tech": 8
+        },
+        "contact": {
+          "website": "https://www.engadget.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/engadget",
+          "twitter": "https://twitter.com/engadget",
+          "instagram": null,
+          "youtube": "https://www.youtube.com/engadget",
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Engadget",
+          "logo_small": "https://via.placeholder.com/50?Text=EDG",
+          "logo_medium": "https://via.placeholder.com/100?Text=Engadget"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Yahoo"
+        },
+        "tags": [
+          "tech",
+          "english"
+        ]
+      },
+      {
+        "id": "tech-7",
+        "name": "ZDNet",
+        "description": "Technology news site focusing on business and enterprise IT.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "tech",
+        "founded": 1991,
+        "headquarters": "New York",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "tech": 8
+        },
+        "contact": {
+          "website": "https://www.zdnet.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/zdnet",
+          "twitter": "https://twitter.com/zdnet",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=ZDNet",
+          "logo_small": "https://via.placeholder.com/50?Text=ZD",
+          "logo_medium": "https://via.placeholder.com/100?Text=ZDNet"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "CBS Interactive"
+        },
+        "tags": [
+          "tech",
+          "english"
+        ]
+      },
+      {
+        "id": "tech-8",
+        "name": "MIT Technology Review",
+        "description": "In-depth analysis of emerging technological trends.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "tech",
+        "founded": 1899,
+        "headquarters": "Cambridge, MA",
+        "founder": "MIT",
+        "premium": true,
+        "formats": ["print", "web", "app"],
+        "coverage": {
+          "tech": 9
+        },
+        "contact": {
+          "website": "https://www.technologyreview.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/technologyreview",
+          "twitter": "https://twitter.com/TechReview",
+          "instagram": null,
+          "youtube": "https://www.youtube.com/technologyreview",
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=MIT+Tech+Review",
+          "logo_small": "https://via.placeholder.com/50?Text=MTR",
+          "logo_medium": "https://via.placeholder.com/100?Text=MIT+Tech+Review"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "MIT"
+        },
+        "tags": [
+          "tech",
+          "english",
+          "innovation"
+        ]
+      },
+      {
+        "id": "tech-9",
+        "name": "YourStory",
+        "description": "Indian digital publication covering startups and tech entrepreneurship.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "en",
+        "region": "tech",
+        "founded": 2008,
+        "headquarters": "Mumbai",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "tech": 8
+        },
+        "contact": {
+          "website": "https://yourstory.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/yourstory",
+          "twitter": "https://twitter.com/YourStory",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=YourStory",
+          "logo_small": "https://via.placeholder.com/50?Text=YS",
+          "logo_medium": "https://via.placeholder.com/100?Text=YourStory"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "tech",
+          "startup",
+          "english",
+          "IN"
+        ]
+      },
+      {
+        "id": "tech-10",
+        "name": "Inc42",
+        "description": "Indian platform covering technology and startup ecosystem news.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "en",
+        "region": "tech",
+        "founded": 2011,
+        "headquarters": "Mumbai",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "tech": 8
+        },
+        "contact": {
+          "website": "https://inc42.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/inc42",
+          "twitter": "https://twitter.com/inc42",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Inc42",
+          "logo_small": "https://via.placeholder.com/50?Text=I42",
+          "logo_medium": "https://via.placeholder.com/100?Text=Inc42"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "tech",
+          "startup",
+          "english",
+          "IN"
+        ]
+      },
+      {
+        "id": "tech-11",
+        "name": "Economic Times Tech",
+        "description": "Technology section of The Economic Times focusing on digital innovations in India.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "en",
+        "region": "tech",
+        "founded": null,
+        "headquarters": "Mumbai",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "tech": 8
+        },
+        "contact": {
+          "website": "https://economictimes.indiatimes.com/tech",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": "https://twitter.com/eti_tech",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=ET+Tech",
+          "logo_small": "https://via.placeholder.com/50?Text=ETT",
+          "logo_medium": "https://via.placeholder.com/100?Text=ET+Tech"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "The Times Group"
+        },
+        "tags": [
+          "tech",
+          "english",
+          "IN"
+        ]
+      },
+      {
+        "id": "tech-12",
+        "name": "Gadgets 360",
+        "description": "Indian website offering tech reviews and news on the latest gadgets.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "en",
+        "region": "tech",
+        "founded": null,
+        "headquarters": "New Delhi",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "tech": 7
+        },
+        "contact": {
+          "website": "https://gadgets.ndtv.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/NDTVgadgets360",
+          "twitter": "https://twitter.com/NDTVgadgets",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Gadgets+360",
+          "logo_small": "https://via.placeholder.com/50?Text=G360",
+          "logo_medium": "https://via.placeholder.com/100?Text=Gadgets+360"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "NDTV"
+        },
+        "tags": [
+          "tech",
+          "english",
+          "IN"
+        ]
+      },
+      {
+        "id": "tech-13",
+        "name": "TechShohor",
+        "description": "Bilingual (Bengali/English) tech platform from Bangladesh covering local and international news.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn/en",
+        "region": "tech",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "tech": 7
+        },
+        "contact": {
+          "website": "https://techshohor.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=TechShohor",
+          "logo_small": "https://via.placeholder.com/50?Text=TS",
+          "logo_medium": "https://via.placeholder.com/100?Text=TechShohor"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "tech",
+          "bangla",
+          "BD"
+        ]
+      },
+      {
+        "id": "tech-14",
+        "name": "Priyo Tech",
+        "description": "Bangladeshi platform dedicated to technology developments.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn/en",
+        "region": "tech",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "tech": 7
+        },
+        "contact": {
+          "website": "https://tech.priyo.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Priyo+Tech",
+          "logo_small": "https://via.placeholder.com/50?Text=PT",
+          "logo_medium": "https://via.placeholder.com/100?Text=Priyo+Tech"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "tech",
+          "bangla",
+          "BD"
+        ]
+      },
+      {
+        "id": "tech-15",
+        "name": "BDTechWorld",
+        "description": "Platform covering technology trends and news from Bangladesh.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "en",
+        "region": "tech",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "tech": 7
+        },
+        "contact": {
+          "website": "https://bdtechworld.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=BDTechWorld",
+          "logo_small": "https://via.placeholder.com/50?Text=BDTW",
+          "logo_medium": "https://via.placeholder.com/100?Text=BDTechWorld"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "tech",
+          "english",
+          "BD"
+        ]
+      },
+      {
+        "id": "tech-16",
+        "name": "Technode",
+        "description": "Platform focused on China’s tech innovation and startup scene.",
+        "type": "newspaper",
+        "country": "CN",
+        "language": "en",
+        "region": "tech",
+        "founded": 2010,
+        "headquarters": "Shanghai",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "tech": 8
+        },
+        "contact": {
+          "website": "https://technode.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": "https://twitter.com/Technode",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Technode",
+          "logo_small": "https://via.placeholder.com/50?Text=TN",
+          "logo_medium": "https://via.placeholder.com/100?Text=Technode"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "tech",
+          "english",
+          "CN"
+        ]
+      },
+      {
+        "id": "tech-17",
+        "name": "Caixin Global – Tech",
+        "description": "Merges technology and economic news from China.",
+        "type": "newspaper",
+        "country": "CN",
+        "language": "en",
+        "region": "tech",
+        "founded": null,
+        "headquarters": "Beijing",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "tech": 8
+        },
+        "contact": {
+          "website": "https://www.caixinglobal.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Caixin+Tech",
+          "logo_small": "https://via.placeholder.com/50?Text=CTX",
+          "logo_medium": "https://via.placeholder.com/100?Text=Caixin+Tech"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Caixin Media"
+        },
+        "tags": [
+          "tech",
+          "english",
+          "CN"
+        ]
+      },
+      {
+        "id": "tech-18",
+        "name": "KoreaTechDesk",
+        "description": "South Korean digital platform covering startups and technology.",
+        "type": "newspaper",
+        "country": "KR",
+        "language": "en",
+        "region": "tech",
+        "founded": null,
+        "headquarters": "Seoul",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "tech": 8
+        },
+        "contact": {
+          "website": "https://www.koreatechdesk.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": "https://twitter.com/koreatechdesk",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=KoreaTechDesk",
+          "logo_small": "https://via.placeholder.com/50?Text=KTD",
+          "logo_medium": "https://via.placeholder.com/100?Text=KoreaTechDesk"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "tech",
+          "english",
+          "KR"
+        ]
+      },
+      {
+        "id": "sport-1",
+        "name": "Krira Protidin",
+        "description": "Bangladeshi daily sports newspaper focused on local athletics.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn",
+        "region": "sports",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "sports": 8
+        },
+        "contact": {
+          "website": "N/A",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Krira+Protidin",
+          "logo_small": "https://via.placeholder.com/50?Text=KP",
+          "logo_medium": "https://via.placeholder.com/100?Text=Krira+Protidin"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "sports",
+          "bangla",
+          "BD"
+        ]
+      },
+      {
+        "id": "sport-2",
+        "name": "Krira Bichitra",
+        "description": "Bengali monthly magazine dedicated to sports.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn",
+        "region": "sports",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "sports": 7
+        },
+        "contact": {
+          "website": "N/A",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Krira+Bichitra",
+          "logo_small": "https://via.placeholder.com/50?Text=KB",
+          "logo_medium": "https://via.placeholder.com/100?Text=Krira+Bichitra"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "sports",
+          "bangla",
+          "BD"
+        ]
+      },
+      {
+        "id": "sport-3",
+        "name": "The Cricketer",
+        "description": "The world’s oldest cricket magazine featuring in-depth cricket journalism.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "sports",
+        "founded": 1921,
+        "headquarters": "London",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["print", "web"],
+        "coverage": {
+          "sports": 9
+        },
+        "contact": {
+          "website": "https://www.thecricketer.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/thecricketer",
+          "twitter": "https://twitter.com/thecricketer",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=The+Cricketer",
+          "logo_small": "https://via.placeholder.com/50?Text=TC",
+          "logo_medium": "https://via.placeholder.com/100?Text=The+Cricketer"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "cricket",
+          "sports",
+          "UK",
+          "english"
+        ]
+      },
+      {
+        "id": "sport-4",
+        "name": "World Soccer",
+        "description": "Prestigious monthly magazine focusing on football.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "sports",
+        "founded": 1960,
+        "headquarters": "London",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["print", "web"],
+        "coverage": {
+          "sports": 8
+        },
+        "contact": {
+          "website": "https://www.worldsoccer.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/worldsoccer",
+          "twitter": "https://twitter.com/worldsoccer",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=World+Soccer",
+          "logo_small": "https://via.placeholder.com/50?Text=WS",
+          "logo_medium": "https://via.placeholder.com/100?Text=World+Soccer"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "football",
+          "sports",
+          "UK",
+          "english"
+        ]
+      },
+      {
+        "id": "sport-5",
+        "name": "Rugby World",
+        "description": "Magazine featuring comprehensive coverage of rugby and some cricket.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "sports",
+        "founded": null,
+        "headquarters": "London",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "sports": 7
+        },
+        "contact": {
+          "website": "N/A",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Rugby+World",
+          "logo_small": "https://via.placeholder.com/50?Text=RW",
+          "logo_medium": "https://via.placeholder.com/100?Text=Rugby+World"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "rugby",
+          "sports",
+          "UK",
+          "english"
+        ]
+      },
+      {
+        "id": "sport-6",
+        "name": "Sports Illustrated India",
+        "description": "Indian edition of the iconic Sports Illustrated magazine.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "en",
+        "region": "sports",
+        "founded": null,
+        "headquarters": "Mumbai",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["print", "web"],
+        "coverage": {
+          "sports": 8
+        },
+        "contact": {
+          "website": "https://www.si.com/in",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/SIIndia",
+          "twitter": "https://twitter.com/si_in",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=SI+India",
+          "logo_small": "https://via.placeholder.com/50?Text=SI",
+          "logo_medium": "https://via.placeholder.com/100?Text=SI+India"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Sports Illustrated"
+        },
+        "tags": [
+          "sports",
+          "english",
+          "IN"
+        ]
+      },
+      {
+        "id": "sport-7",
+        "name": "Cricket Today",
+        "description": "Monthly magazine featuring in-depth cricket analysis from India.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "en",
+        "region": "sports",
+        "founded": null,
+        "headquarters": "New Delhi",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "sports": 7
+        },
+        "contact": {
+          "website": "N/A",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Cricket+Today",
+          "logo_small": "https://via.placeholder.com/50?Text=CT",
+          "logo_medium": "https://via.placeholder.com/100?Text=Cricket+Today"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "cricket",
+          "sports",
+          "english",
+          "IN"
+        ]
+      },
+      {
+        "id": "sport-8",
+        "name": "Cricket Addictor",
+        "description": "Digital platform offering aggressive coverage of cricket news worldwide.",
+        "type": "newspaper",
+        "country": "Global",
+        "language": "en",
+        "region": "sports",
+        "founded": null,
+        "headquarters": "N/A",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "sports": 8
+        },
+        "contact": {
+          "website": "https://cricketaddictor.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/cricketaddictor",
+          "twitter": "https://twitter.com/cricketaddictor",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Cricket+Addictor",
+          "logo_small": "https://via.placeholder.com/50?Text=CA",
+          "logo_medium": "https://via.placeholder.com/100?Text=Cricket+Addictor"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "cricket",
+          "digital",
+          "sports"
+        ]
+      },
+      {
+        "id": "sport-9",
+        "name": "Cricket Australia Magazine",
+        "description": "Digital edition offering insights on Australian cricket.",
+        "type": "newspaper",
+        "country": "AU",
+        "language": "en",
+        "region": "sports",
+        "founded": null,
+        "headquarters": "Sydney",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "sports": 7
+        },
+        "contact": {
+          "website": "N/A",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Cricket+Aus+Mag",
+          "logo_small": "https://via.placeholder.com/50?Text=CAM",
+          "logo_medium": "https://via.placeholder.com/100?Text=Cricket+Aus+Mag"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "cricket",
+          "sports",
+          "AU",
+          "english"
+        ]
+      },
+      {
+        "id": "sport-10",
+        "name": "These Football Times",
+        "description": "Digital publication known for long-form football journalism.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "sports",
+        "founded": null,
+        "headquarters": "London",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "sports": 7
+        },
+        "contact": {
+          "website": "https://thesefootballtimes.co/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": "https://twitter.com/theseft",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=These+Football+Times",
+          "logo_small": "https://via.placeholder.com/50?Text=TFT",
+          "logo_medium": "https://via.placeholder.com/100?Text=These+Football+Times"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "football",
+          "sports",
+          "UK",
+          "english"
+        ]
+      },
+      {
+        "id": "sport-11",
+        "name": "Football365",
+        "description": "Online platform offering in-depth football news and analysis.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "sports",
+        "founded": null,
+        "headquarters": "London",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "sports": 7
+        },
+        "contact": {
+          "website": "https://www.football365.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/football365",
+          "twitter": "https://twitter.com/football365",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Football365",
+          "logo_small": "https://via.placeholder.com/50?Text=F365",
+          "logo_medium": "https://via.placeholder.com/100?Text=Football365"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "football",
+          "sports",
+          "UK",
+          "english"
+        ]
+      },
+      {
+        "id": "sport-12",
+        "name": "BdCricketTalk",
+        "description": "Fan-driven platform covering Bangladeshi cricket in both Bangla and English.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn/en",
+        "region": "sports",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "sports": 7
+        },
+        "contact": {
+          "website": "https://bdcrickettalk.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/BdCricketTalk",
+          "twitter": "https://twitter.com/BdCricketTalk",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=BdCricketTalk",
+          "logo_small": "https://via.placeholder.com/50?Text=BCT",
+          "logo_medium": "https://via.placeholder.com/100?Text=BdCricketTalk"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "cricket",
+          "sports",
+          "BD",
+          "digital"
+        ]
+      },
+      {
+        "id": "sport-13",
+        "name": "The Nightwatchman",
+        "description": "Niche cricket journalism site offering long-form narrative coverage.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "sports",
+        "founded": null,
+        "headquarters": "London",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["web"],
+        "coverage": {
+          "sports": 7
+        },
+        "contact": {
+          "website": "https://thenightwatchman.net/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/thenightwatchman",
+          "twitter": "https://twitter.com/thenightwatchman",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Nightwatchman",
+          "logo_small": "https://via.placeholder.com/50?Text=NW",
+          "logo_medium": "https://via.placeholder.com/100?Text=Nightwatchman"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "cricket",
+          "sports",
+          "UK",
+          "english"
+        ]
+      },
+      {
+        "id": "sport-14",
+        "name": "All Out Cricket",
+        "description": "Monthly UK publication focusing on cricket analysis.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "sports",
+        "founded": null,
+        "headquarters": "UK",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "sports": 7
+        },
+        "contact": {
+          "website": "N/A",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=All+Out+Cricket",
+          "logo_small": "https://via.placeholder.com/50?Text=AOC",
+          "logo_medium": "https://via.placeholder.com/100?Text=All+Out+Cricket"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "cricket",
+          "sports",
+          "UK",
+          "english"
+        ]
+      },
+      {
+        "id": "sport-15",
+        "name": "SoccerBible",
+        "description": "Website exploring culture-focused football coverage.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "sports",
+        "founded": null,
+        "headquarters": "UK",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "sports": 7
+        },
+        "contact": {
+          "website": "https://soccerbible.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/soccerbible",
+          "twitter": "https://twitter.com/soccerbible",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=SoccerBible",
+          "logo_small": "https://via.placeholder.com/50?Text=SB",
+          "logo_medium": "https://via.placeholder.com/100?Text=SoccerBible"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "football",
+          "sports",
+          "UK",
+          "english"
+        ]
+      },
+      {
+        "id": "sport-16",
+        "name": "The Blizzard",
+        "description": "Quarterly football journal offering analytical and cultural insights.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "sports",
+        "founded": null,
+        "headquarters": "UK",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["print", "web"],
+        "coverage": {
+          "sports": 7
+        },
+        "contact": {
+          "website": "https://www.theblizzard.co.uk/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/theblizzard",
+          "twitter": "https://twitter.com/theblizzard",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=The+Blizzard",
+          "logo_small": "https://via.placeholder.com/50?Text=TB",
+          "logo_medium": "https://via.placeholder.com/100?Text=The+Blizzard"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "football",
+          "sports",
+          "UK",
+          "english"
+        ]
+      },
+      {
+        "id": "ent-1",
+        "name": "The Hollywood Reporter",
+        "description": "US publication offering in-depth coverage of the entertainment industry.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "entertainment",
+        "founded": 1930,
+        "headquarters": "Los Angeles",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["print", "web", "app"],
+        "coverage": {
+          "entertainment": 9
+        },
+        "contact": {
+          "website": "https://www.hollywoodreporter.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/thehollywoodreporter",
+          "twitter": "https://twitter.com/THR",
+          "instagram": "https://www.instagram.com/thehollywoodreporter/",
+          "youtube": "https://www.youtube.com/thehollywoodreporter",
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=THR",
+          "logo_small": "https://via.placeholder.com/50?Text=THR",
+          "logo_medium": "https://via.placeholder.com/100?Text=THR"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "entertainment",
+          "english",
+          "US"
+        ]
+      },
+      {
+        "id": "ent-2",
+        "name": "Variety",
+        "description": "US entertainment daily covering film, TV, and media industry trends.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "entertainment",
+        "founded": 1905,
+        "headquarters": "Los Angeles",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["print", "web"],
+        "coverage": {
+          "entertainment": 9
+        },
+        "contact": {
+          "website": "https://variety.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/variety",
+          "twitter": "https://twitter.com/variety",
+          "instagram": "https://www.instagram.com/variety/",
+          "youtube": "https://www.youtube.com/variety",
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Variety",
+          "logo_small": "https://via.placeholder.com/50?Text=VAR",
+          "logo_medium": "https://via.placeholder.com/100?Text=Variety"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "entertainment",
+          "english",
+          "US"
+        ]
+      },
+      {
+        "id": "ent-3",
+        "name": "Deadline",
+        "description": "US-based publication known for breaking entertainment and media news.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "entertainment",
+        "founded": 2006,
+        "headquarters": "Los Angeles",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["web"],
+        "coverage": {
+          "entertainment": 8
+        },
+        "contact": {
+          "website": "https://deadline.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/deadline",
+          "twitter": "https://twitter.com/deadline",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Deadline",
+          "logo_small": "https://via.placeholder.com/50?Text=DL",
+          "logo_medium": "https://via.placeholder.com/100?Text=Deadline"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "entertainment",
+          "english",
+          "US"
+        ]
+      },
+      {
+        "id": "ent-4",
+        "name": "Screen International",
+        "description": "UK/Global film and television industry publication.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "entertainment",
+        "founded": 1972,
+        "headquarters": "London",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["print", "web"],
+        "coverage": {
+          "entertainment": 8
+        },
+        "contact": {
+          "website": "https://www.screendaily.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/screendaily",
+          "twitter": "https://twitter.com/screendaily",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Screen+International",
+          "logo_small": "https://via.placeholder.com/50?Text=SI",
+          "logo_medium": "https://via.placeholder.com/100?Text=Screen+International"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "entertainment",
+          "english",
+          "UK"
+        ]
+      },
+      {
+        "id": "ent-5",
+        "name": "IndieWire",
+        "description": "Digital outlet for independent film and television news.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "entertainment",
+        "founded": 1996,
+        "headquarters": "Los Angeles",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "entertainment": 8
+        },
+        "contact": {
+          "website": "https://www.indiewire.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/indiewire",
+          "twitter": "https://twitter.com/indiewire",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=IndieWire",
+          "logo_small": "https://via.placeholder.com/50?Text=IW",
+          "logo_medium": "https://via.placeholder.com/100?Text=IndieWire"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "entertainment",
+          "english",
+          "digital"
+        ]
+      },
+      {
+        "id": "ent-6",
+        "name": "Collider",
+        "description": "Online platform delivering entertainment news and film reviews.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "entertainment",
+        "founded": null,
+        "headquarters": "Los Angeles",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "entertainment": 8
+        },
+        "contact": {
+          "website": "https://collider.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/collider",
+          "twitter": "https://twitter.com/Collider",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Collider",
+          "logo_small": "https://via.placeholder.com/50?Text=COL",
+          "logo_medium": "https://via.placeholder.com/100?Text=Collider"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "entertainment",
+          "english",
+          "digital"
+        ]
+      },
+      {
+        "id": "ent-7",
+        "name": "Pinkvilla",
+        "description": "Leading Indian digital platform for entertainment news.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "en",
+        "region": "entertainment",
+        "founded": null,
+        "headquarters": "Mumbai",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "entertainment": 8
+        },
+        "contact": {
+          "website": "https://www.pinkvilla.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/Pinkvilla",
+          "twitter": "https://twitter.com/pinkvilla",
+          "instagram": "https://www.instagram.com/pinkvilla/",
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Pinkvilla",
+          "logo_small": "https://via.placeholder.com/50?Text=PV",
+          "logo_medium": "https://via.placeholder.com/100?Text=Pinkvilla"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "entertainment",
+          "english",
+          "IN"
+        ]
+      },
+      {
+        "id": "ent-8",
+        "name": "Bollywood Hungama",
+        "description": "Indian website focusing on Bollywood and mainstream entertainment news.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "en",
+        "region": "entertainment",
+        "founded": null,
+        "headquarters": "Mumbai",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "entertainment": 8
+        },
+        "contact": {
+          "website": "https://www.bollywoodhungama.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/bollywoodhungama",
+          "twitter": "https://twitter.com/bollyhungama",
+          "instagram": "https://www.instagram.com/bollywoodhungama/",
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Bollywood+Hungama",
+          "logo_small": "https://via.placeholder.com/50?Text=BH",
+          "logo_medium": "https://via.placeholder.com/100?Text=Bollywood+Hungama"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "entertainment",
+          "english",
+          "IN"
+        ]
+      },
+      {
+        "id": "ent-9",
+        "name": "Channel i Online – Entertainment",
+        "description": "Bangladeshi digital platform covering entertainment and lifestyle.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn/en",
+        "region": "entertainment",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "entertainment": 7
+        },
+        "contact": {
+          "website": "https://channelionline.com/entertainment/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/channelionline",
+          "twitter": "https://twitter.com/channelionline",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Channel+i+Online",
+          "logo_small": "https://via.placeholder.com/50?Text=CIO",
+          "logo_medium": "https://via.placeholder.com/100?Text=Channel+i+Online"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "entertainment",
+          "digital",
+          "BD"
+        ]
+      },
+      {
+        "id": "pol-1",
+        "name": "Defense News",
+        "description": "Covers global military budgets, arms deals, and conflicts.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "defense",
+        "founded": null,
+        "headquarters": "N/A",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "defense": 9
+        },
+        "contact": {
+          "website": "https://www.defensenews.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/DefenseNews",
+          "twitter": "https://twitter.com/DefenseNews",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Defense+News",
+          "logo_small": "https://via.placeholder.com/50?Text=DN",
+          "logo_medium": "https://via.placeholder.com/100?Text=Defense+News"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Gannett"
+        },
+        "tags": [
+          "defense",
+          "military",
+          "international",
+          "english"
+        ]
+      },
+      {
+        "id": "pol-2",
+        "name": "Janes Defence Weekly",
+        "description": "Trusted military analysis and defense technology publication since 1898.",
+        "type": "newspaper",
+        "country": "UK",
+        "language": "en",
+        "region": "defense",
+        "founded": 1898,
+        "headquarters": "London",
+        "founder": "N/A",
+        "premium": true,
+        "formats": ["print", "web"],
+        "coverage": {
+          "defense": 9
+        },
+        "contact": {
+          "website": "https://www.janes.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/janesdefence",
+          "twitter": "https://twitter.com/janes",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Janes",
+          "logo_small": "https://via.placeholder.com/50?Text=JDW",
+          "logo_medium": "https://via.placeholder.com/100?Text=Janes+Defence"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "IHS Markit"
+        },
+        "tags": [
+          "defense",
+          "military",
+          "english",
+          "UK"
+        ]
+      },
+      {
+        "id": "pol-3",
+        "name": "The Defense Post",
+        "description": "Focuses on international conflicts, NATO updates, and military analysis.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "defense",
+        "founded": null,
+        "headquarters": "N/A",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "defense": 8
+        },
+        "contact": {
+          "website": "https://www.thedefensepost.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/thedefensepost",
+          "twitter": "https://twitter.com/thedefensepost",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Defense+Post",
+          "logo_small": "https://via.placeholder.com/50?Text=DP",
+          "logo_medium": "https://via.placeholder.com/100?Text=Defense+Post"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "defense",
+          "military",
+          "english",
+          "US"
+        ]
+      },
+      {
+        "id": "pol-4",
+        "name": "Military Times",
+        "description": "Covers U.S. military policy, veterans affairs, and procurement news.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "defense",
+        "founded": null,
+        "headquarters": "N/A",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "defense": 8
+        },
+        "contact": {
+          "website": "https://militarytimes.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/MilitaryTimes",
+          "twitter": "https://twitter.com/MilitaryTimes",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Military+Times",
+          "logo_small": "https://via.placeholder.com/50?Text=MT",
+          "logo_medium": "https://via.placeholder.com/100?Text=Military+Times"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "Part of the Gannett Company"
+        },
+        "tags": [
+          "defense",
+          "military",
+          "english",
+          "US"
+        ]
+      },
+      {
+        "id": "pol-5",
+        "name": "Force Magazine",
+        "description": "Covers Indian military modernization and regional security issues.",
+        "type": "newspaper",
+        "country": "IN",
+        "language": "en",
+        "region": "defense",
+        "founded": null,
+        "headquarters": "New Delhi",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "defense": 8
+        },
+        "contact": {
+          "website": "https://www.forceindia.net/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": "https://twitter.com/ForceIndia",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Force+Magazine",
+          "logo_small": "https://via.placeholder.com/50?Text=FM",
+          "logo_medium": "https://via.placeholder.com/100?Text=Force+Magazine"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "defense",
+          "military",
+          "english",
+          "IN"
+        ]
+      },
+      {
+        "id": "pol-6",
+        "name": "Defence Bangladesh",
+        "description": "Reports on Bangladesh Armed Forces and UN peacekeeping efforts.",
+        "type": "newspaper",
+        "country": "BD",
+        "language": "bn/en",
+        "region": "defense",
+        "founded": null,
+        "headquarters": "Dhaka",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["print", "web"],
+        "coverage": {
+          "defense": 8
+        },
+        "contact": {
+          "website": "https://defencebangla.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Defence+Bangladesh",
+          "logo_small": "https://via.placeholder.com/50?Text=DB",
+          "logo_medium": "https://via.placeholder.com/100?Text=Defence+Bangladesh"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "defense",
+          "military",
+          "bangla",
+          "BD"
+        ]
+      },
+      {
+        "id": "pol-7",
+        "name": "Syria Direct",
+        "description": "Ground reporting from conflict zones in Syria, Yemen, and Libya.",
+        "type": "newspaper",
+        "country": "N/A",
+        "language": "en",
+        "region": "defense",
+        "founded": null,
+        "headquarters": "N/A",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "defense": 7
+        },
+        "contact": {
+          "website": "https://syriadirect.org/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/syria.direct",
+          "twitter": "https://twitter.com/syria_direct",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Syria+Direct",
+          "logo_small": "https://via.placeholder.com/50?Text=SD",
+          "logo_medium": "https://via.placeholder.com/100?Text=Syria+Direct"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "defense",
+          "conflict",
+          "english"
+        ]
+      },
+      {
+        "id": "pol-8",
+        "name": "Kyiv Independent",
+        "description": "Frontline dispatches and independent reporting from the Ukraine conflict.",
+        "type": "newspaper",
+        "country": "UA",
+        "language": "en",
+        "region": "defense",
+        "founded": 2014,
+        "headquarters": "Kyiv",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "defense": 8
+        },
+        "contact": {
+          "website": "https://kyivindependent.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/kyivindependent",
+          "twitter": "https://twitter.com/kyivindependent",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=Kyiv+Independent",
+          "logo_small": "https://via.placeholder.com/50?Text=KI",
+          "logo_medium": "https://via.placeholder.com/100?Text=Kyiv+Independent"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "defense",
+          "conflict",
+          "english",
+          "UA"
+        ]
+      },
+      {
+        "id": "pol-9",
+        "name": "USNI News",
+        "description": "News from the U.S. Naval Institute focusing on military and diplomatic matters.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "defense",
+        "founded": null,
+        "headquarters": "N/A",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "defense": 8
+        },
+        "contact": {
+          "website": "https://news.usni.org/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/USNInews",
+          "twitter": "https://twitter.com/usninews",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=USNI+News",
+          "logo_small": "https://via.placeholder.com/50?Text=USNI",
+          "logo_medium": "https://via.placeholder.com/100?Text=USNI+News"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "US Naval Institute"
+        },
+        "tags": [
+          "defense",
+          "military",
+          "english",
+          "US"
+        ]
+      },
+      {
+        "id": "pol-10",
+        "name": "War on the Rocks",
+        "description": "Think tank–style analysis of geopolitics, military strategy, and national security.",
+        "type": "newspaper",
+        "country": "US",
+        "language": "en",
+        "region": "defense",
+        "founded": null,
+        "headquarters": "Washington, D.C.",
+        "founder": "N/A",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": {
+          "defense": 8
+        },
+        "contact": {
+          "website": "https://warontherocks.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/warontherocks",
+          "twitter": "https://twitter.com/warontherocks",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150?Text=War+on+the+Rocks",
+          "logo_small": "https://via.placeholder.com/50?Text=WOTR",
+          "logo_medium": "https://via.placeholder.com/100?Text=War+on+the+Rocks"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "N/A",
+          "parent_company": "N/A"
+        },
+        "tags": [
+          "defense",
+          "analysis",
+          "english",
+          "US"
+        ]
+      },{
+        "id": "bd-blog-1",
+        "name": "TechShohor",
+        "description": "Leading Bangladeshi blog covering tech news, gadgets, and IT updates.",
+        "type": "blog",
+        "country": "BD",
+        "language": "bn",
+        "region": "national",
+        "founded": 2013,
+        "headquarters": "Dhaka",
+        "founder": "Technobd Web Solutions",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": { "national": 7 },
+        "contact": {
+          "website": "https://techshohor.com/",
+          "email": "info@techshohor.com",
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/techshohor",
+          "twitter": "https://twitter.com/techshohor",
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150/007bff/ffffff?Text=TechShohor",
+          "logo_small": "https://via.placeholder.com/50/007bff/ffffff?Text=TS",
+          "logo_medium": "https://via.placeholder.com/100/007bff/ffffff?Text=TechShohor"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "Popular tech blog",
+          "parent_company": null
+        },
+        "tags": ["all", "blog", "tech"]
+      },
+      {
+        "id": "bd-blog-2",
+        "name": "Somewherein Blog",
+        "description": "Largest Bangla blogging platform for writers, poets, and thinkers.",
+        "type": "blog",
+        "country": "BD",
+        "language": "bn",
+        "region": "national",
+        "founded": 2005,
+        "headquarters": "Dhaka",
+        "founder": "Somewherein.net",
+        "premium": false,
+        "formats": ["web"],
+        "coverage": { "national": 8 },
+        "contact": {
+          "website": "https://www.somewhereinblog.net/",
+          "email": "support@somewherein.net",
+          "phone": null
+        },
+        "social": {
+          "facebook": null,
+          "twitter": null,
+          "instagram": null,
+          "youtube": null,
+          "linkedin": null
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150/007bff/ffffff?Text=Somewherein",
+          "logo_small": "https://via.placeholder.com/50/007bff/ffffff?Text=SB",
+          "logo_medium": "https://via.placeholder.com/100/007bff/ffffff?Text=Somewherein"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "Top Bangla blogging site",
+          "parent_company": null
+        },
+        "tags": ["all", "blog", "bengali"]
+      },
+      {
+        "id": "us-blog-1",
+        "name": "TechCrunch",
+        "description": "Leading tech blog focused on startups, gadgets, and Silicon Valley.",
+        "type": "blog",
+        "country": "US",
+        "language": "en",
+        "region": "international",
+        "founded": 2005,
+        "headquarters": "San Francisco",
+        "founder": "Michael Arrington",
+        "premium": true,
+        "formats": ["web", "app"],
+        "coverage": { "international": 10 },
+        "contact": {
+          "website": "https://techcrunch.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/techcrunch",
+          "twitter": "https://twitter.com/techcrunch",
+          "instagram": "https://instagram.com/techcrunch",
+          "youtube": "https://www.youtube.com/user/techcrunch",
+          "linkedin": "https://linkedin.com/company/techcrunch"
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150/007bff/ffffff?Text=TechCrunch",
+          "logo_small": "https://via.placeholder.com/50/007bff/ffffff?Text=TC",
+          "logo_medium": "https://via.placeholder.com/100/007bff/ffffff?Text=TechCrunch"
+        },
+        "metadata": {
+          "awards": ["Webby Awards"],
+          "circulation": "Global",
+          "parent_company": "Verizon Media"
+        },
+        "tags": ["all", "blog", "tech"]
+      },
+      {
+        "id": "us-blog-2",
+        "name": "Mashable",
+        "description": "Global multi-platform media and entertainment company.",
+        "type": "blog",
+        "country": "US",
+        "language": "en",
+        "region": "international",
+        "founded": 2005,
+        "headquarters": "New York City",
+        "founder": "Pete Cashmore",
+        "premium": true,
+        "formats": ["web", "app"],
+        "coverage": { "international": 10 },
+        "contact": {
+          "website": "https://mashable.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/mashable",
+          "twitter": "https://twitter.com/mashable",
+          "instagram": "https://instagram.com/mashable",
+          "youtube": "https://www.youtube.com/user/mashable",
+          "linkedin": "https://linkedin.com/company/mashable"
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150/007bff/ffffff?Text=Mashable",
+          "logo_small": "https://via.placeholder.com/50/007bff/ffffff?Text=MA",
+          "logo_medium": "https://via.placeholder.com/100/007bff/ffffff?Text=Mashable"
+        },
+        "metadata": {
+          "awards": ["Webby Awards"],
+          "circulation": "Global",
+          "parent_company": "Ziff Davis"
+        },
+        "tags": ["all", "blog", "entertainment"]
+      },
+      {
+        "id": "global-blog-1",
+        "name": "Medium",
+        "description": "Online publishing platform open to amateur and professional writers.",
+        "type": "blog",
+        "country": "US",
+        "language": "en",
+        "region": "international",
+        "founded": 2012,
+        "headquarters": "San Francisco",
+        "founder": "Evan Williams",
+        "premium": true,
+        "formats": ["web", "app"],
+        "coverage": { "international": 10 },
+        "contact": {
+          "website": "https://medium.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/medium",
+          "twitter": "https://twitter.com/medium",
+          "instagram": "https://instagram.com/medium",
+          "youtube": null,
+          "linkedin": "https://linkedin.com/company/medium"
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150/007bff/ffffff?Text=Medium",
+          "logo_small": "https://via.placeholder.com/50/007bff/ffffff?Text=ME",
+          "logo_medium": "https://via.placeholder.com/100/007bff/ffffff?Text=Medium"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "Global",
+          "parent_company": "A Medium Corporation"
+        },
+        "tags": ["all", "blog", "writing"]
+      },
+      {
+        "id": "global-blog-2",
+        "name": "Creative Bloq",
+        "description": "Creative Bloq delivers daily inspiration for digital artists, web designers, and graphic designers.",
+        "type": "blog",
+        "country": "UK",
+        "language": "en",
+        "region": "international",
+        "founded": 2012,
+        "headquarters": "Bath, UK",
+        "founder": "Future plc",
+        "premium": true,
+        "formats": ["web"],
+        "coverage": { "international": 9 },
+        "contact": {
+          "website": "https://www.creativebloq.com/",
+          "email": null,
+          "phone": null
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/creativebloq",
+          "twitter": "https://twitter.com/creativebloq",
+          "instagram": "https://instagram.com/creativebloq",
+          "youtube": null,
+          "linkedin": "https://linkedin.com/company/creativebloq"
+        },
+        "media": {
+          "logo": "https://via.placeholder.com/150/007bff/ffffff?Text=Creative+Bloq",
+          "logo_small": "https://via.placeholder.com/50/007bff/ffffff?Text=CB",
+          "logo_medium": "https://via.placeholder.com/100/007bff/ffffff?Text=Creative+Bloq"
+        },
+        "metadata": {
+          "awards": [],
+          "circulation": "Popular among creatives",
+          "parent_company": "Future plc"
+        },
+        "tags": ["all", "blog", "creative"]
+      }
+    ],

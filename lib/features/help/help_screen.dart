@@ -8,7 +8,7 @@ class HelpScreen extends StatelessWidget {
   Future<void> _launchEmail() async {
     final Uri emailUri = Uri(
       scheme: 'mailto',
-      path: 'support@dsmobiles.com',
+      path: 'customerservice@dsmobiles.com',
       queryParameters: {'subject': 'Help & Support Inquiry'},
     );
     if (await canLaunchUrl(emailUri)) {
@@ -45,7 +45,7 @@ class HelpScreen extends StatelessWidget {
         children: [
           const ListTile(
             leading: Icon(Icons.question_answer),
-            title: Text('How to use BDNewspaper?'),
+            title: Text('How to use BD News Reader?'),
             subtitle: Text('Navigate news categories from the homepage.'),
           ),
           const ListTile(

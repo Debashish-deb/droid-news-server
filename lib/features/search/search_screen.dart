@@ -1,9 +1,10 @@
-// Updated lib/features/search/search_screen.dart
-
+// lib/features/search/search_screen.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:string_similarity/string_similarity.dart';
+
 import '../../core/navigation_helper.dart';
-import '../../localization/l10n/app_localizations.dart';
+import '/l10n/app_localizations.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -14,9 +15,8 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
-
-  List<String> _searchResults = [];
+  final List<String> _dataSet = ['Prothom Alo', 'Daily Star', 'Jugantor', 'Kaler Kantho', 'BBC Bangla', 'Anandabazar', 'Dhaka Tribune', 'News24', 'Rtv', 'Bangladesh Pratidin', 'Desh TV', 'Time Magazine', 'The Economist', 'Forbes', 'Nat Geo', 'Science Today'];
+  List<String> _suggestions = [];
   List<String> _recentSearches = [];
   bool _isSearching = false;
 
@@ -24,82 +24,55 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     _loadRecentSearches();
+    _searchController.addListener(_updateSuggestions);
   }
 
   Future<void> _loadRecentSearches() async {
     final prefs = await SharedPreferences.getInstance();
-    final history = prefs.getStringList('recent_searches') ?? [];
-    setState(() => _recentSearches = history);
+    setState(() => _recentSearches = prefs.getStringList('recent_searches') ?? []);
   }
 
   Future<void> _saveSearchQuery(String query) async {
     final prefs = await SharedPreferences.getInstance();
-    final history = prefs.getStringList('recent_searches') ?? [];
-    if (history.contains(query)) history.remove(query);
-    history.insert(0, query);
-    if (history.length > 10) history.removeLast();
-    await prefs.setStringList('recent_searches', history);
+    final updated = [query, ..._recentSearches.where((q) => q != query)];
+    await prefs.setStringList('recent_searches', updated.take(10).toList());
+    setState(() => _recentSearches = updated.take(10).toList());
   }
 
-  void _onSearch(String query) async {
-    if (query.trim().isEmpty) return;
+  void _updateSuggestions() {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) {
+      setState(() => _suggestions = []);
+    } else {
+      final matches = _dataSet
+          .where((entry) => entry.toLowerCase().contains(query))
+          .toList();
 
-    setState(() => _isSearching = true);
-    await Future.delayed(const Duration(milliseconds: 600));
+      matches.sort((a, b) => b.similarityTo(query).compareTo(a.similarityTo(query)));
 
-    setState(() {
-      _searchResults.clear();
-      _isSearching = false;
-    });
-
-    final newResults = List.generate(
-      5,
-      (index) => 'Result for "$query" - Article ${index + 1}',
-    );
-
-    for (var result in newResults) {
-      _searchResults.add(result);
-      _listKey.currentState?.insertItem(_searchResults.length - 1, duration: const Duration(milliseconds: 400));
+      setState(() => _suggestions = matches.take(5).toList());
     }
-
-    await _saveSearchQuery(query);
-    await _loadRecentSearches();
   }
 
-  void _clearSearch() {
-    for (var i = _searchResults.length - 1; i >= 0; i--) {
-      _listKey.currentState?.removeItem(
-        i,
-        (context, animation) => _buildAnimatedItem(_searchResults[i], animation),
-        duration: const Duration(milliseconds: 400),
+  void _onSelect(String query) async {
+    _searchController.text = query;
+    await _saveSearchQuery(query);
+
+    if (query.toLowerCase().contains('magazine')) {
+      NavigationHelper.goMagazines(context);
+    } else if (query.toLowerCase().contains('newspaper') ||
+        _dataSet.any((d) => d.toLowerCase() == query.toLowerCase())) {
+      NavigationHelper.goNewspaper(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No match found for "$query"')),
       );
     }
-    _searchResults.clear();
+  }
+
+  void _clearQuery() {
     _searchController.clear();
-  }
-
-  Widget _buildAnimatedItem(String item, Animation<double> animation) {
-    return SizeTransition(
-      sizeFactor: animation,
-      child: ListTile(
-        leading: const Icon(Icons.article_outlined),
-        title: Text(item),
-        onTap: () {
-          // TODO: Navigate to article detail
-        },
-      ),
-    );
-  }
-
-  Widget _buildRecentTile(String query) {
-    return ListTile(
-      leading: const Icon(Icons.history),
-      title: Text(query),
-      onTap: () {
-        _searchController.text = query;
-        _onSearch(query);
-      },
-    );
+    setState(() => _suggestions.clear());
   }
 
   @override
@@ -123,50 +96,48 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: _searchController,
-              textInputAction: TextInputAction.search,
-              onSubmitted: _onSearch,
-              decoration: InputDecoration(
-                hintText: loc.searchHint,
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: _clearSearch,
-                      )
-                    : null,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+        child: Column(children: [
+          TextField(
+            controller: _searchController,
+            textInputAction: TextInputAction.search,
+            onSubmitted: _onSelect,
+            decoration: InputDecoration(
+              hintText: loc.searchHint,
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: _clearQuery,
+                    )
+                  : null,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            const SizedBox(height: 20),
+          ),
+          const SizedBox(height: 16),
+          if (_suggestions.isNotEmpty)
             Expanded(
-              child: _isSearching
-                  ? const Center(child: CircularProgressIndicator())
-                  : _searchResults.isNotEmpty
-                      ? AnimatedList(
-                          key: _listKey,
-                          initialItemCount: _searchResults.length,
-                          itemBuilder: (context, index, animation) {
-                            final item = _searchResults[index];
-                            return _buildAnimatedItem(item, animation);
-                          },
-                        )
-                      : ListView(
-                          children: [
-                            Text(
-                              'Recent Searches',
-                              style: theme.textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 8),
-                            ..._recentSearches.map(_buildRecentTile),
-                          ],
-                        ),
-            ),
-          ],
-        ),
+              child: ListView(
+                children: _suggestions.map((s) => ListTile(
+                  title: Text(s),
+                  onTap: () => _onSelect(s),
+                )).toList(),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView(
+                children: [
+                  if (_recentSearches.isNotEmpty)
+                    Text('Recent Searches', style: theme.textTheme.titleMedium),
+                  ..._recentSearches.map((q) => ListTile(
+                        leading: const Icon(Icons.history),
+                        title: Text(q),
+                        onTap: () => _onSelect(q),
+                      )),
+                ],
+              ),
+            )
+        ]),
       ),
     );
   }

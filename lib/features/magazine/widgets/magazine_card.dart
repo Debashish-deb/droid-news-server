@@ -1,148 +1,247 @@
+// lib/features/magazine/widgets/magazine_card.dart
+
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
-class MagazineCard extends StatelessWidget {
-  const MagazineCard({
-    required this.magazine,
-    required this.isFavorite,
-    required this.onFavoriteToggle,
-    super.key,
-  });
+import '../../../core/theme_provider.dart';
+import '../../../core/theme.dart';
 
+class MagazineCard extends StatefulWidget {
   final Map<String, dynamic> magazine;
   final bool isFavorite;
   final VoidCallback onFavoriteToggle;
+  final bool highlight;
 
-  void _openMagazine(BuildContext context) {
-    final String url = magazine['contact']?['website'] ?? '';
-    final String title = magazine['name'] ?? 'Magazine';
+  const MagazineCard({
+    Key? key,
+    required this.magazine,
+    required this.isFavorite,
+    required this.onFavoriteToggle,
+    this.highlight = true,
+  }) : super(key: key);
 
-    final Uri? parsed = Uri.tryParse(url);
-    if (parsed == null || !(parsed.scheme == 'http' || parsed.scheme == 'https')) {
+  @override
+  State<MagazineCard> createState() => _MagazineCardState();
+}
+
+class _MagazineCardState extends State<MagazineCard>
+    with SingleTickerProviderStateMixin {
+  bool _isPressed = false;
+
+  void _open(BuildContext context) {
+    final url = widget.magazine['contact']?['website'] as String? ??
+        widget.magazine['url'] as String? ??
+        '';
+    final title = widget.magazine['name'] as String? ?? 'Magazine';
+    if (url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid or missing website URL')),
+        const SnackBar(content: Text('No URL available')),
       );
       return;
     }
-
-    context.pushNamed('webview', extra: {'url': url, 'title': title});
+    context.push('/webview', extra: {'url': url, 'title': title});
   }
 
-  String _getDescription() {
-    final String desc = magazine['description'] ?? '';
-    if (desc.isNotEmpty) return desc;
-    final String country = magazine['country'] ?? 'Unknown Country';
-    final String language = magazine['language'] ?? 'Unknown Language';
-    return '$country • $language';
+  String? _getLocalLogoPath() {
+    final id = widget.magazine['id']?.toString();
+    return id != null ? 'assets/logos/$id.png' : null;
   }
 
-  String _getLogoUrl() {
-    final String? website = magazine['contact']?['website'] as String?;
-    if (website != null && website.isNotEmpty) {
-      try {
-        final host = Uri.parse(website).host;
-        return 'https://logo.clearbit.com/$host';
-      } catch (_) {}
-    }
-    return '';
+  void _share() {
+    final title = widget.magazine['name'] as String? ?? 'Magazine';
+    final url = widget.magazine['contact']?['website'] as String? ?? '';
+    if (url.isNotEmpty) Share.share('$title\n$url');
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final glowColor = theme.colorScheme.primary.withOpacity(isDark ? 0.1 : 0.4);
+    final prov = context.watch<ThemeProvider>();
+    final mode = prov.appThemeMode;
+    final gradientColors = AppGradients.getGradientColors(mode);
+    final localLogo = _getLocalLogoPath();
+    final initials = (widget.magazine['name'] as String? ?? 'MG')
+        .substring(0, 2)
+        .toUpperCase();
 
-    final String logoUrl = _getLogoUrl();
-    final String name = magazine['name'] ?? 'Unknown Magazine';
-    final String description = _getDescription();
-    final String fallbackText = (magazine['name'] as String?)?.substring(0, 2).toUpperCase() ?? 'MG';
-
-    return InkWell(
-      onTap: () => _openMagazine(context),
-      child: Card(
-        elevation: 6,
-        margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        color: theme.cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        shadowColor: glowColor,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: glowColor,
-                blurRadius: 8,
-                offset: const Offset(0, 4),
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: () => _open(context),
+      child: AnimatedScale(
+        scale: _isPressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 150),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: AspectRatio(
+            aspectRatio: 3 / 1,
+            child: Container(
+              // 1) Outer gradient border
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: widget.highlight
+                      ? gradientColors
+                      : [Colors.white24, Colors.white10],
+                ),
               ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: CachedNetworkImage(
-                    imageUrl: logoUrl,
-                    width: 55,
-                    height: 55,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => const Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                    errorWidget: (_, __, ___) => Image.asset(
-                      isDark
-                          ? 'assets/imageplaceHolder_dark.png'
-                          : 'assets/imageplaceHolder.png',
-                      width: 55,
-                      height: 55,
-                      fit: BoxFit.cover,
-                    ),
+              padding: const EdgeInsets.all(2), // border thickness
+              child: Container(
+                // 2) Inner frosted-glass card
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  color: mode == AppThemeMode.dark
+                      ? Colors.white.withOpacity(0.06)
+                      : Colors.white.withOpacity(0.02),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.08),
+                    width: 1.2,
                   ),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(22),
+                  child: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                      // Frosted backdrop
+                      BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withOpacity(0.08),
+                                Colors.white.withOpacity(0.02),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+
+                      // Dark/Bangladesh overlay
+                      if (mode == AppThemeMode.dark ||
+                          mode == AppThemeMode.bangladesh)
+                        Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.white30,
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+
+                      // Centered logo circle
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(
+                                center: Alignment.center,
+                                radius: 0.5,
+                                colors: [
+                                  Colors.white.withOpacity(
+                                      mode == AppThemeMode.dark ? 0.25 : 0.1),
+                                  Colors.transparent,
+                                ],
+                              ),
+                              boxShadow: widget.highlight
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.white.withOpacity(0.15),
+                                        blurRadius: 24,
+                                        spreadRadius: 1,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ]
+                                  : [],
+                            ),
+                            padding: const EdgeInsets.all(8),
+                            child: localLogo != null
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Image.asset(
+                                      localLogo,
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (_, __, ___) =>
+                                          _fallbackAvatar(initials),
+                                    ),
+                                  )
+                                : _fallbackAvatar(initials),
+                          ),
+                        ),
+                      ),
+
+                      // Favorite + share at bottom-left
+                      Positioned(
+                        bottom: 8,
+                        left: 8,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                widget.isFavorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: widget.isFavorite
+                                    ? Colors.redAccent
+                                    : Colors.white,
+                                size: 20,
+                              ),
+                              onPressed: widget.onFavoriteToggle,
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                            const SizedBox(height: 4),
+                            IconButton(
+                              icon: const Icon(Icons.share, size: 20),
+                              color: Colors.white70,
+                              onPressed: _share,
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: Icon(
-                    isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: isFavorite ? Colors.redAccent : Colors.grey,
-                  ),
-                  onPressed: onFavoriteToggle,
-                ),
-              ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+
+  Widget _fallbackAvatar(String txt) => Container(
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          txt,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+      );
 }

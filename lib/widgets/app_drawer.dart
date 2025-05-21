@@ -1,365 +1,273 @@
 // lib/widgets/app_drawer.dart
+
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:lottie/lottie.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:audioplayers/audioplayers.dart';
 
 import '../core/theme_provider.dart';
+import '../core/theme.dart';
 import '../features/profile/auth_service.dart';
-import '../localization/l10n/app_localizations.dart';
+import '/l10n/app_localizations.dart';
 
-class AppDrawer extends StatefulWidget {
-  const AppDrawer({super.key});
-
-  @override
-  State<AppDrawer> createState() => _AppDrawerState();
+class _DrawerItem {
+  final IconData icon;
+  final String keyName;
+  final String route;
+  const _DrawerItem(this.icon, this.keyName, this.route);
 }
 
-// Use TickerProviderStateMixin for multiple controllers
-class _AppDrawerState extends State<AppDrawer> with TickerProviderStateMixin {
-  late final AnimationController _flagController;
-  late final AnimationController _flagFadeController;
-  late final Animation<double> _flagFadeAnimation;
-  late final AnimationController _tigerController;
-  late final Animation<Offset> _tigerAnimation;
-  late final AnimationController _avatarGlowController;
-  late final Animation<double> _avatarGlowAnimation;
-  late final AudioPlayer _audioPlayer;
+class AppDrawer extends StatelessWidget {
+  const AppDrawer({Key? key}) : super(key: key);
 
-  Map<String, String>? _profile;
-  bool _isLoadingProfile = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadProfile();
-
-    _flagController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    )..repeat(reverse: true);
-
-    _flagFadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
-    _flagFadeAnimation = CurvedAnimation(
-      parent: _flagFadeController,
-      curve: Curves.easeIn,
-    );
-    // start the fade animation
-    _flagFadeController.forward();
-
-    _tigerController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..repeat(reverse: true);
-    _tigerAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: const Offset(0, -0.03),
-    ).animate(
-      CurvedAnimation(parent: _tigerController, curve: Curves.easeInOut),
-    );
-
-    _avatarGlowController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    )..repeat(reverse: true);
-    _avatarGlowAnimation = Tween<double>(begin: 10, end: 25).animate(
-      CurvedAnimation(parent: _avatarGlowController, curve: Curves.easeInOut),
-    );
-
-    _audioPlayer = AudioPlayer();
-    Future.delayed(const Duration(seconds: 2), _playTigerRoar);
-  }
-
-  @override
-  void dispose() {
-    _flagController.dispose();
-    _flagFadeController.dispose();
-    _tigerController.dispose();
-    _avatarGlowController.dispose();
-    _audioPlayer.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadProfile() async {
-    final profile = await AuthService().getProfile();
-    if (mounted) {
-      setState(() {
-        _profile = profile;
-        _isLoadingProfile = false;
-      });
-    }
-  }
-
-  Future<void> _playTigerRoar() async {
-    try {
-      await _audioPlayer.play(AssetSource('sounds/tiger_roar.mp3'));
-    } catch (e) {
-      debugPrint('Tiger roar sound error: $e');
-    }
-  }
+  static const List<_DrawerItem> _items = [
+    _DrawerItem(Icons.home, 'home', '/home'),
+    _DrawerItem(Icons.article, 'newspapers', '/newspaper'),
+    _DrawerItem(Icons.favorite, 'favorites', '/favorites'),
+    _DrawerItem(Icons.person, 'profile', '/profile'),
+    _DrawerItem(Icons.info_outline, 'about', '/about'),
+    _DrawerItem(Icons.support_agent, 'supports', '/supports'),
+    _DrawerItem(Icons.search, 'search', '/search'),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    final themeProvider = context.watch<ThemeProvider>();
-    final appTheme = themeProvider.appThemeMode;
-    final bool isDesh = appTheme == AppThemeMode.bangladesh;
-    final size = MediaQuery.of(context).size;
+    final prov = context.watch<ThemeProvider>();
+    final theme = Theme.of(context);
+    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.white;
+    final gradientColors = AppGradients.getGradientColors(prov.appThemeMode);
 
     return Drawer(
-      child: Column(
-        children: [
-          _buildHeader(context, loc),
-          Expanded(
-            child: isDesh
-                ? _buildBodyWithGraphics(context, loc, size)
-                : _buildBodyPlain(context, loc),
-          ),
-          _buildFooter(context, loc),
-        ],
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(28),
+          bottomRight: Radius.circular(28),
+        ),
+        child: Stack(
+          children: [
+            // Gradient background
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    gradientColors[0].withOpacity(0.85),
+                    gradientColors[1].withOpacity(0.85),
+                  ],
+                ),
+              ),
+            ),
+            // Blur overlay
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(color: Colors.transparent),
+            ),
+            // Drawer content
+            Column(
+              children: [
+                // Profile header
+                Container(
+                  decoration: prov.glassDecoration(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                  ),
+                  child: const ProfileHeader(),
+                ),
+                _buildDivider(),
+                // Menu items
+                Expanded(child: _buildMenu(context, loc, textColor)),
+                _buildDivider(),
+                // Logout footer
+                Container(
+                  decoration: prov.glassDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  margin: const EdgeInsets.all(16),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Logout button
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: prov.glassColor,
+                            shadowColor: Colors.black26,
+                          ),
+                          onPressed: () async {
+                            // 1) Log out
+                            await AuthService().logout();
+                            // 2) Close drawer
+                            Navigator.of(context).pop();
+                            // 3) Navigate to login
+                            context.go('/login');
+                          },
+                          icon: Icon(Icons.logout, color: textColor),
+                          label: Text(loc.logout, style: TextStyle(color: textColor)),
+                        ),
+                        // Custom image on the right
+                        SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: Image.asset(
+                            'assets/widgets/logout_image.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context, AppLocalizations loc) {
-    return Stack(
-      children: [
-        ClipPath(
-          clipper: WavyClipper(),
-          child: Container(
-            height: 220,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).primaryColor,
-                  Theme.of(context).colorScheme.secondary,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+  Widget _buildMenu(BuildContext context, AppLocalizations loc, Color textColor) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: _items.length,
+      itemBuilder: (ctx, i) {
+        final itm = _items[i];
+        final title = _title(itm.keyName, loc);
+        return _DrawerTile(
+          icon: itm.icon,
+          title: title,
+          route: itm.route,
+          textColor: textColor,
+        );
+      },
+    );
+  }
+
+  String _title(String key, AppLocalizations loc) {
+    switch (key) {
+      case 'home':
+        return loc.home;
+      case 'newspapers':
+        return loc.newspapers;
+      case 'favorites':
+        return loc.favorites;
+      case 'profile':
+        return loc.profile;
+      case 'about':
+        return loc.about;
+      case 'supports':
+        return loc.supports;
+      case 'search':
+        return loc.search;
+      default:
+        return key;
+    }
+  }
+
+  static Widget _buildDivider() => Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        height: 5,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              Colors.white.withOpacity(0.5),
+              Colors.transparent,
+              Colors.white.withOpacity(0.5),
+            ],
+          ),
+        ),
+      );
+}
+
+class ProfileHeader extends StatelessWidget {
+  const ProfileHeader({Key? key}) : super(key: key);
+
+  Future<Map<String, String>> _loadProfile() => AuthService().getProfile();
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final prov = context.watch<ThemeProvider>();
+    final textStyle = prov.floatingTextStyle(fontSize: 18);
+
+    return FutureBuilder<Map<String, String>>(
+      future: _loadProfile(),
+      builder: (ctx, snap) {
+        final imageUrl = snap.data?['image'] ?? '';
+        final name = snap.connectionState == ConnectionState.waiting
+            ? loc.loading
+            : (snap.hasData && snap.data!['name']?.isNotEmpty == true
+                ? snap.data!['name']!
+                : loc.guest);
+
+        return Container(
+          height: 220,
+          width: double.infinity,
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 40,
+                backgroundColor: prov.glassColor,
+                backgroundImage: imageUrl.isNotEmpty
+                    ? (imageUrl.startsWith('https')
+                        ? NetworkImage(imageUrl)
+                        : FileImage(File(imageUrl))) as ImageProvider<Object>?
+                    : null,
+                child: imageUrl.isEmpty
+                    ? Icon(Icons.person, size: 40, color: Colors.grey)
+                    : null,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
+              const SizedBox(height: 14),
+              Text(name, style: textStyle),
+            ],
           ),
-        ),
-        SafeArea(
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                AnimatedBuilder(
-                  animation: _avatarGlowAnimation,
-                  builder: (context, child) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Theme.of(context)
-                                .primaryColor
-                                .withOpacity(0.6),
-                            blurRadius: _avatarGlowAnimation.value,
-                            spreadRadius: 5,
-                          ),
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.4),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: child,
-                    );
-                  },
-                  child: CircleAvatar(
-                    radius: 36,
-                    backgroundColor: Colors.white,
-                    backgroundImage: _profileImageProvider(),
-                    child: _profileImageProvider() == null
-                        ? const Icon(Icons.person, size: 36, color: Colors.grey)
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _isLoadingProfile
-                      ? loc.loadError
-                      : (_profile?['name']?.isNotEmpty == true
-                          ? _profile!['name']!
-                          : loc.noUserConnected),
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        shadows: [
-                          Shadow(
-                            blurRadius: 6,
-                            color: Colors.black45,
-                            offset: const Offset(1, 1),
-                          ),
-                        ],
-                      ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  loc.bdNewsHub,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: Colors.white70),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
+}
 
-  Widget _buildBodyPlain(BuildContext context, AppLocalizations loc) {
-    return ListView(
-      padding: const EdgeInsets.only(top: 8),
-      children: _buildMenuItems(context, loc),
-    );
-  }
+class _DrawerTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String route;
+  final Color textColor;
 
-  Widget _buildBodyWithGraphics(
-      BuildContext context, AppLocalizations loc, Size size) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: Image.asset(
-            'assets/icons/couple_only.png',
-            fit: BoxFit.cover,
-            alignment: Alignment.topCenter,
-          ),
-        ),
-        Positioned(
-          top: size.height * 0.05,
-          left: size.width * 0.3,
-          right: size.width * 0.3,
-          child: FadeTransition(
-            opacity: _flagFadeAnimation,
-            child: Lottie.asset(
-              'assets/animations/flag_wave.json',
-              controller: _flagController,
-              repeat: true,
-              animate: true,
-              height: 100,
-            ),
-          ),
-        ),
-        ListView(
-          padding: const EdgeInsets.only(top: 8),
-          children: _buildMenuItems(context, loc),
-        ),
-      ],
-    );
-  }
+  const _DrawerTile({
+    Key? key,
+    required this.icon,
+    required this.title,
+    required this.route,
+    required this.textColor,
+  }) : super(key: key);
 
-  List<Widget> _buildMenuItems(BuildContext context, AppLocalizations loc) {
-    return [
-      _buildTile(context, Icons.home, loc.home, '/home'),
-      _buildTile(context, Icons.article, loc.newspapers, '/newspaper'),
-      _buildTile(context, Icons.favorite, loc.favorites, '/favorites'),
-      _buildTile(context, Icons.person, loc.profile, '/profile'),
-      _buildTile(context, Icons.info, loc.about, '/about'),
-      _buildTile(context, Icons.help, loc.supports, '/supports'),
-      _buildTile(context, Icons.search, loc.search, '/search'),
-    ];
-  }
+  @override
+  Widget build(BuildContext context) {
+    final current = GoRouterState.of(context).uri.toString();
+    final isSelected = current == route;
 
-  Widget _buildTile(
-      BuildContext context, IconData icon, String title, String route) {
     return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
+      leading: Icon(icon, color: textColor),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: textColor,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+        ),
+      ),
+      selected: isSelected,
       onTap: () {
         Navigator.of(context).pop();
         context.go(route);
       },
     );
   }
-
-  Widget _buildFooter(BuildContext context, AppLocalizations loc) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).pop();
-              context.go('/login');
-            },
-            icon: const Icon(Icons.logout),
-            label: Text(loc.logout),
-          ),
-          SlideTransition(
-            position: _tigerAnimation,
-            child: SvgPicture.asset(
-              'assets/icons/tiger.svg',
-              height: 40,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  ImageProvider? _profileImageProvider() {
-    final path = _profile?['image'] ?? '';
-    if (path.isEmpty) return null;
-    if (path.startsWith('http')) {
-      return NetworkImage(path);
-    } else {
-      return FileImage(File(path));
-    }
-  }
-}
-
-class WavyClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    var path = Path();
-    path.lineTo(0, size.height - 30);
-    var firstControlPoint = Offset(size.width / 4, size.height);
-    var firstEndPoint = Offset(size.width / 2, size.height - 30);
-    var secondControlPoint = Offset(size.width * 3 / 4, size.height - 90);
-    var secondEndPoint = Offset(size.width, size.height - 30);
-
-    path.quadraticBezierTo(
-      firstControlPoint.dx,
-      firstControlPoint.dy,
-      firstEndPoint.dx,
-      firstEndPoint.dy,
-    );
-    path.quadraticBezierTo(
-      secondControlPoint.dx,
-      secondControlPoint.dy,
-      secondEndPoint.dx,
-      secondEndPoint.dy,
-    );
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }

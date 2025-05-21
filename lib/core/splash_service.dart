@@ -2,10 +2,16 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SplashService {
+  final SharedPreferences prefs;
+
+  SplashService({required this.prefs});
+
+  static const String onboardingCompletedKey = 'onboardingCompleted';
+  static const String isLoggedInKey = 'isLoggedIn';
+
   Future<String> resolveInitialRoute() async {
-    final prefs = await SharedPreferences.getInstance();
-    final hasSeenOnboarding = prefs.getBool('onboardingCompleted') ?? false;
-    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    final hasSeenOnboarding = prefs.getBool(onboardingCompletedKey) ?? false;
+    final isLoggedIn = prefs.getBool(isLoggedInKey) ?? false;
 
     if (!hasSeenOnboarding) {
       return '/onboarding';

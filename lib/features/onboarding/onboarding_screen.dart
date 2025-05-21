@@ -1,10 +1,10 @@
-// path: lib/features/onboarding/onboarding_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
-import '../../localization/l10n/app_localizations.dart';
+import '/l10n/app_localizations.dart';
+import '../../core/theme_provider.dart';
+import '../common/animated_background.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({Key? key}) : super(key: key);
@@ -19,7 +19,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<_OnboardingPage> _pages = [
     _OnboardingPage(
-      titleBuilder: (loc) => loc.bdNewsHub,
+      titleBuilder: (loc) => loc.bdNewsreader,
       descriptionBuilder: (loc) => loc.latest,
       animationAsset: 'assets/lottie/news.json',
     ),
@@ -61,124 +61,108 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
     return Scaffold(
-      body: SafeArea(
-        child: Stack(
-          children: [
-            PageView.builder(
-              controller: _controller,
-              itemCount: _pages.length,
-              onPageChanged: (index) => setState(() => _currentIndex = index),
-              itemBuilder: (context, index) {
-                final page = _pages[index];
-                return Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // App icon at top
-                      Image.asset(
-                        'assets/app-icon.png',
-                        width: 96,
-                        height: 96,
-                      ),
-                      const SizedBox(height: 24),
-                      Expanded(
-                        child: Lottie.asset(
-                          page.animationAsset,
-                          repeat: true,
-                          fit: BoxFit.contain,
+      body: AnimatedBackground(
+        overlayOpacity: 0.15,
+        blurSigma: 30,
+        child: SafeArea(
+          child: Stack(
+            children: [
+              PageView.builder(
+                controller: _controller,
+                itemCount: _pages.length,
+                onPageChanged: (index) => setState(() => _currentIndex = index),
+                itemBuilder: (context, index) {
+                  final page = _pages[index];
+                  return Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset('assets/app-icon.png', width: 96, height: 96),
+                        const SizedBox(height: 24),
+                        Expanded(
+                          child: Lottie.asset(page.animationAsset, repeat: true),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        page.titleBuilder(loc),
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
+                        const SizedBox(height: 24),
+                        Text(
+                          page.titleBuilder(loc),
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: scheme.primary,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        page.descriptionBuilder(loc),
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 32),
-                    ],
-                  ),
-                );
-              },
-            ),
-            // Skip button
-            if (_currentIndex < _pages.length - 1)
-              Positioned(
-                right: 16,
-                top: 16,
-                child: TextButton(
-                  onPressed: _skipToLast,
-                  child: Text(
-                    loc.close,
-                    style: theme.textTheme.bodyMedium,
+                        const SizedBox(height: 16),
+                        Text(
+                          page.descriptionBuilder(loc),
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyLarge?.copyWith(color: scheme.onSurface.withOpacity(0.85)),
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              if (_currentIndex < _pages.length - 1)
+                Positioned(
+                  right: 16,
+                  top: 16,
+                  child: TextButton(
+                    onPressed: _skipToLast,
+                    child: Text(loc.close, style: theme.textTheme.bodyMedium?.copyWith(color: scheme.primary)),
                   ),
                 ),
-              ),
-            // Page indicators + Next
-            Positioned(
-              bottom: 24,
-              left: 24,
-              right: 24,
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      _pages.length,
-                      (idx) {
-                        final selected = idx == _currentIndex;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          width: selected ? 24 : 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? theme.colorScheme.primary
-                                : theme.disabledColor,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _nextPage,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+              Positioned(
+                bottom: 24,
+                left: 24,
+                right: 24,
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        _pages.length,
+                        (idx) {
+                          final selected = idx == _currentIndex;
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: selected ? 24 : 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: selected ? scheme.primary : scheme.onSurface.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                    child: Text(
-                      _currentIndex == _pages.length - 1
-                          ? loc.getStarted
-                          : loc.next,
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _nextPage,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: scheme.primary,
+                        foregroundColor: scheme.onPrimary,
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(_currentIndex == _pages.length - 1 ? loc.getStarted : loc.next),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// A model for each onboarding page, with localized getters.
 class _OnboardingPage {
   final String Function(AppLocalizations) titleBuilder;
   final String Function(AppLocalizations) descriptionBuilder;

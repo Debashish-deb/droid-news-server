@@ -1,11 +1,14 @@
 import 'package:html/dom.dart';
-import 'package:http/http.dart' as http;
+import 'package:http/http.dart' as https;
 import 'package:html/parser.dart' as html_parser;
+import 'package:logger/logger.dart';
+
+final Logger logger = Logger();
 
 /// Fetches the best available image from a webpage (og:image or twitter:image).
 Future<String?> fetchBestImageFromUrl(String url) async {
   try {
-    final http.Response response = await http.get(Uri.parse(url));
+    final https.Response response = await https.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
       final Document document = html_parser.parse(response.body);
@@ -22,9 +25,10 @@ Future<String?> fetchBestImageFromUrl(String url) async {
         return twitterImageMeta.attributes['content'];
       }
     }
+
     return null; // No image found
-  } catch (e) {
-    print('⚠️ Error fetching image: $e');
+  } catch (e, stackTrace) {
+    logger.e('Error fetching image from URL: $url', error: e, stackTrace: stackTrace);
     return null;
   }
 }

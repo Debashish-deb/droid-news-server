@@ -1,3 +1,5 @@
+// lib/core/utils/favorites_manager.dart
+
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/news_article.dart';
@@ -21,25 +23,26 @@ class FavoritesManager {
 
   Future<void> loadFavorites() async {
     final prefs = await SharedPreferences.getInstance();
-    final List<String> articleJson = prefs.getStringList(favoritesKey) ?? [];
-    final List<String> magazineJson = prefs.getStringList(magazineFavoritesKey) ?? [];
-    final List<String> newspaperJson = prefs.getStringList(newspaperFavoritesKey) ?? [];
+    final articleJson       = prefs.getStringList(favoritesKey) ?? [];
+    final magazineJson      = prefs.getStringList(magazineFavoritesKey) ?? [];
+    final newspaperJson     = prefs.getStringList(newspaperFavoritesKey) ?? [];
 
     _favoriteArticles = articleJson
-        .map((String str) => NewsArticle.fromMap(json.decode(str)))
+        .map((str) => NewsArticle.fromMap(json.decode(str)))
         .toList();
 
     _favoriteMagazines = magazineJson
-        .map((String str) => Map<String, dynamic>.from(json.decode(str)))
+        .map((str) => Map<String, dynamic>.from(json.decode(str)))
         .toList();
 
     _favoriteNewspapers = newspaperJson
-        .map((String str) => Map<String, dynamic>.from(json.decode(str)))
+        .map((str) => Map<String, dynamic>.from(json.decode(str)))
         .toList();
   }
 
   // -------------------------
   // Articles
+
   Future<void> addFavorite(NewsArticle article) async {
     final prefs = await SharedPreferences.getInstance();
     _favoriteArticles.add(article);
@@ -58,16 +61,33 @@ class FavoritesManager {
     );
   }
 
-  Future<bool> isFavorite(NewsArticle article) async {
+  /// Toggle article in favorites (add if missing, remove if already favorited)
+  Future<void> toggleArticle(NewsArticle article) async {
+    final prefs = await SharedPreferences.getInstance();
+    final exists = _favoriteArticles.any((e) => e.url == article.url);
+    if (exists) {
+      _favoriteArticles.removeWhere((e) => e.url == article.url);
+    } else {
+      _favoriteArticles.add(article);
+    }
+    await prefs.setStringList(
+      favoritesKey,
+      _favoriteArticles.map((e) => json.encode(e.toMap())).toList(),
+    );
+  }
+
+  /// Check synchronously if an article is favorited
+  bool isFavoriteArticle(NewsArticle article) {
     return _favoriteArticles.any((e) => e.url == article.url);
   }
 
   // -------------------------
   // Magazines
+
   Future<void> toggleMagazine(Map<String, dynamic> magazine) async {
     final prefs = await SharedPreferences.getInstance();
-    final id = magazine['id'].toString();
-    final isFav = _favoriteMagazines.any((m) => m['id'].toString() == id);
+    final id     = magazine['id'].toString();
+    final isFav  = _favoriteMagazines.any((m) => m['id'].toString() == id);
 
     if (isFav) {
       _favoriteMagazines.removeWhere((m) => m['id'].toString() == id);
@@ -86,11 +106,12 @@ class FavoritesManager {
   }
 
   // -------------------------
-  // Newspapers (NEW)
+  // Newspapers
+
   Future<void> toggleNewspaper(Map<String, dynamic> newspaper) async {
     final prefs = await SharedPreferences.getInstance();
-    final id = newspaper['id'].toString();
-    final isFav = _favoriteNewspapers.any((n) => n['id'].toString() == id);
+    final id     = newspaper['id'].toString();
+    final isFav  = _favoriteNewspapers.any((n) => n['id'].toString() == id);
 
     if (isFav) {
       _favoriteNewspapers.removeWhere((n) => n['id'].toString() == id);
@@ -107,4 +128,6 @@ class FavoritesManager {
   bool isFavoriteNewspaper(String id) {
     return _favoriteNewspapers.any((n) => n['id'].toString() == id);
   }
+
+  toggleArticleMap(Map<String, dynamic> item) {}
 }

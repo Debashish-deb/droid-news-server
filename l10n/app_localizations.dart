@@ -21,9 +21,17 @@ class AppLocalizations {
   String get version => _t('সংস্করণ', 'Version');
   String get versionPrefix => _t('সংস্করণ', 'Version');
   String get bdNewsHub => _t('বিডিনিউজ হাব 📰', 'BDNews Hub 📰');
+  String get sharePage => _t('এই পৃষ্ঠাটি শেয়ার করুন', 'Share this page');
+String get bookmarkPage => _t('এই পৃষ্ঠাটি সংরক্ষণ করুন', 'Bookmark this page');
+String get bookmarkSuccess => _t('সফলভাবে সংরক্ষিত হয়েছে!', 'URL saved successfully!');
+String get originalView => _t('মূল ভিউ', 'Original view');
+String get back => _t('পিছনে যান', 'Go back');
+String get forward => _t('সামনে যান', 'Go forward');
+String get refresh => _t('রিফ্রেশ করুন', 'Refresh');
 
   // Auth
   String get login => _t('লগইন', 'Login');
+  String get latest => _t('সর্বশেষ', 'Latest');
   String get logout => _t('লগআউট', 'Logout');
   String get signup => _t('সাইন আপ', 'Sign Up');
   String get password => _t('পাসওয়ার্ড', 'Password');

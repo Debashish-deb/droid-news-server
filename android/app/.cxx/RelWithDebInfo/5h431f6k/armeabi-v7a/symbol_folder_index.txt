@@ -1,1 +1,0 @@
-/Users/debashishdeb/Documents/JS/MobileApp/droid/build/app/intermediates/cxx/RelWithDebInfo/5h431f6k/obj/armeabi-v7a

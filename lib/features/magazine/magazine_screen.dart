@@ -1,40 +1,55 @@
-// path: features/magazine/magazine_screen.dart
+// lib/features/magazine/magazine_screen.dart
+
+// 🛠 Reverted to 1-column list style with stylish container decoration
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../localization/l10n/app_localizations.dart';
+import '/core/theme_provider.dart';
+import '/core/theme.dart';
+import '/core/utils/favorites_manager.dart';
+import '/l10n/app_localizations.dart';
 import '../../widgets/app_drawer.dart';
-import '../../core/utils/favorites_manager.dart';
-import 'widgets/animated_background.dart';
+import '../../features/common/appBar.dart';
 import 'widgets/magazine_card.dart';
 
 class MagazineScreen extends StatefulWidget {
-  const MagazineScreen({super.key});
+  const MagazineScreen({Key? key}) : super(key: key);
 
   @override
   State<MagazineScreen> createState() => _MagazineScreenState();
 }
 
-class _MagazineScreenState extends State<MagazineScreen> with SingleTickerProviderStateMixin {
+class _MagazineScreenState extends State<MagazineScreen>
+    with SingleTickerProviderStateMixin {
   final List<dynamic> magazines = [];
   bool _isLoading = true;
-  final ScrollController _scrollController = ScrollController();
-  final ScrollController _listController = ScrollController();
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
+
   late final TabController _tabController;
+  late final ScrollController _scrollController;
+  late final ScrollController _chipsController;
+  late final List<GlobalKey> _chipKeys;
+
+  DateTime? _lastBackPressed;
+
+  static const int _categoriesCount = 8;
+  static const Color _gold = Color(0xFFFFD700);
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 9, vsync: this)
+    _scrollController = ScrollController();
+    _chipsController = ScrollController();
+    _tabController = TabController(length: _categoriesCount, vsync: this)
       ..addListener(() {
+        _centerChip(_tabController.index);
         setState(() {});
-        _listController.jumpTo(0);
       });
+    _chipKeys = List.generate(_categoriesCount, (_) => GlobalKey());
     _loadMagazines();
   }
 
@@ -51,21 +66,25 @@ class _MagazineScreenState extends State<MagazineScreen> with SingleTickerProvid
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Load failed: $e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Load failed: $e')));
     }
   }
 
-  Future<void> _toggleFavorite(dynamic m) async {
-    await FavoritesManager.instance.toggleMagazine(m);
-    setState(() {});
+  Future<bool> _onWillPop() async {
+    final now = DateTime.now();
+    if (_lastBackPressed == null ||
+        now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
+      _lastBackPressed = now;
+      Fluttertoast.showToast(msg: "Press back again to exit");
+      return false;
+    }
+    return true;
   }
 
-  List<dynamic> get _filteredMagazines {
+  List<String> _categories(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    final categories = [
-      loc.favorites,
+    return [
       loc.catFashion,
       loc.catScience,
       loc.catFinance,
@@ -75,140 +94,185 @@ class _MagazineScreenState extends State<MagazineScreen> with SingleTickerProvid
       loc.catLifestyle,
       loc.catSports,
     ];
-
-    final categoryKeywords = {
-      loc.catFashion: ['fashion', 'style', 'aesthetics'],
-      loc.catScience: ['science', 'discovery', 'research'],
-      loc.catFinance: ['finance', 'economics', 'business'],
-      loc.catAffairs: ['global', 'politics', 'world', 'international', 'defense'],
-      loc.catTech: ['technology', 'innovation', 'tech'],
-      loc.catArts: ['arts', 'culture', 'humanities', 'literature'],
-      loc.catLifestyle: ['lifestyle', 'luxury', 'travel'],
-      loc.catSports: ['sports', 'athletics', 'performance'],
-    };
-
-    final selCategory = categories[_tabController.index];
-    List<dynamic> filtered;
-
-    if (selCategory == loc.favorites) {
-      final favIds = FavoritesManager.instance.favoriteMagazines.map((m) => m['id'].toString()).toSet();
-      filtered = magazines.where((m) => favIds.contains(m['id'].toString())).toList();
-    } else {
-      final keys = categoryKeywords[selCategory] ?? [];
-      filtered = magazines.where((m) {
-        final tags = List<String>.from(m['tags'] ?? []);
-        return tags.any((t) => keys.any((kw) => t.toLowerCase().contains(kw)));
-      }).toList();
-    }
-
-    if (_searchQuery.isNotEmpty) {
-      final query = _searchQuery.toLowerCase();
-      filtered = filtered.where((m) {
-        final name = (m['name'] ?? '').toString().toLowerCase();
-        final desc = (m['description'] ?? '').toString().toLowerCase();
-        return name.contains(query) || desc.contains(query);
-      }).toList();
-    }
-
-    return filtered;
   }
 
-  Future<bool> _onWillPop() async {
-    context.go('/home');
-    return false;
+  List<dynamic> get _filteredMagazines {
+    final cats = _categories(context);
+    final keys = {
+      cats[0]: ['fashion', 'style', 'aesthetics'],
+      cats[1]: ['science', 'discovery', 'research'],
+      cats[2]: ['finance', 'economics', 'business'],
+      cats[3]: ['global', 'politics', 'world'],
+      cats[4]: ['technology', 'tech'],
+      cats[5]: ['arts', 'culture'],
+      cats[6]: ['lifestyle', 'luxury', 'travel'],
+      cats[7]: ['sports', 'performance'],
+    };
+    final sel = cats[_tabController.index];
+    final kws = keys[sel] ?? [];
+    return magazines.where((m) {
+      final tags = List<String>.from(m['tags'] ?? []);
+      return tags.any((t) => kws.any((kw) => t.toLowerCase().contains(kw)));
+    }).toList();
+  }
+
+  void _centerChip(int index) {
+    final key = _chipKeys[index];
+    if (key.currentContext != null) {
+      Scrollable.ensureVisible(
+        key.currentContext!,
+        duration: const Duration(milliseconds: 200),
+        alignment: 0.5,
+      );
+    }
+  }
+
+  void _toggleFavorite(dynamic m) async {
+    await FavoritesManager.instance.toggleMagazine(m);
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _chipsController.dispose();
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    final categories = [
-      loc.favorites,
-      loc.catFashion,
-      loc.catScience,
-      loc.catFinance,
-      loc.catAffairs,
-      loc.catTech,
-      loc.catArts,
-      loc.catLifestyle,
-      loc.catSports,
-    ];
+    final mode = context.watch<ThemeProvider>().appThemeMode;
+    final gradientColors = AppGradients.getGradientColors(mode);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final categories = _categories(context);
 
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
+        extendBodyBehindAppBar: true,
+        backgroundColor: scheme.background,
         drawer: const AppDrawer(),
-        appBar: AppBar(
-          centerTitle: true, // ✅ Center title
-          title: Text(
-            loc.magazines,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          automaticallyImplyLeading: false,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(48),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (v) => setState(() => _searchQuery = v),
-                style: Theme.of(context).textTheme.bodyMedium,
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: loc.searchHint,
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  filled: true,
-                ),
-              ),
-            ),
-          ),
-        ),
-        body: Column(
+        body: Stack(
+          fit: StackFit.expand,
           children: [
-            SizedBox(
-              height: 48,
-              child: ListView.builder(
-                controller: _scrollController,
-                scrollDirection: Axis.horizontal,
-                itemCount: categories.length,
-                itemBuilder: (context, i) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: ChoiceChip(
-                    label: Text(categories[i]),
-                    selected: _tabController.index == i,
-                    onSelected: (_) => _tabController.animateTo(i),
-                  ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    gradientColors[0].withOpacity(0.85),
+                    gradientColors[1].withOpacity(0.85),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
             ),
-            Expanded(
-              child: AnimatedBackground(
-                duration: const Duration(seconds: 30),
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _filteredMagazines.isEmpty
-                        ? Center(child: Text(loc.noMagazines))
-                        : RefreshIndicator(
-                            onRefresh: _loadMagazines,
-                            child: ListView.builder(
-                              controller: _listController,
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _filteredMagazines.length,
-                              itemBuilder: (context, idx) {
-                                final magazine = _filteredMagazines[idx];
-                                final id = magazine['id'].toString();
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 16),
-                                  child: MagazineCard(
-                                    magazine: magazine,
-                                    isFavorite: FavoritesManager.instance.isFavoriteMagazine(id),
-                                    onFavoriteToggle: () => _toggleFavorite(magazine),
-                                  ),
-                                );
-                              },
+            CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  pinned: true,
+                  backgroundColor: theme.appBarTheme.backgroundColor,
+                  elevation: theme.appBarTheme.elevation,
+                  centerTitle: true,
+                  titleTextStyle: theme.appBarTheme.titleTextStyle,
+                  title: AppBarTitle(loc.magazines),
+                  iconTheme: theme.appBarTheme.iconTheme,
+                ),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 48,
+                    child: ListView.builder(
+                      controller: _chipsController,
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      itemCount: categories.length,
+                      itemBuilder: (ctx, i) {
+                        final sel = i == _tabController.index;
+                        return Padding(
+                          key: _chipKeys[i],
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: ChoiceChip(
+                            label: Text(categories[i]),
+                            selected: sel,
+                            onSelected: (_) {
+                              _tabController.animateTo(i);
+                              _centerChip(i);
+                            },
+                            backgroundColor: scheme.surface.withOpacity(0.5),
+                            selectedColor: _gold,
+                            labelStyle: TextStyle(
+                              color: sel ? Colors.black : scheme.onSurface,
+                              fontWeight: sel ? FontWeight.bold : FontWeight.w600,
                             ),
                           ),
-              ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                SliverFillRemaining(
+                  child: _isLoading
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation(scheme.primary),
+                          ),
+                        )
+                      : _filteredMagazines.isEmpty
+                          ? Center(
+                              child: Text(
+                                loc.noMagazines,
+                                style: theme.textTheme.bodyLarge,
+                              ),
+                            )
+                          : RefreshIndicator(
+                              color: scheme.primary,
+                              onRefresh: _loadMagazines,
+                              child: ListView.builder(
+                                controller: _scrollController,
+                                padding: const EdgeInsets.all(16),
+                                itemCount: _filteredMagazines.length,
+                                itemBuilder: (_, idx) {
+                                  final m = _filteredMagazines[idx];
+                                  final id = m['id'].toString();
+                                  final isFav = FavoritesManager.instance.isFavoriteMagazine(id);
+
+                                  return AnimatedContainer(
+                                    duration: const Duration(milliseconds: 400),
+                                    curve: Curves.easeInOut,
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(20),
+                                      color: theme.cardColor.withOpacity(0.03),
+                                      border: Border.all(
+                                        color: theme.colorScheme.onSurface.withOpacity(0.35),
+                                        width: 1.4,
+                                      ),
+                                      boxShadow: isFav
+                                          ? [
+                                              BoxShadow(
+                                                color: theme.colorScheme.primary.withOpacity(0.25),
+                                                blurRadius: 14,
+                                                spreadRadius: 1,
+                                                offset: const Offset(0, 6),
+                                              ),
+                                            ]
+                                          : [],
+                                    ),
+                                    child: MagazineCard(
+                                      magazine: m,
+                                      isFavorite: isFav,
+                                      onFavoriteToggle: () => _toggleFavorite(m),
+                                      highlight: true,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                ),
+              ],
             ),
           ],
         ),
