@@ -1,64 +1,58 @@
-// path: android/app/build.gradle.kts
-
 plugins {
     id("com.android.application")
-    id("com.google.gms.google-services") // ✅ Firebase
-    id("kotlin-android")
-    id("dev.flutter.flutter-gradle-plugin") // ✅ Flutter
+    id("org.jetbrains.kotlin.android")
+    // Flutter plugin must come after Android & Kotlin
+    id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services") version("4.4.2") apply false
 }
 
 android {
-    namespace = "com.example.droid"
+    namespace = "com.bd.bdnewsreader"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
-        applicationId = "com.example.droid"
-        minSdk = 23
+        applicationId = "com.bd.bdnewsreader"
+        minSdk = 23                      // ↑ raised to 23 for firebase_auth
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-
-        multiDexEnabled = true // ✅ Prevent dex overflow
+        multiDexEnabled = true
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-        isCoreLibraryDesugaringEnabled = true // ✅ Important for Java 8+ and notifications
+        isCoreLibraryDesugaringEnabled = true  // ↑ enable desugaring
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
-    }
-
-    signingConfigs {
-        create("release") {
-            storeFile = file("/Users/debashishdeb/my-release-key.jks") // ✅ Your key path
-            storePassword = "your-keystore-password"  // ❗ Replace securely
-            keyAlias = "my-key-alias"                  // ❗ Replace securely
-            keyPassword = "your-key-password"          // ❗ Replace securely
-        }
+        jvmTarget = "11"
     }
 
     buildTypes {
-        getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+        release {
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
             isShrinkResources = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+        }
+        debug {
+            isDebuggable = true
         }
     }
-}
 
-dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5") 
-    implementation("androidx.multidex:multidex:2.0.1") // ✅ Safe
+    packaging {
+        resources {
+            excludes += setOf("META-INF/*")
+        }
+    }
 }
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Back-port Java 8+ APIs for any AARs (e.g. firebase_local_notifications)
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }

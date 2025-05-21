@@ -1,14 +1,1 @@
-{
-  "emulators": {
-    "dataconnect": {
-      "dataDir": "dataconnect/.dataconnect/pgliteData"
-    }
-  },
-  "dataconnect": {
-    "source": "dataconnect"
-  },
-  "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
-  }
-}
+{"flutter":{"platforms":{"android":{"default":{"projectId":"droid-e9db9","appId":"1:92831175770:android:2b0309d5b85ef55a93f463","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"droid-e9db9","appId":"1:92831175770:ios:0e16728d7bc3edea93f463","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"macos":{"default":{"projectId":"droid-e9db9","appId":"1:92831175770:ios:b69407f94ea150b993f463","uploadDebugSymbols":false,"fileOutput":"macos/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"droid-e9db9","configurations":{"android":"1:92831175770:android:2b0309d5b85ef55a93f463","ios":"1:92831175770:ios:0e16728d7bc3edea93f463","macos":"1:92831175770:ios:b69407f94ea150b993f463","web":"1:92831175770:web:c9f2352eb095beec93f463","windows":"1:92831175770:web:2df2e34aba8e687793f463"}}}}}}

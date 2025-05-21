@@ -3,9 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>92831175770-kr1cu4c0u4emu4amuimcfk2432q4ntgk.apps.googleusercontent.com</string>
+	<string>92831175770-lr8jl26158284kfk114r7rvh4caj2q5c.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.92831175770-kr1cu4c0u4emu4amuimcfk2432q4ntgk</string>
+	<string>com.googleusercontent.apps.92831175770-lr8jl26158284kfk114r7rvh4caj2q5c</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>92831175770-69mrb0h4gslfr4q93q2kf4scugi7c1tf.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
 	<string>AIzaSyA0Vsaayr2jDfB_FEyHQ7PCJ30A51WUsc8</string>
 	<key>GCM_SENDER_ID</key>
@@ -13,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.droid</string>
+	<string>com.bd.bdnewsreader</string>
 	<key>PROJECT_ID</key>
 	<string>droid-e9db9</string>
 	<key>STORAGE_BUCKET</key>
@@ -29,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:92831175770:ios:b69407f94ea150b993f463</string>
+	<string>1:92831175770:ios:0e16728d7bc3edea93f463</string>
 </dict>
 </plist>

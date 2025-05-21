@@ -1,8 +1,13 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
+import '../../core/theme_provider.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -31,9 +36,15 @@ class _AboutScreenState extends State<AboutScreen> {
     final Uri emailUri = Uri(
       scheme: 'mailto',
       path: 'customerservice@dsmobiles.com',
-      queryParameters: {'subject': 'BDNewsHub App Inquiry'},
+      queryParameters: {'subject': 'BD News Reader App Inquiry'},
     );
-    if (await canLaunchUrl(emailUri)) await launchUrl(emailUri);
+    if (await canLaunchUrl(emailUri)) {
+      await launchUrl(emailUri);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open email app.')),
+      );
+    }
   }
 
   Future<void> _launchWebsite() async {
@@ -59,98 +70,143 @@ class _AboutScreenState extends State<AboutScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final mode = context.watch<ThemeProvider>().appThemeMode;
+
+    late Color startColor;
+    late Color endColor;
+    switch (mode) {
+      case AppThemeMode.bangladesh:
+        startColor = const Color(0xFF00796B);
+        endColor = const Color(0xFF004D40);
+        break;
+      case AppThemeMode.dark:
+        startColor = const Color(0xFF2A2D30);
+        endColor = const Color(0xFF1E2124);
+        break;
+      case AppThemeMode.light:
+      default:
+        startColor = const Color(0xFF42A5F5);
+        endColor = const Color(0xFF1565C0);
+        break;
+    }
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('About Us'),
         centerTitle: true,
-        elevation: 2,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/home'),
         ),
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: const SizedBox.expand(),
+          ),
+        ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          Column(
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  startColor.withOpacity(0.85),
+                  endColor.withOpacity(0.85),
+                ],
+              ),
+            ),
+          ),
+          ListView(
+            padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + kToolbarHeight + 24, 20, 20),
             children: [
-              Container(
-                height: 100,
-                width: 100,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: colorScheme.primary, width: 2),
-                  boxShadow: [
-                    BoxShadow(color: colorScheme.primary.withOpacity(0.2), blurRadius: 10)
-                  ],
-                  image: const DecorationImage(
-                    image: AssetImage('assets/logo.png'),
-                    fit: BoxFit.cover,
+              Column(
+                children: [
+                  Container(
+                    height: 100,
+                    width: 100,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: colorScheme.primary, width: 2),
+                      boxShadow: [
+                        BoxShadow(color: colorScheme.primary.withOpacity(0.2), blurRadius: 10)
+                      ],
+                      image: const DecorationImage(
+                        image: AssetImage('assets/logo.png'),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
+                  Text('BDNewsHub',
+                      style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Real-time News at Your Fingertips',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 30),
+              _buildThemeCard(
+                icon: Icons.auto_stories,
+                title: 'Our Story',
+                content:
+                    'BD News Reader is the first mobile app by DSMobiles Group, delivering fast and reliable news updates. Our mission is to create free, high-quality apps that inform and empower.',
+              ),
+              _buildThemeCard(
+                icon: Icons.track_changes,
+                title: 'Our Vision',
+                content:
+                    'We envision a world where information is free and universal. Through user-first design and innovative tools, we aim to create digital experiences that inspire.',
+              ),
+              _buildThemeCard(
+                icon: Icons.mail,
+                title: 'Contact Us',
+                contentWidget: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildContactTile(
+                      label: 'customerservice@dsmobiles.com',
+                      icon: Icons.email,
+                      onTap: _launchEmail,
+                      onLongPress: () => _copyToClipboard('customerservice@dsmobiles.com', 'Email'),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildContactTile(
+                      label: 'www.dsmobiles.com',
+                      icon: Icons.language,
+                      onTap: _launchWebsite,
+                      onLongPress: () => _copyToClipboard('https://www.dsmobiles.com', 'Website'),
+                    ),
+                  ],
                 ),
               ),
-              Text('BDNewsHub',
-                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              Text(
-                'Real-time News at Your Fingertips',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+              const SizedBox(height: 20),
+              Center(
+                child: Column(
+                  children: [
+                    Text('Version $_appVersion', style: theme.textTheme.bodySmall),
+                    const SizedBox(height: 4),
+                    Text(
+                      '© ${DateTime.now().year} DreamSD Group',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 30),
-          _buildThemeCard(
-            icon: Icons.auto_stories,
-            title: 'Our Story',
-            content:
-                'BDNewsHub is the first mobile app by DSMobiles Group, delivering fast and reliable news updates. Our mission is to create free, high-quality apps that inform and empower.',
-          ),
-          _buildThemeCard(
-            icon: Icons.track_changes,
-            title: 'Our Vision',
-            content:
-                'We envision a world where information is free and universal. Through user-first design and innovative tools, we aim to create digital experiences that inspire.',
-          ),
-          _buildThemeCard(
-            icon: Icons.mail,
-            title: 'Contact Us',
-            contentWidget: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildContactTile(
-                  label: 'support@dsmobiles.com',
-                  icon: Icons.email,
-                  onTap: _launchEmail,
-                  onLongPress: () => _copyToClipboard('support@dsmobiles.com', 'Email'),
-                ),
-                const SizedBox(height: 12),
-                _buildContactTile(
-                  label: 'www.dsmobiles.com',
-                  icon: Icons.language,
-                  onTap: _launchWebsite,
-                  onLongPress: () => _copyToClipboard('https://www.dsmobiles.com', 'Website'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          Center(
-            child: Column(
-              children: [
-                Text('Version $_appVersion', style: theme.textTheme.bodySmall),
-                const SizedBox(height: 4),
-                Text(
-                  '© ${DateTime.now().year} DreamSD Group',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.5),
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),

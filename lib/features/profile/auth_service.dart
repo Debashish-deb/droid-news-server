@@ -1,4 +1,3 @@
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -13,8 +12,25 @@ class AuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   User? get currentUser => _auth.currentUser;
-
   bool get isLoggedIn => _auth.currentUser != null;
+
+  static const _prefsKeys = {
+    'name': 'user_name',
+    'email': 'user_email',
+    'phone': 'user_phone',
+    'role': 'user_role',
+    'department': 'user_department',
+    'image': 'user_image',
+    'isLoggedIn': 'isLoggedIn',
+  };
+
+  Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final logged = prefs.getBool(_prefsKeys['isLoggedIn']!) ?? false;
+    if (!logged || _auth.currentUser == null) {
+      await logout(); // ensure clean state
+    }
+  }
 
   Future<String?> signUp(String name, String email, String password) async {
     try {
@@ -50,7 +66,7 @@ class AuthService {
       final uid = userCredential.user!.uid;
       final doc = await _firestore.collection('users').doc(uid).get();
       if (doc.exists) {
-        await _cacheProfileMap(doc.data()!);
+        await _cacheProfileMap(doc.data() ?? {});
       }
       return null;
     } on FirebaseAuthException catch (e) {
@@ -106,12 +122,12 @@ class AuthService {
   Future<Map<String, String>> getProfile() async {
     final prefs = await SharedPreferences.getInstance();
     return {
-      'name': prefs.getString('user_name') ?? '',
-      'email': prefs.getString('user_email') ?? '',
-      'phone': prefs.getString('user_phone') ?? '',
-      'role': prefs.getString('user_role') ?? '',
-      'department': prefs.getString('user_department') ?? '',
-      'image': prefs.getString('user_image') ?? '',
+      'name': prefs.getString(_prefsKeys['name']!) ?? '',
+      'email': prefs.getString(_prefsKeys['email']!) ?? '',
+      'phone': prefs.getString(_prefsKeys['phone']!) ?? '',
+      'role': prefs.getString(_prefsKeys['role']!) ?? '',
+      'department': prefs.getString(_prefsKeys['department']!) ?? '',
+      'image': prefs.getString(_prefsKeys['image']!) ?? '',
     };
   }
 
@@ -154,23 +170,23 @@ class AuthService {
     String imagePath = '',
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_name', name);
-    await prefs.setString('user_email', email);
-    await prefs.setString('user_phone', phone);
-    await prefs.setString('user_role', role);
-    await prefs.setString('user_department', department);
-    await prefs.setString('user_image', imagePath);
-    await prefs.setBool('isLoggedIn', true);
+    await prefs.setString(_prefsKeys['name']!, name);
+    await prefs.setString(_prefsKeys['email']!, email);
+    await prefs.setString(_prefsKeys['phone']!, phone);
+    await prefs.setString(_prefsKeys['role']!, role);
+    await prefs.setString(_prefsKeys['department']!, department);
+    await prefs.setString(_prefsKeys['image']!, imagePath);
+    await prefs.setBool(_prefsKeys['isLoggedIn']!, true);
   }
 
   Future<void> _cacheProfileMap(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_name', data['name'] ?? '');
-    await prefs.setString('user_email', data['email'] ?? '');
-    await prefs.setString('user_phone', data['phone'] ?? '');
-    await prefs.setString('user_role', data['role'] ?? '');
-    await prefs.setString('user_department', data['department'] ?? '');
-    await prefs.setString('user_image', data['image'] ?? '');
-    await prefs.setBool('isLoggedIn', true);
+    await prefs.setString(_prefsKeys['name']!, data['name'] ?? '');
+    await prefs.setString(_prefsKeys['email']!, data['email'] ?? '');
+    await prefs.setString(_prefsKeys['phone']!, data['phone'] ?? '');
+    await prefs.setString(_prefsKeys['role']!, data['role'] ?? '');
+    await prefs.setString(_prefsKeys['department']!, data['department'] ?? '');
+    await prefs.setString(_prefsKeys['image']!, data['image'] ?? '');
+    await prefs.setBool(_prefsKeys['isLoggedIn']!, true);
   }
 }

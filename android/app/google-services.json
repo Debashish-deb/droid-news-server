@@ -7,12 +7,25 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:92831175770:android:40fc17be01d7222293f463",
+        "mobilesdk_app_id": "1:92831175770:android:2b0309d5b85ef55a93f463",
         "android_client_info": {
-          "package_name": "com.example.droid"
+          "package_name": "com.bd.bdnewsreader"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "92831175770-us08286mikf3nj734rc0gta02ep31he9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bd.bdnewsreader",
+            "certificate_hash": "59a1faef5f1c39d3410301f7c4582ec40f257f60"
+          }
+        },
+        {
+          "client_id": "92831175770-kck5562fel4cbfbtj8paduvaej1mp46d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCeSxbjb0TIYG0kWuLMm-j7TdbZ0nXt8go"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "92831175770-kck5562fel4cbfbtj8paduvaej1mp46d.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "92831175770-kr1cu4c0u4emu4amuimcfk2432q4ntgk.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.droid"
+              }
+            }
+          ]
         }
       }
     }

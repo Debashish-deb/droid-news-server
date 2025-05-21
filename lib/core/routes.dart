@@ -1,100 +1,191 @@
-// path: lib/core/router/routes.dart
+// File: lib/routes.dart
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../features/splash/splash_screen.dart';
-import '../../../features/onboarding/onboarding_screen.dart';
-import '../../../features/profile/profile_screen.dart';
-import '../../../features/profile/edit_profile_screen.dart';
-import '../../../features/profile/signup_screen.dart';
-import '../../../features/profile/login_screen.dart';
-import '../../../features/profile/forgot_password_screen.dart';
-import '../../../features/news/newspaper_screen.dart';
-import '../../../features/magazine/magazine_screen.dart';
-import '../../../features/favorites/favorites_screen.dart';
-import '../../../features/about/about_screen.dart';
-import '../../../features/help/help_screen.dart';
-import '../../../features/search/search_screen.dart';
-import '../../../features/settings/settings_screen.dart';
-import '../../../features/news_detail/news_detail_screen.dart';
-import '../../../features/common/webview_screen.dart';
-import '../../../main_navigation_screen.dart';
-import '../../../data/models/news_article.dart';
+import 'package:flutter/foundation.dart';
+
+import '../data/models/news_article.dart';
+import '../features/movies/movie.dart';
+import 'app_paths.dart';
+import '../../features/profile/auth_service.dart';
+import '../../features/profile/profile_screen.dart';
+
+// Splash & Onboarding
+import '../../features/splash/splash_screen.dart';
+import '../../features/onboarding/onboarding_screen.dart';
+
+// Auth
+import '../../features/profile/login_screen.dart';
+import '../../features/profile/signup_screen.dart';
+import '../../features/profile/forgot_password_screen.dart';
+
+// Main & Tabs
+import '../../main_navigation_screen.dart';
+import '../../features/news/newspaper_screen.dart';
+import '../../features/magazine/magazine_screen.dart';
+import '../../features/settings/settings_screen.dart';
+import '../../features/extras/extras_screen.dart';
+
+// Misc
+import '../../features/favorites/favorites_screen.dart';
+import '../../features/about/about_screen.dart';
+import '../../features/help/help_screen.dart';
+import '../../features/search/search_screen.dart';
+
+// Details & WebView
+import '../../features/news_detail/news_detail_screen.dart';
+import '../../features/common/webview_screen.dart';
+import '../../features/movies/movie_detail_screen.dart';
+
+/// Fires when AuthService.login/logout happens
+final _authRefresh = ValueNotifier<bool>(AuthService().isLoggedIn);
 
 class AppRouter {
-  static final GoRouter router = GoRouter(
-    initialLocation: '/splash',
-    errorBuilder: (context, state) => const ErrorScreen(),
-    routes: [
-      GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
-      GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
-      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-      GoRoute(path: '/signup', builder: (_, __) => const SignupScreen()),
-      GoRoute(path: '/forgot-password', builder: (_, __) => const ForgotPasswordScreen()),
+  AppRouter._();
 
-      GoRoute(path: '/home', builder: (_, __) => const MainNavigationScreen(selectedTab: 0)),
-      GoRoute(path: '/newspaper', builder: (_, __) => const MainNavigationScreen(selectedTab: 1)),
-      GoRoute(path: '/magazines', builder: (_, __) => const MainNavigationScreen(selectedTab: 2)),
-      GoRoute(path: '/settings', builder: (_, __) => const MainNavigationScreen(selectedTab: 3)),
+  static GoRouter createRouter({ required String initialLocation }) {
+    return GoRouter(
+      debugLogDiagnostics: kDebugMode,
+      initialLocation: initialLocation,
+      refreshListenable: _authRefresh,
+      redirect: (context, state) {
+        final loggedIn = AuthService().isLoggedIn;
+        final goingToLogin = state.uri.toString() == AppPaths.login;
 
-      GoRoute(path: '/favorites', builder: (_, __) => const FavoritesScreen()),
-      GoRoute(path: '/about', builder: (_, __) => const AboutScreen()),
-      GoRoute(path: '/supports', builder: (_, __) => const HelpScreen()),
-      GoRoute(path: '/search', builder: (_, __) => const SearchScreen()),
-      GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
-      GoRoute(path: '/edit_profile', builder: (_, __) => const EditProfileScreen()),
-
-      GoRoute(
-        path: '/news-detail',
-        builder: (context, state) {
-          final extra = state.extra;
-          if (extra is NewsArticle) {
-            return NewsDetailScreen(news: extra);
-          } else {
-            return const ErrorScreen();
-          }
-        },
+        if (!loggedIn && !goingToLogin) return AppPaths.login;
+        if ( loggedIn && goingToLogin)  return AppPaths.home;
+        return null;
+      },
+      errorPageBuilder: (context, state) => MaterialPage(
+        key: state.pageKey,
+        child: const _ErrorScreen(),
       ),
+      routes: [
+        GoRoute(path: AppPaths.splash, pageBuilder: (ctx, state) => MaterialPage(
+          key: state.pageKey,
+          child: const SplashScreen(),
+        )),
 
-      GoRoute(
-        path: '/webview',
-        name: 'webview',
-        builder: (context, state) {
-          final args = state.extra;
-          if (args is Map<String, dynamic> && args.containsKey('url')) {
-            return WebViewScreen(
-              url: args['url'] as String,
-              title: args['title'] as String? ?? 'Web View',
+        GoRoute(path: AppPaths.onboarding, pageBuilder: (ctx, state) => MaterialPage(
+          key: state.pageKey,
+          child: const OnboardingScreen(),
+        )),
+
+        GoRoute(path: AppPaths.profile, pageBuilder: (ctx, state) => MaterialPage(
+          key: state.pageKey,
+          child: const ProfileScreen(),
+        )),
+
+        GoRoute(path: AppPaths.login, pageBuilder: (ctx, state) => MaterialPage(
+          key: state.pageKey,
+          child: const LoginScreen(),
+        )),
+
+        GoRoute(path: AppPaths.signup, pageBuilder: (ctx, state) => MaterialPage(
+          key: state.pageKey,
+          child: const SignupScreen(),
+        )),
+
+        GoRoute(path: AppPaths.forgotPassword, pageBuilder: (ctx, state) => MaterialPage(
+          key: state.pageKey,
+          child: const ForgotPasswordScreen(),
+        )),
+
+        GoRoute(path: AppPaths.home, pageBuilder: (ctx, state) => MaterialPage(
+          key: state.pageKey,
+          child: const MainNavigationScreen(selectedTab: 0),
+        )),
+
+        // Deep links for each tab (optional)
+        GoRoute(path: AppPaths.newspaper, pageBuilder: (ctx, state) => MaterialPage(
+          key: state.pageKey,
+          child: const NewspaperScreen(),
+        )),
+        GoRoute(path: AppPaths.magazines, pageBuilder: (ctx, state) => MaterialPage(
+          key: state.pageKey,
+          child: const MagazineScreen(),
+        )),
+        GoRoute(path: AppPaths.settings, pageBuilder: (ctx, state) => MaterialPage(
+          key: state.pageKey,
+          child: const SettingsScreen(),
+        )),
+        GoRoute(path: AppPaths.extras, pageBuilder: (ctx, state) => MaterialPage(
+          key: state.pageKey,
+          child: const ExtrasScreen(),
+        )),
+
+        GoRoute(path: AppPaths.favorites, pageBuilder: (ctx, state) => MaterialPage(
+          key: state.pageKey,
+          child: const FavoritesScreen(),
+        )),
+        GoRoute(path: AppPaths.about, pageBuilder: (ctx, state) => MaterialPage(
+          key: state.pageKey,
+          child: const AboutScreen(),
+        )),
+        GoRoute(path: AppPaths.supports, pageBuilder: (ctx, state) => MaterialPage(
+          key: state.pageKey,
+          child: const HelpScreen(),
+        )),
+        GoRoute(path: AppPaths.search, pageBuilder: (ctx, state) => MaterialPage(
+          key: state.pageKey,
+          child: const SearchScreen(),
+        )),
+
+        GoRoute(
+          path: AppPaths.newsDetail,
+          pageBuilder: (ctx, state) {
+            final news = state.extra! as NewsArticle;
+            return MaterialPage(
+              key: state.pageKey,
+              child: NewsDetailScreen(news: news),
             );
-          } else {
-            return const ErrorScreen();
-          }
-        },
-      ),
-    ],
-  );
-}
-
-class ErrorScreen extends StatelessWidget {
-  const ErrorScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 80, color: Theme.of(context).colorScheme.error),
-            const SizedBox(height: 16),
-            Text(
-              'Oops! Something went wrong.',
-              style: Theme.of(context).textTheme.titleLarge,
-              textAlign: TextAlign.center,
-            ),
-          ],
+          },
         ),
-      ),
+
+        GoRoute(
+          path: AppPaths.webview,
+          pageBuilder: (ctx, state) {
+          final args = Map<String, dynamic>.from(state.extra as Map);
+            return MaterialPage(
+              key: state.pageKey,
+              child: WebViewScreen(
+  url: args['url']!,
+  title: args['title'] ?? '',
+),
+
+
+            );
+          },
+        ),
+
+        GoRoute(
+          path: AppPaths.movieDetail,
+          pageBuilder: (ctx, state) {
+            final movie = state.extra! as Movie;
+            return MaterialPage(
+              key: state.pageKey,
+              child: MovieDetailScreen(movie: movie),
+            );
+          },
+        ),
+
+        // ... add any other routes here ...
+      ],
     );
   }
+}
+
+class _ErrorScreen extends StatelessWidget {
+  const _ErrorScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Center(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.error_outline, size: 80, color: Theme.of(context).colorScheme.error),
+        const SizedBox(height: 16),
+        Text('Oops! Something went wrong.', style: Theme.of(context).textTheme.titleLarge),
+      ]),
+    ),
+  );
 }

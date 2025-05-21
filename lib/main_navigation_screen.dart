@@ -1,14 +1,19 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'features/home/home_screen.dart';        // <-- HomeScreen must be imported
-import 'features/magazine/magazine_screen.dart';
+import 'package:provider/provider.dart';
+
+import 'features/home/home_screen.dart';
 import 'features/news/newspaper_screen.dart';
+import 'features/magazine/magazine_screen.dart';
 import 'features/settings/settings_screen.dart';
-import 'widgets/app_drawer.dart';
-import 'localization/l10n/app_localizations.dart';
+import 'features/extras/extras_screen.dart';
+import 'l10n/app_localizations.dart';
+import 'core/theme_provider.dart';
+import 'core/theme.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final int selectedTab;
-  const MainNavigationScreen({super.key, this.selectedTab = 0});
+  const MainNavigationScreen({Key? key, this.selectedTab = 0}) : super(key: key);
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
@@ -16,130 +21,179 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   late int _currentIndex;
+  late final List<Widget> _tabs;
 
-  // 1) Create a GlobalKey for the public HomeScreenState
-  final GlobalKey<HomeScreenState> _homeKey =
-      GlobalKey<HomeScreenState>();
-
-  // 2) Assign the key when instantiating HomeScreen
-  late final List<Widget> _tabs = [
-    HomeScreen(key: _homeKey),
-    const NewspaperScreen(),
-    const MagazineScreen(),
-    const SettingsScreen(),
+  final List<String> _iconNames = [
+    'home',
+    'newspapers',
+    'magazines',
+    'settings',
+    'Extras',
   ];
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.selectedTab;
+    _tabs = const [
+      HomeScreen(),
+      NewspaperScreen(),
+      MagazineScreen(),
+      SettingsScreen(),
+      ExtrasScreen(),
+    ];
   }
 
   void _onItemTapped(int index) {
-    if (_currentIndex == index) return;
-
     setState(() => _currentIndex = index);
-
-    // 3) When user taps the Home tab, tell it to reset itself
-    if (index == 0) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _homeKey.currentState?.resetFromNav();
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final themeProv = context.watch<ThemeProvider>();
+    final mode = themeProv.appThemeMode;
     final loc = AppLocalizations.of(context)!;
-
-    final List<Color> tabColors = [
-      theme.colorScheme.primary,
-      theme.colorScheme.secondary,
-      theme.colorScheme.tertiary,
-      theme.colorScheme.primary.withOpacity(0.8),
-    ];
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final textTheme = theme.textTheme;
 
     final labels = [
       loc.home,
       loc.newspapers,
       loc.magazines,
-      loc.settings
-    ];
-    final icons = [
-      Icons.home,
-      Icons.article,
-      Icons.book,
-      Icons.settings,
+      loc.settings,
+      'Extras',
     ];
 
+    final activeGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: AppGradients.getGradientColors(mode),
+    );
+
+    final inactiveGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        cs.surfaceVariant.withOpacity(0.3),
+        cs.surface.withOpacity(0.3),
+      ],
+    );
+
+    String themeSuffix;
+    switch (mode) {
+      case AppThemeMode.dark:
+        themeSuffix = 'dark';
+        break;
+      case AppThemeMode.bangladesh:
+        themeSuffix = 'desh';
+        break;
+      default:
+        themeSuffix = 'light';
+    }
+
     return Scaffold(
-      drawer: const AppDrawer(),
-      body: _tabs[_currentIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: theme.bottomNavigationBarTheme.backgroundColor ??
-              theme.colorScheme.surface,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
-            ),
-          ],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _tabs,
+      ),
+      bottomNavigationBar: ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
         ),
-        child: BottomNavigationBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          currentIndex: _currentIndex,
-          onTap: _onItemTapped,
-          type: BottomNavigationBarType.fixed,
-          showUnselectedLabels: true,
-          selectedItemColor: tabColors[_currentIndex],
-          unselectedItemColor:
-              theme.colorScheme.onSurface.withOpacity(0.6),
-          items: List.generate(_tabs.length, (index) {
-            final isSelected = index == _currentIndex;
-            final color = tabColors[index];
-            return BottomNavigationBarItem(
-              icon: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                padding: const EdgeInsets.all(6),
-                decoration: isSelected
-                    ? BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [
-                            color.withOpacity(0.7),
-                            color
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: color.withOpacity(0.4),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      )
-                    : null,
-                child: Icon(
-                  icons[index],
-                  size: isSelected ? 30 : 24,
-                  color: isSelected ? Colors.white : null,
-                ),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  cs.background.withOpacity(0.85),
+                  cs.surface.withOpacity(0.65),
+                ],
               ),
-              label: labels[index],
-            );
-          }),
+              border: Border.all(color: themeProv.borderColor, width: 1),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(_tabs.length, (i) {
+                final selected = i == _currentIndex;
+                final String assetPath = 'assets/icons/${_iconNames[i]}_$themeSuffix.png';
+                return GestureDetector(
+                  onTap: () => _onItemTapped(i),
+                  child: _buildNavIcon(
+                    assetPath: assetPath,
+                    label: labels[i],
+                    selected: selected,
+                    activeGradient: activeGradient,
+                    inactiveGradient: inactiveGradient,
+                    textTheme: textTheme,
+                  ),
+                );
+              }),
+            ),
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildNavIcon({
+    required String assetPath,
+    required String label,
+    required bool selected,
+    required Gradient activeGradient,
+    required Gradient inactiveGradient,
+    required TextTheme textTheme,
+  }) {
+    final double size = 60;
+    final double iconSize = size;
+    final Color shadowColor =
+        selected ? activeGradient.colors.first.withOpacity(0.4) : Colors.black26;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: selected ? activeGradient : inactiveGradient,
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: shadowColor,
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Image.asset(
+              assetPath,
+              width: iconSize,
+              height: iconSize,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: selected
+                ? textTheme.labelLarge?.color
+                : textTheme.labelLarge?.color?.withOpacity(0.6),
+          ),
+        ),
+      ],
     );
   }
 }

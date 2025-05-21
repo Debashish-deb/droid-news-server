@@ -1,33 +1,65 @@
-// path: lib/data/models/news_article.dart
-
+import 'package:hive/hive.dart';
 import 'package:webfeed_revised/webfeed_revised.dart';
 
-class NewsArticle {
+part 'news_article.g.dart';
+
+@HiveType(typeId: 0)
+class NewsArticle extends HiveObject {
+  @HiveField(0)
+  final String title;
+
+  @HiveField(1)
+  final String description;
+
+  @HiveField(2)
+  final String url;
+
+  @HiveField(3)
+  final String source;
+
+  @HiveField(4)
+  final String? imageUrl;
+
+  @HiveField(5)
+  final String language;
+
+  @HiveField(6)
+  final String snippet;
+
+  @HiveField(7)
+  final String fullContent;
+
+  @HiveField(8)
+  final DateTime publishedAt;
+
+  @HiveField(9)
+  final bool isLive;
+
+  @HiveField(10)
+  String? sourceOverride;
+
+  @HiveField(11)
+  String? sourceLogo;
+
+  @HiveField(12)
+  bool fromCache; // ✅ Add cache flag
+
   NewsArticle({
     required this.title,
     this.description = '',
     required this.url,
     required this.source,
     this.imageUrl,
-    this.language = 'en', // Default to English
+    this.language = 'en',
     this.snippet = '',
     this.fullContent = '',
     required this.publishedAt,
     this.isLive = false,
+    this.sourceOverride,
+    this.sourceLogo,
+    this.fromCache = false, // ✅ default false
   });
 
-  final String title;
-  final String description;
-  final String url;
-  final String source;
-  final String? imageUrl;
-  final String language;
-  final String snippet;
-  final String fullContent;
-  final DateTime publishedAt;
-  final bool isLive;
-
-  /// Create from RSS item
   factory NewsArticle.fromRssItem(RssItem item) {
     final mediaUrl = item.media?.thumbnails?.firstOrNull?.url ??
         item.media?.contents?.firstOrNull?.url ??
@@ -45,37 +77,37 @@ class NewsArticle {
     );
   }
 
-  /// Create from Firebase or other JSON Map
-  factory NewsArticle.fromMap(Map<String, dynamic> map) {
-    return NewsArticle(
-      title: map['title'] ?? '',
-      description: map['description'] ?? '',
-      url: map['url'] ?? '',
-      source: map['source'] ?? '',
-      imageUrl: map['imageUrl'],
-      language: map['language'] ?? 'en',
-      snippet: map['snippet'] ?? '',
-      fullContent: map['fullContent'] ?? '',
-      publishedAt: DateTime.tryParse(map['publishedAt'] ?? '') ?? DateTime.now(),
-      isLive: map['isLive'] ?? false,
-    );
-  }
+  factory NewsArticle.fromMap(Map<String, dynamic> map) => NewsArticle(
+        title: map['title'] ?? '',
+        description: map['description'] ?? '',
+        url: map['url'] ?? '',
+        source: map['source'] ?? '',
+        imageUrl: map['imageUrl'],
+        language: map['language'] ?? 'en',
+        snippet: map['snippet'] ?? '',
+        fullContent: map['fullContent'] ?? '',
+        publishedAt: DateTime.tryParse(map['publishedAt'] ?? '') ?? DateTime.now(),
+        isLive: map['isLive'] ?? false,
+        sourceOverride: map['sourceOverride'],
+        sourceLogo: map['sourceLogo'],
+        fromCache: map['fromCache'] ?? false, // ✅ support map
+      );
 
-  /// Convert to JSON Map
-  Map<String, dynamic> toMap() {
-    return {
-      'title': title,
-      'description': description,
-      'url': url,
-      'source': source,
-      'imageUrl': imageUrl,
-      'language': language,
-      'snippet': snippet,
-      'fullContent': fullContent,
-      'publishedAt': publishedAt.toIso8601String(),
-      'isLive': isLive,
-    };
-  }
+  Map<String, dynamic> toMap() => {
+        'title': title,
+        'description': description,
+        'url': url,
+        'source': source,
+        'imageUrl': imageUrl,
+        'language': language,
+        'snippet': snippet,
+        'fullContent': fullContent,
+        'publishedAt': publishedAt.toIso8601String(),
+        'isLive': isLive,
+        'sourceOverride': sourceOverride,
+        'sourceLogo': sourceLogo,
+        'fromCache': fromCache, // ✅ include in export
+      };
 
   static String? _extractImageFromEnclosure(RssItem item) {
     final url = item.enclosure?.url ?? '';

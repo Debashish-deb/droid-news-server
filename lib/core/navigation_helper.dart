@@ -1,5 +1,9 @@
+// lib/core/navigation_helper.dart
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
+import '../features/movies/movie.dart';
 
 class NavigationHelper {
   static void goHome(BuildContext context) {
@@ -39,7 +43,7 @@ class NavigationHelper {
   }
 
   static void goEditProfile(BuildContext context) {
-    context.go('/edit_profile');
+    context.go('/edit-profile');
   }
 
   static void goLogin(BuildContext context) {
@@ -54,11 +58,20 @@ class NavigationHelper {
     context.go('/forgot-password');
   }
 
-  static void goWebView(BuildContext context, {required String url, String? title}) {
+  static void goWebView(
+    BuildContext context, {
+    required String url,
+    String? title,
+  }) {
     context.go('/webview', extra: {'url': url, 'title': title ?? 'Web View'});
   }
 
   static void goNewsDetail(BuildContext context, dynamic article) {
     context.go('/news-detail', extra: article);
+  }
+
+  /// Navigate to the movie detail page, carrying the Movie as extra.
+  static void goMovieDetail(BuildContext context, Movie movie) {
+    context.go('/movies/${movie.id}', extra: movie);
   }
 }

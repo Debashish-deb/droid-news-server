@@ -1,225 +1,270 @@
-// path: lib/data/services/rss_service.dart
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:http/http.dart' as https;
 import 'package:webfeed_revised/webfeed_revised.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import '../models/news_article.dart';
 
 class RssService {
-  static const Map<String, Map<String, List<String>>> _feeds = {
-   'bn': {
-      'latest': [
-        'https://www.prothomalo.com/feed',
-        'https://www.kalerkantho.com/rss.xml',
-        'https://bangla.bdnews24.com/rss/bangla.xml',
-        'https://www.jugantor.com/rss.xml',
-        'https://www.ittefaq.com.bd/rss.xml',
-        // Indian Bangla additions:
-        'https://www.anandabazar.com/rss/abp-bangla-homepage.rss',
-        'https://www.eisamay.com/rssfeed',
-        'https://bangla.hindustantimes.com/rss/homepage',
-        'https://roar.media/bangla/feed',
-      ],
-      'national': [
-        'https://www.ittefaq.com.bd/rss.xml',
-        'https://www.jugantor.com/rss.xml',
-        'https://mzamin.com/rss.xml',
-        'https://www.dailynayadiganta.com/rss.xml',
-        'https://www.samakal.com/rss.xml',
-        'https://www.kalerkantho.com/rss.xml',
-        'https://www.bhorerkagoj.com/feed',
-      ],
-      'business': [
-        'https://bangla.bdnews24.com/economy/rss.xml',
-        'https://www.dhakatimes24.com/business/rss.xml',
-        'https://www.arthosuchak.com/feed',
-        'https://bonikbarta.net/rss.xml',
-      ],
-      'sports': [
-        'https://www.prothomalo.com/sports/feed​',
-        'https://bangla.bdnews24.com/sport/rss.xml​',
-        'https://www.jugantor.com/sports/rss.xml​',
-        'https://www.banglatribune.com/sports/rss.xml​',
-        'https://www.jagonews24.com/sports/rss.xml​',
-        'https://www.banglanews24.com/rss/sports.rss​',
-        'https://www.kalerkantho.com/rss/sports.xml​',
-        'https://bengali.abplive.com/sports/feed​',
-        'https://bengali.abplive.com/sports/ipl/feed​',
-        'https://thewall.in/rssfeed?cat=sports​',
-        'https://thewall.in/rssfeed?cat=sports_cricket​',
-        'https://thewall.in/rssfeed?cat=sports_football',
-      ],
-      'technology': [
-        'https://bangla.bdnews24.com/tech/rss.xml',
-        'https://www.jugantor.com/technology/rss.xml',
-        'https://techshohor.com/feed',
-        'https://trickbd.com/feed',
-        'https://www.priyo.com/tech/rss.xml',
-      ],
-      'entertainment': [
-        'https://bangla.bdnews24.com/entertainment/rss.xml',
-        'https://www.prothomalo.com/entertainment/feed',
-        'https://www.jugantor.com/entertainment/rss.xml',
-        'https://www.banglatribune.com/feed',
-        'https://www.bd24live.com/feed​',
-        'https://www.risingbd.com/rss/rss.xml​',
-        'https://www.banglanews24.com/rss/rss.xml',
-        'http://www.kalerkantho.com/rss.xml​',
-        'https://www.thedailystar.net/frontpage/rss.xml​',
-        'https://bd-journal.com/feed/latest-rss.xml​',
-        'https://www.amarbanglabd.com/rss​',
-        'https://bengali.abplive.com/home/feed',
-        'https://bengali.abplive.com/entertainment/feed',
-        'https://bengali.abplive.com/sports/feed​', 'https://zeenews.india.com/bengali/rssfeed.html',
-        'https://www.indiatoday.in/rss​',
-      ],
-      'lifestyle': [
-        'https://www.priyo.com/lifestyle/rss.xml',
-        'https://www.sahos24.com/rss.xml',
-      ],
-      'blog': [
-        'https://roar.media/bangla/feed',
-        'https://www.priyo.com/blog/rss.xml',
-      ],
-    },
-    'en': {
-      'breakingNews': [
-        'https://rss.cnn.com/rss/edition.rss',
-        'https://feeds.bbci.co.uk/news/rss.xml',
-        'https://www.thedailystar.net/frontpage/rss.xml',
-        'https://www.dhakatribune.com/feed',
-      ],
-      'national': [
-        'https://www.dhakatribune.com/feed',
-        'https://www.thedailystar.net/frontpage/rss.xml',
-      ],
-      'business': [
-        'https://feeds.a.dj.com/rss/RSSMarketsMain.xml',
-        'https://www.forbes.com/business/feed/',
-        'https://www.ft.com/?format=rss',
-        'https://www.businesstoday.in/rssfeedstopstories.cms',
-      ],
-      'sports': [
-        'https://www.espn.com/espn/rss/news',
-        'https://www.skysports.com/rss/12040',
-        'https://www.sportingnews.com/us/rss',
-      ],
-      'technology': [
-        'https://www.techradar.com/rss',
-        'https://feeds.arstechnica.com/arstechnica/index',
-        'https://thenextweb.com/feed',
-      ],
-      'entertainment': [
-        'https://www.billboard.com/feed/',
-        'https://variety.com/feed/',
-        'https://www.hollywoodreporter.com/t/feed/',
-      ],
-      'lifestyle': [
-        'https://www.lifehack.org/feed',
-        'https://www.mindbodygreen.com/rss',
-        'https://www.wellandgood.com/feed/',
-      ],
-      'blog': [
-        'https://medium.com/feed/tag/technology',
-        'https://daringfireball.net/feeds/main',
-      ],
-    },
-  };
+  RssService._();
+
+  static const _cacheDuration = Duration(minutes: 30);
+  static const _cacheKeyPrefix = 'newsapi_cache';
 
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
+  /// Initialize once at app startup
   static Future<void> initializeNotifications() async {
-    const AndroidInitializationSettings androidInit =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const InitializationSettings initSettings =
-        InitializationSettings(android: androidInit);
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const initSettings = InitializationSettings(android: androidInit);
     await _notificationsPlugin.initialize(initSettings);
   }
 
-  static Map<String, List<String>>? getSafeFeeds(Locale locale) {
-    final lang = locale.languageCode.split('-').first;
-    return _feeds[lang];
+  /// Our four supported categories
+  static const List<String> categories = [
+    'latest',
+    'national',
+    'international',
+    'lifestyle & education',
+  ];
+
+  /// A small fallback of RSS feeds, keyed by category.
+  static const Map<String, List<Map<String, String>>> _rssFallback = {
+    'latest': [
+      {'name': 'প্রথম আলো', 'url': 'https://www.prothomalo.com/feed'},
+      {'name': 'বিডিনিউজ২৪ ইংরেজি', 'url': 'https://bdnews24.com/en/rss/en/latest/rss.xml'},
+      {'name': 'সমকাল', 'url': 'https://samakal.com/feed'},
+      {'name': 'বাংলাদেশ প্রতিদিন', 'url': 'https://www.bd-pratidin.com/rss.xml'},
+      {'name': 'মানবজমিন', 'url': 'https://mzamin.com/rss.php'},
+      {'name': 'আমাদের সময়', 'url': 'https://www.amadershomoy.com/rss.xml'},
+      {'name': 'ইনকিলাব', 'url': 'https://www.dailyinqilab.com/rss.xml'},
+      {'name': 'জাগো নিউজ ২৪', 'url': 'https://www.jagonews24.com/rss/rss.xml'},
+      {'name': 'বাংলানিউজ২৪', 'url': 'https://www.banglanews24.com/rss/rss.xml'},
+      {'name': 'ঢাকা পোস্ট', 'url': 'https://www.dhakapost.com/feed'},
+      {'name': 'ইত্তেফাক', 'url': 'https://www.ittefaq.com.bd/feed'},
+      {'name': 'কালের কণ্ঠ', 'url': 'https://www.kalerkantho.com/rss.xml'},
+      {'name': 'বাংলাদেশ প্রতিদিন-জাতীয়', 'url': 'https://www.bd-pratidin.com/national/rss'},
+      {'name': 'নয়া দিগন্ত-রাজনীতি', 'url': 'https://www.dailynayadiganta.com/politics/rss'},
+      {'name': 'BBC World', 'url': 'https://feeds.bbci.co.uk/news/world/rss.xml'},
+    ],
+    'national': [
+      {'name': 'বাংলাদেশ প্রতিদিন-জাতীয়', 'url': 'https://www.bd-pratidin.com/national/rss'},
+      {'name': 'Cricbuzz BD', 'url': 'https://www.cricbuzz.com/rss/BD.xml'},
+      {'name': 'ক্রিকেটবাংলা', 'url': 'https://cricketbangla.com/feed/'},
+      {'name': 'বিডিনিউজ২৪-ক্রীড়া', 'url': 'https://bangla.bdnews24.com/category/sport/feed/'},
+      {'name': 'বিবিসি-বাংলা', 'url': 'https://feeds.bbci.co.uk/bengali/bangladesh/rss.xml'},
+      {'name': 'প্রথম আলো', 'url': 'https://www.prothomalo.com/feed'},
+      {'name': 'ESPN CricInfo', 'url': 'https://www.espncricinfo.com/rss/content/story/feeds/0.xml'},
+    ],
+    'international': [
+      {'name': 'BBC World', 'url': 'https://feeds.bbci.co.uk/news/world/rss.xml'},
+      {'name': 'DW News', 'url': 'https://rss.dw.com/rdf/rss-en-all'},
+      {'name': 'বিবিসি-বাংলা বিশ্ব (World)', 'url': 'https://feeds.bbci.co.uk/bengali/world/rss.xml'},
+    ],
+    'lifestyle': [
+      {'name': 'EdTech Review', 'url': 'https://edtechreview.in/feed'},
+      {'name': 'শিক্ষা অধিদপ্তর', 'url': 'https://www.dshe.gov.bd/bn/feed'},
+      {'name': 'ক্যাম্পাস টাইমস', 'url': 'https://www.campustimesbd.com/feed/'},
+      {'name': 'বিবিসি-বাংলা বিনোদন (Entertainment)', 'url': 'https://feeds.bbci.co.uk/bengali/entertainment/rss.xml'},
+    ],
+  };
+
+  /// Static helper to expose fallback sources per category
+  static List<Map<String, String>> rssFallbackForCategory(String category) =>
+      _rssFallback[category] ?? [];
+
+  /// Entry point: fetch for a given category & locale
+  /// If [preferRss] is true, skips NewsAPI and loads RSS only.
+  static Future<List<NewsArticle>> fetchNews({
+    required String category,
+    required Locale locale,
+    BuildContext? context,
+    bool preferRss = false,
+  }) async {
+    assert(categories.contains(category), 'Unsupported category: $category');
+
+    final rssSources = _rssFallback[category]!;
+    if (preferRss) {
+      return _fetchFromRss(rssSources, context: context);
+    }
+
+    final apiResults = await _fetchFromNewsApi(
+      category: category,
+      locale: locale,
+      context: context,
+    );
+    if (apiResults.isNotEmpty) return apiResults;
+
+    // Fallback to RSS if NewsAPI fails/returns empty
+    return _fetchFromRss(rssSources, context: context);
   }
 
-  static Future<List<NewsArticle>> fetchRssFeeds(List<String> urls) async {
-    final client = http.Client();
+  /// NewsAPI with caching
+  static Future<List<NewsArticle>> _fetchFromNewsApi({
+    required String category,
+    required Locale locale,
+    BuildContext? context,
+  }) async {
+    final apiKey = dotenv.env['NEWS_API_KEY'] ?? '';
+    if (apiKey.isEmpty) throw StateError('NEWS_API_KEY not set in .env');
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+
+    final lang = locale.languageCode;
+    final cacheKey = '$_cacheKeyPrefix:$category:$lang';
+    final cacheTimeKey = '$cacheKey:time';
+
+    final raw = prefs.getString(cacheKey);
+    final rawTime = prefs.getString(cacheTimeKey);
+    if (raw != null && rawTime != null) {
+      final saved = DateTime.tryParse(rawTime);
+      if (saved != null && now.difference(saved) < _cacheDuration) {
+        final list = jsonDecode(raw) as List<dynamic>;
+        return list
+            .map((m) => NewsArticle.fromMap(m as Map<String, dynamic>))
+            .toList();
+      }
+    }
+
+    final isTopHeadlines = category == 'latest' || category == 'sports';
+    final endpoint = isTopHeadlines ? 'top-headlines' : 'everything';
+    final params = <String, String>{
+      'apiKey': apiKey,
+      'language': lang,
+      if (isTopHeadlines && category == 'sports') 'category': 'sports',
+      if (isTopHeadlines && category == 'latest') 'country': 'bd',
+      if (!isTopHeadlines && category == 'international') 'q': 'international OR world',
+      if (!isTopHeadlines && category == 'education') 'q': 'education OR শিক্ষা',
+      'pageSize': '30',
+    };
+
+    final uri = Uri.https('newsapi.org', '/v2/$endpoint', params);
+
     try {
-      final responses = await Future.wait(
-        urls.map((url) => _fetch(client, url)),
-        eagerError: false,
-      );
-      final all = responses.expand((list) => list);
-      final seen = <String>{};
-      return all.where((a) => seen.add(a.url)).toList();
+      final res = await https.get(uri).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        final rawArticles = (body['articles'] as List<dynamic>?) ?? [];
+        final articles = rawArticles
+            .map((j) => NewsArticle.fromMap(j as Map<String, dynamic>))
+            .where((a) => a.title.isNotEmpty)
+            .toList();
+
+        await prefs.setString(cacheKey, jsonEncode(articles.map((a) => a.toMap()).toList()));
+        await prefs.setString(cacheTimeKey, now.toIso8601String());
+
+        if (context != null) {
+          for (final a in articles) {
+            if (a.imageUrl?.isNotEmpty == true) {
+              precacheImage(NetworkImage(a.imageUrl!), context);
+            }
+          }
+        }
+        return articles;
+      }
+    } catch (_) {
+      // fail silently to fallback
+    }
+    return [];
+  }
+
+  /// Pure RSS fetch + dedupe
+  static Future<List<NewsArticle>> _fetchFromRss(
+    List<Map<String, String>> sources, {
+    BuildContext? context,
+  }) async {
+    final client = https.Client();
+    final all = <NewsArticle>[];
+    try {
+      final results = await Future.wait(sources.map((s) {
+        return _parseRss(client, s['url']!, s['name'], context);
+      }));
+      for (var l in results) all.addAll(l);
     } finally {
       client.close();
     }
+    final seen = <String>{};
+    return all.where((a) => seen.add(a.url)).toList();
   }
 
-  static Future<List<NewsArticle>> _fetch(http.Client client, String url) async {
+  static Future<List<NewsArticle>> _parseRss(
+    https.Client client,
+    String url,
+    String? sourceName,
+    BuildContext? context, {
+    int retries = 2,
+  }) async {
     try {
-      final response = await client
-          .get(Uri.parse(url), headers: {'User-Agent': 'Mozilla/5.0'})
-          .timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) return [];
-      final encoding = _extractEncoding(response.headers['content-type']);
-      final body = encoding.decode(response.bodyBytes);
+      final res = await client.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+      if (res.statusCode != 200 && retries > 0) {
+        await Future.delayed(const Duration(seconds: 2));
+        return _parseRss(client, url, sourceName, context, retries: retries - 1);
+      }
+      if (res.statusCode != 200) return [];
+
+      final ct = res.headers['content-type'];
+      final charset = ct?.split('charset=').last ?? 'utf-8';
+      final body = Encoding.getByName(charset)!.decode(res.bodyBytes);
+
       final feed = RssFeed.parse(body);
-      return feed.items
-              ?.map((item) => NewsArticle.fromRssItem(item))
+      final items = feed.items
+              ?.map(NewsArticle.fromRssItem)
               .where((a) => a.title.isNotEmpty)
-              .toList() ??
-          [];
+              .toList() ?? [];
+
+      if (context != null) {
+        for (final a in items) {
+          if (a.imageUrl?.isNotEmpty == true) {
+            precacheImage(NetworkImage(a.imageUrl!), context);
+          }
+        }
+      }
+      if (sourceName != null) {
+        for (final a in items) {
+          a.sourceOverride = sourceName;
+        }
+      }
+      return items;
     } catch (_) {
+      if (retries > 0) {
+        await Future.delayed(const Duration(seconds: 2));
+        return _parseRss(client, url, sourceName, context, retries: retries - 1);
+      }
       return [];
     }
   }
 
-  static Encoding _extractEncoding(String? contentType) {
-    final charset = contentType?.split('charset=').last ?? 'utf-8';
-    return Encoding.getByName(charset) ?? utf8;
-  }
-
-  /// 🔥 Auto-poll feeds and send notifications for new unseen articles
+  /// Desktop notifications for new RSS‐only stories
   static Future<void> pollFeedsAndNotify(Locale locale) async {
     final prefs = await SharedPreferences.getInstance();
-    final storedUrls = prefs.getStringList('seenArticles') ?? [];
-
-    final feeds = getSafeFeeds(locale);
-    if (feeds == null) return;
-
-    final breakingNewsFeeds = feeds['breakingNews'] ?? [];
-    final newArticles = await fetchRssFeeds(breakingNewsFeeds);
-
-    for (final article in newArticles) {
-      if (!storedUrls.contains(article.url)) {
-        await _showNotification(article.title);
-        storedUrls.add(article.url);
+    final seen = prefs.getStringList('seenArticles') ?? [];
+    final sources = _rssFallback['latest']!;
+    final fresh = await _fetchFromRss(sources);
+    for (final a in fresh) {
+      if (!seen.contains(a.url)) {
+        await _showNotification(a.title);
+        seen.add(a.url);
       }
     }
-
-    await prefs.setStringList('seenArticles', storedUrls);
+    await prefs.setStringList('seenArticles', seen);
   }
 
   static Future<void> _showNotification(String title) async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'rss_channel_id',
-      'RSS Updates',
-      channelDescription: 'Notifications for new RSS news articles',
-      importance: Importance.max,
-      priority: Priority.high,
-      playSound: true,
+    const android = AndroidNotificationDetails(
+      'rss_channel', 'RSS Updates',
+      channelDescription: 'New fallback RSS story',
+      importance: Importance.max, priority: Priority.high,
     );
-    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+    const pd = NotificationDetails(android: android);
     await _notificationsPlugin.show(
       DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      '📰 New Article',
+      '📰 নতুন সংবাদ',
       title,
-      platformDetails,
+      pd,
     );
   }
 }
