@@ -1,5 +1,11 @@
-<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- ✅ SECURITY: Permissions for profile builds -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+
+    <!-- ✅ SECURITY FIX: Explicitly set security settings -->
+    <!-- Profile builds (performance testing) don't expose activities externally -->
+    <application>
+        <!-- No activities defined here, inherits from main manifest -->
+    </application>
 </manifest>

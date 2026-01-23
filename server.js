@@ -3,12 +3,20 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const helmet = require('helmet');
 const Parser = require('rss-parser');
 const axios = require('axios');
 const cheerio = require('cheerio');
 
 // Initialize app and services
 const app = express();
+
+// ✅ SECURITY: Add Helmet middleware for HTTP headers (HSTS, CSP, etc.)
+app.use(helmet());
+
+// ✅ SECURITY: CORS configuration (restrict in production)
+app.use(cors());
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*" }

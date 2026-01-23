@@ -34,7 +34,7 @@ import 'core/routes.dart';
 import 'core/splash_service.dart';
 import 'core/theme.dart';
 import 'core/utils/error_handler.dart';
-import 'core/di/service_locator.dart'; // BUILD_FIXES: Dependency injection
+import 'core/di/injection_container.dart'; // ✅ NEW: get_it DI
 import 'l10n/app_localizations.dart';
 import 'firebase_options.dart';
 import 'widgets/session_validator.dart';
@@ -49,10 +49,14 @@ Future<void> main() async {
       WidgetsFlutterBinding.ensureInitialized();
       await dotenv.load();
 
-      // Initialize Firebase
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      // Initialize Firebase safely (prevent duplicate initialization)
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      } else {
+        Firebase.app(); // Ensure default app exists
+      }
 
       // Firebase App Check - Skipped due to dependency conflict
       // TODO: Re-enable when firebase_app_check is compatible with firebase_analytics
@@ -74,7 +78,7 @@ Future<void> main() async {
 
       // Initialize core services
       await ErrorHandler.initialize();
-      await ServiceLocator.instance.initialize(); // BUILD_FIXES: Initialize DI
+      await setupDependencies(); // ✅ NEW: get_it DI container
       _prefs = await SharedPreferences.getInstance();
 
       // Initialize legacy PremiumService (fast local check)

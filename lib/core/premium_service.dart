@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'di/service_locator.dart';
+import 'di/injection_container.dart';
+import 'services/remote_config_service.dart';
+
 
 /// A single, app-wide service that holds "isPremium" state.
 class PremiumService extends ChangeNotifier {
@@ -34,14 +36,19 @@ class PremiumService extends ChangeNotifier {
     email ??= prefs.getString('user_email');
 
     if (email != null) {
-      // Get whitelist from Remote Config
-      final dynamic whitelist = sl.remoteConfig.getJson('premium_whitelist');
-      if (whitelist is List) {
-        final List<String> emails = whitelist.cast<String>();
-        if (emails.contains(email.toLowerCase())) {
-          localStatus = true;
-          debugPrint('👑 Premium granted via Remote Config whitelist for: $email');
+      // ✅ MIGRATED: Get whitelist from Remote Config via DI
+      try {
+        final remoteConfig = sl<RemoteConfigService>();
+        final dynamic whitelist = remoteConfig.getJson('premium_whitelist');
+        if (whitelist is List) {
+          final List<String> emails = whitelist.cast<String>();
+          if (emails.contains(email.toLowerCase())) {
+            localStatus = true;
+            debugPrint('👑 Premium granted via Remote Config whitelist for: $email');
+          }
         }
+      } catch (e) {
+        debugPrint('⚠️ Failed to check premium whitelist: $e');
       }
     }
 

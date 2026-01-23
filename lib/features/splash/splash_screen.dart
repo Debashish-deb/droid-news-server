@@ -72,23 +72,22 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       return;
     }
 
-    // 🚨 NEW: Root Detection Check
-    try {
-      final rootStatus = await RootDetector.detect();
-      
+    // 🚨 Root Detection Check (non-blocking)
+    // Run in background, don't block splash screen
+    RootDetector.detect().then((rootStatus) {
       if (rootStatus.isRooted && rootStatus.confidence > 0.6) {
         debugPrint('⚠️ ROOTED DEVICE DETECTED');
         debugPrint('   Confidence: ${(rootStatus.confidence * 100).toStringAsFixed(1)}%');
         debugPrint('   Indicators: ${rootStatus.detectedIndicators.join(", ")}');
         
         if (mounted) {
-          await _showRootWarningDialog(rootStatus);
+          _showRootWarningDialog(rootStatus);
         }
       }
-    } catch (e) {
+    }).catchError((e) {
       debugPrint('Failed to check root status: $e');
       // Continue anyway - don't block user if check fails
-    }
+    });
 
     // Parallelize heavy initializations
     // We wait for the longest of: Animation OR Services

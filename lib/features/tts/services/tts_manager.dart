@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:get_it/get_it.dart';
 import 'tts_service.dart';
 import 'tts_database.dart';
 import 'tts_chunker.dart';
@@ -12,14 +13,49 @@ import 'audio_cache_manager.dart';
 import 'tts_player_handler.dart';
 import '../models/speech_chunk.dart';
 
+
 class TtsManager {
-  static final TtsManager instance = TtsManager._();
+  // ✅ MIGRATED TO DI: Backward compatibility layer
+  // Old code using TtsManager.instance will still work but should migrate to DI
+  @Deprecated('Use dependency injection: ref.read(ttsManagerProvider) instead')
+  static TtsManager get instance {
+    try {
+      // Try to get from DI container first
+      final diInstance = GetIt.instance<TtsManager>();
+      return diInstance;
+    } catch (e) {
+      // Fallback to singleton if DI not set up (shouldn't happen in production)
+      debugPrint('⚠️ TtsManager accessed before DI setup, using fallback singleton');
+      return _fallbackInstance ??= TtsManager._();
+    }
+  }
+  
+  static TtsManager? _fallbackInstance;
+  
+  // Constructor now public for DI
   TtsManager._();
+  
+  // Factory constructor for DI (get_it will call this)
+  factory TtsManager() => TtsManager._();
 
   AudioHandler? _audioHandler;
   final TtsService _ttsService = FlutterTtsAdapter();
-  final TtsDatabase _db = TtsDatabase.instance;
-  final AudioCacheManager _cacheManager = AudioCacheManager.instance;
+  
+  // ✅ MIGRATED: Dependencies from DI
+  late final TtsDatabase _db;
+  late final AudioCacheManager _cacheManager;
+  
+  // Constructor injection helper (called by DI setup)
+  void _injectDependencies() {
+    try {
+      _db = GetIt.instance<TtsDatabase>();
+      _cacheManager = GetIt.instance<AudioCacheManager>();
+    } catch (e) {
+      // Fallback for backward compatibility
+      _db = TtsDatabase.instance;
+      _cacheManager = AudioCacheManager.instance;
+    }
+  }
 
   bool _isInitialized = false;
   Future<void>? _initFuture; // Guard against concurrent init calls

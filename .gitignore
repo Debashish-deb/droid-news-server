@@ -1,4 +1,39 @@
+# ================================================================
+# 🔐 SECRETS & SENSITIVE FILES (NEVER COMMIT THESE)
+# ================================================================
+
+# Environment variables with secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Firebase configuration files (contain API keys)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
+
+# Android signing keys and passwords
+android/key.properties
+android/app/upload-keystore.jks
+android/app/release-keystore.jks
+*.jks
+*.keystore
+
+# iOS certificates and provisioning profiles  
+ios/Runner/GoogleService-Info.plist
+*.p12
+*.mobileprovision
+*.certSigningRequest
+
+# API keys and credentials
+**/apikeys.dart
+**/secrets.dart
+**/credentials.json
+
+# ================================================================
 # Miscellaneous
+# ================================================================
 *.class
 *.log
 *.pyc
