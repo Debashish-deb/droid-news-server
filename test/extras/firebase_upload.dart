@@ -19,24 +19,24 @@ Future<void> main(List<String> args) async {
 Future<void> uploadProjectFiles(String? filterExtension) async {
   final Directory projectDir = Directory(Directory.current.path);
   final List<FileSystemEntity> files = await projectDir.list(recursive: true).toList();
-  final List<File> filteredFiles = files.whereType<File>().where((file) {
+  final List<File> filteredFiles = files.whereType<File>().where((File file) {
     if (filterExtension == null) return true;
     return p.extension(file.path).toLowerCase() == filterExtension;
   }).toList();
 
-  int totalFiles = filteredFiles.length;
+  final int totalFiles = filteredFiles.length;
   int uploadedFiles = 0;
 
   print('Starting upload of $totalFiles files...');
 
-  for (var entity in filteredFiles) {
+  for (File entity in filteredFiles) {
     final String extension = p.extension(entity.path).toLowerCase();
     final String fileName = p.basename(entity.path);
     final int fileSize = await entity.length();
 
     try {
-      if (['.dart', '.yaml', '.plist'].contains(extension) || (extension == '.json' && fileSize > 100 * 1024)) {
-        final ref = FirebaseStorage.instance.ref('source-backups/$fileName');
+      if (<String>['.dart', '.yaml', '.plist'].contains(extension) || (extension == '.json' && fileSize > 100 * 1024)) {
+        final Reference ref = FirebaseStorage.instance.ref('source-backups/$fileName');
         await ref.putFile(entity);
         print('Uploaded $fileName to Firebase Storage.');
       } else if (extension == '.json' && fileSize <= 100 * 1024) {
@@ -45,7 +45,7 @@ Future<void> uploadProjectFiles(String? filterExtension) async {
         await FirebaseFirestore.instance.collection('uploaded_data').doc(fileName).set(data);
         print('Uploaded $fileName to Firestore.');
       } else {
-        final ref = FirebaseStorage.instance.ref('other-backups/$fileName');
+        final Reference ref = FirebaseStorage.instance.ref('other-backups/$fileName');
         await ref.putFile(entity);
         print('Uploaded $fileName to other-backups Storage folder.');
       }
@@ -54,7 +54,7 @@ Future<void> uploadProjectFiles(String? filterExtension) async {
     }
 
     uploadedFiles++;
-    double progress = (uploadedFiles / totalFiles) * 100;
+    final double progress = (uploadedFiles / totalFiles) * 100;
     print('Progress: ${progress.toStringAsFixed(2)}%');
   }
 

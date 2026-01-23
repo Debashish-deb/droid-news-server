@@ -1,24 +1,27 @@
 // lib/features/history/history_widget.dart
+// Completely rebuilt to properly respect system configuration and match other screens
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as https;
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '/core/theme_provider.dart';
 import '/core/theme.dart';
-import 'package:provider/provider.dart';
-import 'dart:ui';
+import '/widgets/animated_theme_container.dart';
+import '../../presentation/providers/theme_providers.dart';
+import '/l10n/app_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HistoryWidget extends StatefulWidget {
-  const HistoryWidget({Key? key}) : super(key: key);
+class HistoryWidget extends ConsumerStatefulWidget {
+  const HistoryWidget({super.key});
 
   @override
-  State<HistoryWidget> createState() => _HistoryWidgetState();
+  ConsumerState<HistoryWidget> createState() => _HistoryWidgetState();
 }
 
-class _HistoryWidgetState extends State<HistoryWidget> {
+class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
   bool isLoading = true;
   Map<String, dynamic>? data;
   String? error;
@@ -33,15 +36,16 @@ class _HistoryWidgetState extends State<HistoryWidget> {
   Future<void> fetchHistory() async {
     setState(() => isLoading = true);
     final url = Uri.parse(
-      'https://byabbe.se/on-this-day/${currentDate.month}/${currentDate.day}/events.json'
+      'https://byabbe.se/on-this-day/${currentDate.month}/${currentDate.day}/events.json',
     );
 
     try {
-      final response = await https.get(url);
+      final response = await http.get(url);
       if (response.statusCode == 200) {
         setState(() {
           data = json.decode(response.body);
           isLoading = false;
+          error = null;
         });
       } else {
         setState(() {
@@ -57,24 +61,6 @@ class _HistoryWidgetState extends State<HistoryWidget> {
     }
   }
 
-  Widget _modernIconButton({
-    required IconData icon,
-    required VoidCallback onPressed,
-    String? tooltip,
-  }) {
-    final prov = context.watch<ThemeProvider>();
-    return Material(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 4,
-      color: prov.glassColor,
-      child: IconButton(
-        tooltip: tooltip,
-        icon: Icon(icon, size: 24, color: Theme.of(context).iconTheme.color),
-        onPressed: onPressed,
-      ),
-    );
-  }
-
   void _goToPreviousDay() {
     setState(() => currentDate = currentDate.subtract(const Duration(days: 1)));
     fetchHistory();
@@ -87,233 +73,359 @@ class _HistoryWidgetState extends State<HistoryWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final prov = context.watch<ThemeProvider>();
+    final AppLocalizations loc = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    // Migrated to Riverpod
+    final AppThemeMode themeMode = ref.watch(currentThemeModeProvider);
     final todayLabel = DateFormat('MMMM d').format(currentDate);
-
-    // pick gradient based on theme mode
-    final colors = AppGradients.getGradientColors(prov.appThemeMode);
-    final bgGradient = [
-      colors[0].withOpacity(0.9),
-      colors[1].withOpacity(0.9),
-    ];
-
     final events = (data?['events'] as List<dynamic>? ?? []).toList();
-    final textStyle = prov.floatingTextStyle(color: Colors.white);
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        title: Text('History • $todayLabel', style: textStyle.copyWith(fontSize: 22)),
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(color: prov.glassColor),
+        title: Text(
+          'History • $todayLabel',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
           ),
         ),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: colorScheme.surface.withOpacity(0.95),
       ),
-      body: isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : (error != null
-          ? Center(child: Text(error!, style: prov.floatingTextStyle(color: theme.colorScheme.error)))
-          : Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: bgGradient,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 80),
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+      body: AnimatedThemeContainer(
+        color: theme.scaffoldBackgroundColor,
+        child:
+            isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : (error != null
+                    ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.history, color: theme.iconTheme.color, size: 26),
-                            const SizedBox(width: 8),
-                            Text('Major Historical Events', style: textStyle.copyWith(fontSize: 24)),
+                            Icon(
+                              Icons.error_outline,
+                              size: 64,
+                              color: colorScheme.error,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              error!,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                color: colorScheme.error,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 24),
+                            FilledButton.icon(
+                              onPressed: fetchHistory,
+                              icon: const Icon(Icons.refresh),
+                              label: Text(loc.retry),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 6),
-                        Container(
-                          height: 4,
-                          width: 160,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [colors[1], colors[0]],
-                            ),
-                            borderRadius: const BorderRadius.only(
-                              topRight: Radius.circular(4),
-                              bottomRight: Radius.circular(4),
+                      ),
+                    )
+                    : CustomScrollView(
+                      slivers: [
+                        // Header
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.history,
+                                  color: colorScheme.primary,
+                                  size: 28,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Major Historical Events',
+                                  style: theme.textTheme.headlineSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: colorScheme.onSurface,
+                                      ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
+
+                        // Events count badge
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 4,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primaryContainer,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    '${events.length} events',
+                                    style: theme.textTheme.labelMedium
+                                        ?.copyWith(
+                                          color: colorScheme.onPrimaryContainer,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Events list
+                        events.isEmpty
+                            ? SliverFillRemaining(
+                              child: Center(
+                                child: Text(
+                                  'No events found for this date.',
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            )
+                            : SliverList(
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
+                                final event = events[index];
+                                return _buildEventCard(
+                                  context,
+                                  event: event,
+                                  theme: theme,
+                                  colorScheme: colorScheme,
+                                  themeMode: ref.watch(
+                                    currentThemeModeProvider,
+                                  ),
+                                );
+                              }, childCount: events.length),
+                            ),
+
+                        // Bottom spacing
+                        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                      ],
+                    )),
+      ),
+      bottomNavigationBar: _buildBottomBar(context, theme, colorScheme),
+    );
+  }
+
+  Widget _buildEventCard(
+    BuildContext context, {
+    required Map<String, dynamic> event,
+    required ThemeData theme,
+    required ColorScheme colorScheme,
+    required AppThemeMode themeMode,
+  }) {
+    final year = event['year']?.toString() ?? 'Unknown';
+    final description = event['description']?.toString() ?? 'No description';
+
+    // Match NewsCard styling pattern
+    final bool isDark = themeMode != AppThemeMode.light;
+    final cardColor =
+        theme.cardTheme.color ??
+        (isDark
+            ? Colors.white.withOpacity(0.06)
+            : Colors.white.withOpacity(0.02));
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Container(
+        // Outer gradient border (matching NewsCard pattern)
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: AppGradients.getGradientColors(themeMode),
+          ),
+        ),
+        padding: const EdgeInsets.all(1.5), // Border thickness
+        child: Container(
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(18.5),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18.5),
+              onTap: () {
+                // Optional: could add detail view
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Year badge and actions
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Year badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: AppGradients.getGradientColors(themeMode),
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.calendar_today,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                year,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Action buttons
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.share, size: 20),
+                              color: colorScheme.primary,
+                              tooltip: 'Share',
+                              onPressed: () {
+                                Share.share(
+                                  'On this day in $year: $description',
+                                );
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.copy, size: 20),
+                              color: colorScheme.primary,
+                              tooltip: 'Copy',
+                              onPressed: () {
+                                Clipboard.setData(
+                                  ClipboardData(
+                                    text: 'On this day in $year: $description',
+                                  ),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Copied to clipboard'),
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Events list
-                  Expanded(
-                    child: events.isEmpty
-                      ? Center(child: Text('No events found.', style: theme.textTheme.bodyLarge?.copyWith(color: theme.hintColor)))
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                          itemCount: events.length,
-                          itemBuilder: (ctx, i) {
-                            final ev = events[i];
-                            return Container(
-                              margin: const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: prov.appThemeMode == AppThemeMode.light
-                                    ? [Colors.white.withOpacity(0.3), Colors.white.withOpacity(0.1)]
-                                    : [Colors.black54, Colors.black38],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  width: 2,
-                                  color: prov.borderColor.withOpacity(0.5),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.5),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(20),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Year & actions
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(Icons.calendar_today, color: theme.iconTheme.color, size: 20),
-                                            const SizedBox(width: 6),
-                                            Text(ev['year'].toString(), style: textStyle.copyWith(fontSize: 20)),
-                                          ],
-                                        ),
-                                        Row(
-                                          children: [
-                                            _modernIconButton(
-                                              icon: Icons.share,
-                                              tooltip: 'Share',
-                                              onPressed: () => Share.share(
-                                                'On this day in ${ev['year']}: ${ev['description']}'
-                                              ),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            _modernIconButton(
-                                              icon: Icons.copy,
-                                              tooltip: 'Copy',
-                                              onPressed: () {
-                                                Clipboard.setData(ClipboardData(
-                                                  text: 'On this day in ${ev['year']}: ${ev['description']}',
-                                                ));
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('Copied to clipboard'))
-                                                );
-                                              },
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    // Separator
-                                    Container(
-                                      height: 2,
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(colors: bgGradient),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    // Description
-                                    Text(
-                                      ev['description'] ?? '',
-                                      style: theme.textTheme.bodyLarge?.copyWith(color: theme.textTheme.bodyMedium?.color),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                  ),
-                ],
+
+                    const SizedBox(height: 12),
+
+                    // Divider
+                    Divider(
+                      color: colorScheme.outlineVariant.withOpacity(0.5),
+                      height: 1,
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Description
+                    Text(
+                      description,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: colorScheme.onSurface,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            )
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(colors: bgGradient),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 12)],
+            ),
+          ),
         ),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(
+    BuildContext context,
+    ThemeData theme,
+    ColorScheme colorScheme,
+  ) {
+    return AnimatedThemeContainer(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        border: Border(
+          top: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.5)),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: SafeArea(
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            IconButton.filled(
+            // Previous day
+            FilledButton.tonalIcon(
               onPressed: _goToPreviousDay,
               icon: const Icon(Icons.navigate_before),
-              style: IconButton.styleFrom(
-                backgroundColor: prov.glassColor,
-                shape: const CircleBorder(),
-                elevation: 4,
-                shadowColor: Colors.black45,
-                padding: const EdgeInsets.all(12),
-              ),
+              label: Text(AppLocalizations.of(context)!.previous),
             ),
-            IconButton.filledTonal(
+
+            // Refresh
+            IconButton.filled(
               onPressed: fetchHistory,
               icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh',
               style: IconButton.styleFrom(
-                backgroundColor: prov.glassColor,
-                shape: const CircleBorder(),
-                elevation: 4,
-                shadowColor: Colors.black45,
-                padding: const EdgeInsets.all(12),
+                backgroundColor: colorScheme.primaryContainer,
+                foregroundColor: colorScheme.onPrimaryContainer,
               ),
             ),
-            IconButton.filled(
+
+            // Next day
+            FilledButton.tonalIcon(
               onPressed: _goToNextDay,
               icon: const Icon(Icons.navigate_next),
-              style: IconButton.styleFrom(
-                backgroundColor: prov.glassColor,
-                shape: const CircleBorder(),
-                elevation: 4,
-                shadowColor: Colors.black45,
-                padding: const EdgeInsets.all(12),
-              ),
+              label: Text(AppLocalizations.of(context)!.next),
+              style: FilledButton.styleFrom(iconAlignment: IconAlignment.end),
             ),
-            IconButton.filledTonal(
+
+            // Close
+            IconButton.outlined(
               onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.exit_to_app),
-              style: IconButton.styleFrom(
-                backgroundColor: prov.glassColor,
-                shape: const CircleBorder(),
-                elevation: 4,
-                shadowColor: Colors.black45,
-                padding: const EdgeInsets.all(12),
-              ),
+              icon: const Icon(Icons.close),
+              tooltip: 'Close',
             ),
           ],
         ),

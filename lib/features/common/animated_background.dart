@@ -1,64 +1,123 @@
-// lib/features/news/widgets/animated_background.dart
-
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../core/theme_provider.dart';
-import '../../core/theme.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// A full-screen overlay that can optionally blur the backdrop
-/// and apply a semi-transparent animated gradient tint based on theme.
-class AnimatedBackground extends StatelessWidget {
-  final Duration duration;
-  final Widget? child;
-  final double blurSigma;
-  final double overlayOpacity;
+import '../../../core/theme_provider.dart';
+import '../../../core/theme.dart';
+import '../../../presentation/providers/theme_providers.dart';
 
+/// Full-screen animated background with gradient overlay
+/// and optional frosted blur effect.
+class AnimatedBackground extends ConsumerStatefulWidget {
   const AnimatedBackground({
     super.key,
-    this.duration = const Duration(seconds: 20),
     this.child,
+    this.duration = const Duration(seconds: 20),
     this.blurSigma = 20,
     this.overlayOpacity = 0.3,
+    this.animate = true,
   });
+
+  final Widget? child;
+  final Duration duration;
+  final double blurSigma;
+  final double overlayOpacity;
+  final bool animate;
+
+  @override
+  ConsumerState<AnimatedBackground> createState() => _AnimatedBackgroundState();
+}
+
+class _AnimatedBackgroundState extends ConsumerState<AnimatedBackground>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: widget.duration)
+      ..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final mode = context.watch<ThemeProvider>().appThemeMode;
-    final colors = _gradientColors(mode);
+    // Get theme via Provider (legacy) since this is StatefulWidget
+    // Migrated to Riverpod
+    final AppThemeMode themeMode = ref.watch(currentThemeModeProvider);
+    final List<Color> baseColors = _resolveGradient(themeMode);
 
-    return Stack(fit: StackFit.expand, children: [
-      if (blurSigma > 0)
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        // ===== STATIC GRADIENT LAYER =====
         Positioned.fill(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-            child: const SizedBox.shrink(),
-          ),
-        ),
-      if (overlayOpacity > 0)
-        Positioned.fill(
-          child: AnimatedContainer(
-            duration: duration,
+          child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: colors
-                    .map((c) => c.withOpacity(overlayOpacity))
-                    .toList(),
+                colors:
+                    baseColors
+                        .map((Color c) => c.withOpacity(widget.overlayOpacity))
+                        .toList(),
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
             ),
           ),
         ),
-      if (child != null) child!,
-    ]);
+
+        // ===== OPTIONAL ANIMATED OVERLAY =====
+        if (widget.animate)
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (BuildContext _, Widget? __) {
+                return Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors:
+                          baseColors.reversed
+                              .map(
+                                (Color c) =>
+                                    c.withOpacity(widget.overlayOpacity * 0.6),
+                              )
+                              .toList(),
+                      begin: Alignment(-1 + (_controller.value * 2), -1),
+                      end: Alignment(1 - (_controller.value * 2), 1),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+        // ===== OPTIONAL GLASS BLUR =====
+        if (widget.blurSigma > 0)
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(
+                sigmaX: widget.blurSigma,
+                sigmaY: widget.blurSigma,
+              ),
+              child: Container(color: Colors.transparent),
+            ),
+          ),
+
+        // ===== CONTENT =====
+        if (widget.child != null) widget.child!,
+      ],
+    );
   }
 
-  List<Color> _gradientColors(AppThemeMode mode) {
-    return switch (mode) {
-      AppThemeMode.dark => [Colors.black87, Colors.grey.shade900],
-      AppThemeMode.bangladesh => [const Color(0xFF004D40), const Color(0xFF26A69A)],
-      AppThemeMode.light => [const Color.fromARGB(255, 232, 231, 231), Colors.grey.shade100],
-    };
+  // ======================================================
+  // GRADIENT RESOLVER (SYNCED TO THEME PROVIDER)
+  // ======================================================
+  List<Color> _resolveGradient(AppThemeMode mode) {
+    return AppGradients.getBackgroundGradient(mode);
   }
 }

@@ -1,13 +1,15 @@
 // path: lib/data/constants/source_logos.dart
 
 class SourceLogos {
-  static const Map<String, String> logos = {
+  const SourceLogos._(); // Private constructor
+
+  static const Map<String, String> logos = <String, String>{
     // ─── Bengali Newspapers ───
     'প্রথম আলো': 'assets/logos/prothomalo.png',
     'কালের কণ্ঠ': 'assets/logos/kalerkantho.png',
     'বিডিনিউজ২৪ বাংলা': 'assets/logos/bdnews24.png',
     'যুগান্তর': 'assets/logos/jugantor.png',
-    'ইত্তেফাক': 'assets/logos/ittefaq.png',
+    'ইত্তেফাক': 'assets/logos/ittefaq.webp',
     'আনন্দবাজার পত্রিকা': 'assets/logos/anandabazar.png',
     'এই সময়': 'assets/logos/eisamay.png',
     'সংবাদ প্রতিদিন': 'assets/logos/sangbadpratidin.png',

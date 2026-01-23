@@ -5,36 +5,39 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle, Clipboard, ClipboardData;
+import 'package:flutter/services.dart'
+    show rootBundle, Clipboard, ClipboardData;
 import 'package:confetti/confetti.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:provider/provider.dart' as legacy;
+
+import '/presentation/providers/theme_providers.dart';
 
 import '/core/theme_provider.dart';
 import '/core/theme.dart';
 import '/l10n/app_localizations.dart';
 
 class QuizQuestion {
-  final String prompt;
-  final List<String> options;
-  final String correct;
-
   QuizQuestion({
     required this.prompt,
     required this.options,
     required this.correct,
   });
+  final String prompt;
+  final List<String> options;
+  final String correct;
 }
 
-class DailyQuizWidget extends StatefulWidget {
-  const DailyQuizWidget({Key? key}) : super(key: key);
+class DailyQuizWidget extends ConsumerStatefulWidget {
+  const DailyQuizWidget({super.key});
 
   @override
-  State<DailyQuizWidget> createState() => _DailyQuizWidgetState();
+  ConsumerState<DailyQuizWidget> createState() => _DailyQuizWidgetState();
 }
 
-class _DailyQuizWidgetState extends State<DailyQuizWidget> {
+class _DailyQuizWidgetState extends ConsumerState<DailyQuizWidget> {
   final _confetti = ConfettiController(duration: const Duration(seconds: 3));
   final _player = AudioPlayer();
 
@@ -84,38 +87,48 @@ class _DailyQuizWidgetState extends State<DailyQuizWidget> {
     });
 
     try {
-      final raw = await rootBundle.loadString('assets/quizzes/bn_daily_expanded.json');
+      final raw = await rootBundle.loadString(
+        'assets/quizzes/bn_daily_expanded.json',
+      );
       final decoded = jsonDecode(raw);
-      if (decoded is! List) throw FormatException('Quiz JSON does not contain a List');
+      if (decoded is! List) {
+        throw const FormatException('Quiz JSON does not contain a List');
+      }
 
-      final pool = (decoded as List)
-          .whereType<Map<String, dynamic>>()
-          .toList();
+      final pool = (decoded).whereType<Map<String, dynamic>>().toList();
       if (pool.isEmpty) throw Exception('No valid quiz items found');
 
       pool.shuffle();
       final selected = pool.take(5).toList();
 
-      final qs = selected.map((item) {
-        final question = item['question']?.toString() ?? '<no prompt>';
-        List<String> opts = [];
-        final rawOpts = item['options'];
-        if (rawOpts is List) {
-          opts = rawOpts.map((o) => o.toString()).toList();
-        } else if (rawOpts is Map) {
-          final entries = (rawOpts as Map<String, dynamic>).entries.toList()
-            ..sort((a, b) => int.tryParse(a.key)!.compareTo(int.tryParse(b.key)!));
-          opts = entries.map((e) => e.value.toString()).toList();
-        }
-        final correctRaw = item['correct'];
-        String correct;
-        if (correctRaw is int && correctRaw < opts.length) {
-          correct = opts[correctRaw];
-        } else {
-          correct = correctRaw.toString();
-        }
-        return QuizQuestion(prompt: question, options: opts, correct: correct);
-      }).toList();
+      final qs =
+          selected.map((item) {
+            final question = item['question']?.toString() ?? '<no prompt>';
+            List<String> opts = [];
+            final rawOpts = item['options'];
+            if (rawOpts is List) {
+              opts = rawOpts.map((o) => o.toString()).toList();
+            } else if (rawOpts is Map) {
+              final entries =
+                  (rawOpts as Map<String, dynamic>).entries.toList()..sort(
+                    (a, b) =>
+                        int.tryParse(a.key)!.compareTo(int.tryParse(b.key)!),
+                  );
+              opts = entries.map((e) => e.value.toString()).toList();
+            }
+            final correctRaw = item['correct'];
+            String correct;
+            if (correctRaw is int && correctRaw < opts.length) {
+              correct = opts[correctRaw];
+            } else {
+              correct = correctRaw.toString();
+            }
+            return QuizQuestion(
+              prompt: question,
+              options: opts,
+              correct: correct,
+            );
+          }).toList();
 
       setState(() {
         _questions = qs;
@@ -135,7 +148,7 @@ class _DailyQuizWidgetState extends State<DailyQuizWidget> {
     if (_answered) return;
     setState(() => _answered = true);
 
-    final prov = context.read<ThemeProvider>();
+    final themeState = ref.read(themeProvider);
     if (choice == _questions[_current].correct) {
       _score++;
       _confetti.play();
@@ -176,9 +189,13 @@ class _DailyQuizWidgetState extends State<DailyQuizWidget> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    final prov = context.watch<ThemeProvider>();
+    final themeState = ref.watch(themeProvider);
+    final provMode = themeState.mode;
     final theme = Theme.of(context);
-    final colors = AppGradients.getGradientColors(prov.appThemeMode);
+    final colors = AppGradients.getGradientColors(provMode);
+
+    // Use legacy provider for specialized methods like floatingTextStyle
+    final prov = legacy.Provider.of<ThemeProvider>(context, listen: false);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -194,16 +211,23 @@ class _DailyQuizWidgetState extends State<DailyQuizWidget> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('🔥 $_streak ${loc.streak}', style: theme.textTheme.bodyMedium),
-                Text('🏆 $_highScore ${loc.highScore}', style: theme.textTheme.bodyMedium),
+                Text(
+                  '🔥 $_streak ${loc.streak}',
+                  style: theme.textTheme.bodyMedium,
+                ),
+                Text(
+                  '🏆 $_highScore ${loc.highScore}',
+                  style: theme.textTheme.bodyMedium,
+                ),
               ],
             ),
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _showResult
+      body:
+          _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _showResult
               ? _buildSummary(context, prov)
               : _buildQuizView(context, prov, colors),
       bottomNavigationBar:
@@ -211,7 +235,11 @@ class _DailyQuizWidgetState extends State<DailyQuizWidget> {
     );
   }
 
-  Widget _buildQuizView(BuildContext context, ThemeProvider prov, List<Color> colors) {
+  Widget _buildQuizView(
+    BuildContext context,
+    ThemeProvider prov,
+    List<Color> colors,
+  ) {
     final q = _questions[_current];
     final theme = Theme.of(context);
 
@@ -235,11 +263,17 @@ class _DailyQuizWidgetState extends State<DailyQuizWidget> {
                   value: (_current + 1) / _questions.length,
                   minHeight: 6,
                   backgroundColor: prov.glassColor,
-                  valueColor: AlwaysStoppedAnimation(theme.colorScheme.secondary),
+                  valueColor: AlwaysStoppedAnimation(
+                    theme.colorScheme.secondary,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Expanded(
-                  child: _glassCard(prov, theme, child: _buildQuestion(q, theme)),
+                  child: _glassCard(
+                    prov,
+                    theme,
+                    child: _buildQuestion(q, theme),
+                  ),
                 ),
                 const SizedBox(height: 16),
               ],
@@ -248,7 +282,8 @@ class _DailyQuizWidgetState extends State<DailyQuizWidget> {
         ),
         Positioned(
           top: 16,
-          left: 0, right: 0,
+          left: 0,
+          right: 0,
           child: ConfettiWidget(
             confettiController: _confetti,
             blastDirection: pi / 2,
@@ -264,19 +299,21 @@ class _DailyQuizWidgetState extends State<DailyQuizWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Q${_current + 1}: ${q.prompt}',
-            style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onBackground)),
+        Text(
+          'Q${_current + 1}: ${q.prompt}',
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: theme.colorScheme.onBackground,
+          ),
+        ),
         const SizedBox(height: 12),
         ...q.options.map((opt) {
           final isCorrect = _answered && opt == q.correct;
           return Card(
-            color: isCorrect
-                ? theme.colorScheme.primary.withOpacity(0.3)
-                : theme.cardColor,
-            child: ListTile(
-              title: Text(opt),
-              onTap: () => _answer(opt),
-            ),
+            color:
+                isCorrect
+                    ? theme.colorScheme.primary.withOpacity(0.3)
+                    : theme.cardColor,
+            child: ListTile(title: Text(opt), onTap: () => _answer(opt)),
           );
         }),
       ],
@@ -296,7 +333,12 @@ class _DailyQuizWidgetState extends State<DailyQuizWidget> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Center(child: Text('🎉 ${loc.quizSummary}', style: prov.floatingTextStyle(fontSize: 24))),
+              Center(
+                child: Text(
+                  '🎉 ${loc.quizSummary}',
+                  style: prov.floatingTextStyle(fontSize: 24),
+                ),
+              ),
               const SizedBox(height: 16),
               ..._questions.asMap().entries.map((e) {
                 final i = e.key;
@@ -304,8 +346,14 @@ class _DailyQuizWidgetState extends State<DailyQuizWidget> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Q${i + 1}: ${q.prompt}', style: theme.textTheme.bodyLarge),
-                    Text('✅ ${loc.correct}: ${q.correct}', style: theme.textTheme.bodyMedium),
+                    Text(
+                      'Q${i + 1}: ${q.prompt}',
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                    Text(
+                      '✅ ${loc.correct}: ${q.correct}',
+                      style: theme.textTheme.bodyMedium,
+                    ),
                     const Divider(),
                   ],
                 );
@@ -361,15 +409,16 @@ class _DailyQuizWidgetState extends State<DailyQuizWidget> {
     bool enabled = true,
     bool tonal = false,
   }) {
-    final style = tonal
-      ? IconButton.styleFrom(
-          backgroundColor: prov.glassColor,
-          shape: const CircleBorder(),
-        )
-      : IconButton.styleFrom(
-          backgroundColor: prov.glassColor,
-          shape: const CircleBorder(),
-        );
+    final style =
+        tonal
+            ? IconButton.styleFrom(
+              backgroundColor: prov.glassColor,
+              shape: const CircleBorder(),
+            )
+            : IconButton.styleFrom(
+              backgroundColor: prov.glassColor,
+              shape: const CircleBorder(),
+            );
     return IconButton(
       onPressed: enabled ? onPressed : null,
       icon: Icon(icon),
@@ -377,7 +426,11 @@ class _DailyQuizWidgetState extends State<DailyQuizWidget> {
     );
   }
 
-  Widget _glassCard(ThemeProvider prov, ThemeData theme, {required Widget child}) {
+  Widget _glassCard(
+    ThemeProvider prov,
+    ThemeData theme, {
+    required Widget child,
+  }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(

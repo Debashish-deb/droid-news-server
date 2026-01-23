@@ -1,5 +1,3 @@
-// File: lib/utils/date_time_utils.dart
-
 import 'package:intl/intl.dart';
 
 class DateTimeUtils {
@@ -14,7 +12,10 @@ class DateTimeUtils {
   }
 
   /// Formats any DateTime object to a readable string.
-  static String formatDateTime(DateTime dateTime, {String pattern = 'yMMMMEEEEd'}) {
+  static String formatDateTime(
+    DateTime dateTime, {
+    String pattern = 'yMMMMEEEEd',
+  }) {
     return DateFormat(pattern).format(dateTime);
   }
 
@@ -34,7 +35,9 @@ class DateTimeUtils {
   }) {
     final Duration diff = DateTime.now().difference(dateTime);
 
-    if (diff.inSeconds.abs() < 60) return diff.isNegative ? fewSeconds : justNow;
+    if (diff.inSeconds.abs() < 60) {
+      return diff.isNegative ? fewSeconds : justNow;
+    }
     if (diff.inMinutes.abs() < 60) {
       final int minutes = diff.inMinutes.abs();
       return diff.isNegative

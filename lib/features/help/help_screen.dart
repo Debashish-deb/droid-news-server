@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
+import '/l10n/app_localizations.dart';
 
 class HelpScreen extends StatelessWidget {
   const HelpScreen({super.key});
 
-  Future<void> _launchEmail() async {
+  Future<void> _launchEmail(String subject) async {
     final Uri emailUri = Uri(
       scheme: 'mailto',
       path: 'customerservice@dsmobiles.com',
-      queryParameters: {'subject': 'Help & Support Inquiry'},
+      queryParameters: <String, dynamic>{'subject': subject},
     );
     if (await canLaunchUrl(emailUri)) {
       await launchUrl(emailUri);
@@ -24,7 +25,9 @@ class HelpScreen extends StatelessWidget {
   }
 
   Future<void> _launchRateUs() async {
-    final Uri rateUri = Uri.parse('https://play.google.com/store/apps/details?id=com.example.app');
+    final Uri rateUri = Uri.parse(
+      'https://play.google.com/store/apps/details?id=com.example.app',
+    );
     if (await canLaunchUrl(rateUri)) {
       await launchUrl(rateUri, mode: LaunchMode.externalApplication);
     }
@@ -32,9 +35,10 @@ class HelpScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Help & Support'),
+        title: Text(loc.helpSupport), // Localized Title
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/home'),
@@ -42,42 +46,49 @@ class HelpScreen extends StatelessWidget {
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: [
-          const ListTile(
-            leading: Icon(Icons.question_answer),
-            title: Text('How to use BD News Reader?'),
-            subtitle: Text('Navigate news categories from the homepage.'),
+        children: <Widget>[
+          ListTile(
+            leading: const Icon(Icons.question_answer),
+            title: Text(loc.faqHowToUse),
+            subtitle: Text(loc.faqHowToUseDesc),
           ),
-          const ListTile(
-            leading: Icon(Icons.lock),
-            title: Text('Is my data secure?'),
-            subtitle: Text('Yes, we respect your privacy and do not store personal data.'),
+          ListTile(
+            leading: const Icon(Icons.lock),
+            title: Text(loc.faqDataSecure),
+            subtitle: Text(loc.faqDataSecureDesc),
           ),
-          const ListTile(
-            leading: Icon(Icons.update),
-            title: Text('How to get latest updates?'),
-            subtitle: Text('Updates are pushed automatically via Play Store.'),
+          ListTile(
+            leading: const Icon(Icons.update),
+            title: Text(loc.faqUpdates),
+            subtitle: Text(loc.faqUpdatesDesc),
           ),
           const Divider(height: 32),
           ElevatedButton.icon(
-            onPressed: _launchEmail,
+            onPressed:
+                () => _launchEmail(loc.helpInquiry), // Pass localized subject
             icon: const Icon(Icons.email_outlined),
-            label: const Text('Email Support'),
-            style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+            label: Text(loc.contactSupport),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size.fromHeight(50),
+            ),
           ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: _launchWebsite,
             icon: const Icon(Icons.language),
-            label: const Text('Visit Website'),
-            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+            label: Text(loc.visitWebsite),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(50),
+            ),
           ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: _launchRateUs,
             icon: const Icon(Icons.star_rate_outlined),
-            label: const Text('Rate Us'),
-            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+            label: Text(loc.rateApp),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(50),
+            ),
           ),
         ],
       ),

@@ -64,8 +64,10 @@ class DefaultFirebaseOptions {
     messagingSenderId: '92831175770',
     projectId: 'droid-e9db9',
     storageBucket: 'droid-e9db9.firebasestorage.app',
-    androidClientId: '92831175770-69mrb0h4gslfr4q93q2kf4scugi7c1tf.apps.googleusercontent.com',
-    iosClientId: '92831175770-lr8jl26158284kfk114r7rvh4caj2q5c.apps.googleusercontent.com',
+    androidClientId:
+        '92831175770-69mrb0h4gslfr4q93q2kf4scugi7c1tf.apps.googleusercontent.com',
+    iosClientId:
+        '92831175770-lr8jl26158284kfk114r7rvh4caj2q5c.apps.googleusercontent.com',
     iosBundleId: 'com.bd.bdnewsreader',
   );
 
@@ -75,8 +77,10 @@ class DefaultFirebaseOptions {
     messagingSenderId: '92831175770',
     projectId: 'droid-e9db9',
     storageBucket: 'droid-e9db9.firebasestorage.app',
-    androidClientId: '92831175770-69mrb0h4gslfr4q93q2kf4scugi7c1tf.apps.googleusercontent.com',
-    iosClientId: '92831175770-kr1cu4c0u4emu4amuimcfk2432q4ntgk.apps.googleusercontent.com',
+    androidClientId:
+        '92831175770-69mrb0h4gslfr4q93q2kf4scugi7c1tf.apps.googleusercontent.com',
+    iosClientId:
+        '92831175770-kr1cu4c0u4emu4amuimcfk2432q4ntgk.apps.googleusercontent.com',
     iosBundleId: 'com.example.droid',
   );
 
@@ -89,5 +93,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'droid-e9db9.firebasestorage.app',
     measurementId: 'G-YM7G0LQ61T',
   );
-
 }

@@ -1,153 +1,319 @@
-// lib/features/news/screens/news_detail_screen.dart
-
-import 'dart:ui';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/theme_provider.dart' show AppThemeMode;
 import '../../data/models/news_article.dart';
-import '../../core/utils/favorites_manager.dart';
-import '../../core/theme_provider.dart';
 import '../../widgets/app_drawer.dart';
-import '../../core/theme.dart';
-import 'animated_background.dart';
+import '../../presentation/providers/theme_providers.dart';
+import '../../presentation/providers/saved_articles_provider.dart';
+// For AppThemeMode
 
-class NewsDetailScreen extends StatefulWidget {
+class NewsDetailScreen extends ConsumerStatefulWidget {
+  const NewsDetailScreen({required this.news, super.key});
   final NewsArticle news;
-  const NewsDetailScreen({Key? key, required this.news}) : super(key: key);
 
   @override
-  State<NewsDetailScreen> createState() => _NewsDetailScreenState();
+  ConsumerState<NewsDetailScreen> createState() => _NewsDetailScreenState();
 }
 
-class _NewsDetailScreenState extends State<NewsDetailScreen> {
-  bool isFavorite = false;
+class _NewsDetailScreenState extends ConsumerState<NewsDetailScreen> {
+  InAppWebViewController? webViewController;
+  double progress = 0;
+  bool _isOfflineMode = false;
 
   @override
   void initState() {
     super.initState();
-    _checkFavorite();
-  }
-
-  Future<void> _checkFavorite() async {
-    final fav = FavoritesManager.instance.favoriteArticles
-        .any((a) => a.url == widget.news.url);
-    setState(() => isFavorite = fav);
-  }
-
-  Future<void> _toggleFavorite() async {
-    if (isFavorite) {
-      await FavoritesManager.instance.removeFavorite(widget.news);
-    } else {
-      await FavoritesManager.instance.addFavorite(widget.news);
-    }
-    _checkFavorite();
   }
 
   void _shareNews() {
-    Share.share('${widget.news.title}\n\n${widget.news.url}');
+    Share.share(widget.news.url, subject: widget.news.title);
+  }
+
+  // Content enhancement for live webpages
+  Future<void> _injectContentEnhancements(InAppWebViewController controller, bool isDark) async {
+    final script = '''
+      (function() {
+        const style = document.createElement('style');
+        style.textContent = \`
+          /* Text justification for better readability */
+          article, p, div.article-content, div.story-body, div.post-content,
+          div.entry-content, div.content, main, div.article-text {
+            text-align: justify !important;
+            text-justify: inter-word !important;
+            hyphens: auto !important;
+            -webkit-hyphens: auto !important;
+            line-height: 1.7 !important;
+            font-size: 17px !important;
+          }
+          
+          /* Better typography */
+          body {
+            font-size: 17px !important;
+            line-height: 1.7 !important;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+          }
+          
+          /* Hide ads */
+          .ad, .ads, .advertisement, .google-ads, iframe[src*="doubleclick"],
+          iframe[src*="googlesyndication"], [id*="taboola"], [id*="outbrain"] {
+            display: none !important;
+          }
+        \`;
+        document.head.appendChild(style);
+      })();
+    ''';
+    
+    try {
+      await controller.evaluateJavascript(source: script);
+    } catch (e) {
+      print('Failed to inject content enhancements: \$e');
+    }
+  }
+
+  // HTML Template for offline reading with enhanced readability
+  String _wrapHtml(String content, bool isDark) {
+    final bgColor = isDark ? '#1C1C1E' : '#FFFFFF';
+    final textColor = isDark ? '#E0E0E0' : '#1C1C1E';
+    final linkColor = isDark ? '#0A84FF' : '#007AFF'; // iOS blue
+
+    return '''
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          * { box-sizing: border-box; }
+          
+          body { 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 17px;
+            line-height: 1.7;
+            padding: 20px 16px;
+            background-color: $bgColor;
+            color: $textColor;
+            max-width: 720px;
+            margin: 0 auto;
+            -webkit-font-smoothing: antialiased;            -moz-osx-font-smoothing: grayscale;
+          }
+          
+          /* Enhanced text justification */
+          p, article, div {
+            text-align: justify;
+            text-justify: inter-word;
+            hyphens: auto;
+            -webkit-hyphens: auto;
+            margin-bottom: 18px;
+          }
+          
+          h1 { 
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            line-height: 1.25;
+            letter-spacing: -0.5px;
+            text-align: left;
+          }
+          
+          .metadata { 
+            font-size: 14px;
+            color: ${isDark ? '#8E8E93' : '#6E6E73'};
+            margin-bottom: 24px;
+            font-weight: 500;
+          }
+          
+          img { 
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 16px 0;
+            display: block;
+          }
+          
+          a { 
+            color: $linkColor;
+            text-decoration: none;
+          }
+          
+          blockquote { 
+            border-left: 4px solid $linkColor;
+            padding-left: 16px;
+            margin: 20px 0;
+            color: ${isDark ? '#8E8E93' : '#6E6E73'};
+            font-style: italic;
+            line-height: 1.6;
+          }
+        </style>
+      </head>
+      <body>
+        <h1>${widget.news.title}</h1>
+        <div class="metadata">
+          ${widget.news.source} • ${widget.news.publishedAt.toString().substring(0, 16)}
+        </div>
+        $content
+      </body>
+      </html>
+    ''';
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final AppThemeMode themeMode = ref.watch(currentThemeModeProvider);
+    final bool isDark = themeMode == AppThemeMode.dark;
+
+    // Check saved status
+    final savedState = ref.watch(savedArticlesProvider);
+    final isSaved = savedState.articles.any((a) => a.url == widget.news.url);
+    final savedArticle =
+        isSaved
+            ? savedState.articles.firstWhere((a) => a.url == widget.news.url)
+            : null;
+
+    final bool hasOfflineContent = savedArticle?.fullContent.isNotEmpty == true;
 
     return Scaffold(
       drawer: const AppDrawer(),
-      extendBodyBehindAppBar: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        title: Text(widget.news.source),
         centerTitle: true,
-        title: Text(
-          widget.news.source,
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: scheme.onPrimary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        flexibleSpace: const AnimatedBackground(overlayOpacity: 0.35),
         actions: [
+          IconButton(icon: const Icon(Icons.share), onPressed: _shareNews),
           IconButton(
-            icon: Icon(Icons.share, color: scheme.onPrimary),
-            onPressed: _shareNews,
-          ),
-          IconButton(
-            icon: Icon(
-              isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: Colors.redAccent,
-            ),
-            onPressed: _toggleFavorite,
+            icon: const Icon(Icons.open_in_browser),
+            onPressed: () => launchUrl(Uri.parse(widget.news.url)),
           ),
         ],
       ),
-      body: AnimatedBackground(
-        overlayOpacity: 0.25,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, kToolbarHeight + 24, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (widget.news.imageUrl != null && widget.news.imageUrl!.isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: CachedNetworkImage(
-                    imageUrl: widget.news.imageUrl!,
-                    placeholder: (context, url) => Container(
-                      height: 200,
-                      color: Colors.black12,
-                      child: const Center(child: CircularProgressIndicator()),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      height: 200,
-                      color: Colors.black12,
-                      child: const Center(child: Icon(Icons.broken_image)),
-                    ),
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              const SizedBox(height: 20),
-              Container(
-                decoration: BoxDecoration(
-                  color: scheme.surface.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: scheme.primary.withOpacity(0.25)),
-                ),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.news.title,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.bold,
-                        shadows: const [Shadow(blurRadius: 4, color: Colors.black45)],
+
+      body: Stack(
+        children: [
+          // Skip WebView in tests to avoid platform view crashes
+          Platform.environment.containsKey('FLUTTER_TEST')
+              ? const Center(child: Text('WebView Placeholder'))
+              : InAppWebView(
+                initialSettings: InAppWebViewSettings(
+                  transparentBackground: true,
+                  useShouldOverrideUrlLoading: true,
+                  mediaPlaybackRequiresUserGesture: false,
+                  // Enhanced readability
+                  javaScriptEnabled: true,
+                  domStorageEnabled: true,
+                  textZoom: 110, // Slightly larger for better reading
+javaScriptCanOpenWindowsAutomatically: false, // Block pop-ups
+                  supportZoom: true,
+                  builtInZoomControls: true,
+                  displayZoomControls: false,
+                  // Content blocking
+                  contentBlockers: [
+                    ContentBlocker(
+                      trigger: ContentBlockerTrigger(
+                        urlFilter: ".*",
+                        resourceType: [ContentBlockerTriggerResourceType.IMAGE],
+                        ifDomain: ["*doubleclick.net", "*googlesyndication.com"],
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      widget.news.fullContent.isNotEmpty
-                          ? widget.news.fullContent
-                          : (widget.news.snippet.isNotEmpty
-                              ? widget.news.snippet
-                              : 'No content available.'),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurface.withOpacity(0.85),
-                        height: 1.5,
+                      action: ContentBlockerAction(
+                        type: ContentBlockerActionType.BLOCK,
                       ),
                     ),
                   ],
                 ),
+                onWebViewCreated: (controller) {
+                  webViewController = controller;
+
+                  if (hasOfflineContent) {
+                    // 📄 HYBRID: Load offline HTML
+                    print('📱 Loading OFFLINE content');
+                    _isOfflineMode = true;
+                    controller.loadData(
+                      data: _wrapHtml(savedArticle!.fullContent, isDark),
+                      encoding: 'utf-8',
+                    );
+                  } else {
+                    // 🌐 HYBRID: Load live URL
+                    print('🌐 Loading LIVE url');
+                    _isOfflineMode = false;
+                    controller.loadUrl(
+                      urlRequest: URLRequest(url: WebUri(widget.news.url)),
+                    );
+                  }
+                },
+                onProgressChanged: (controller, p) {
+                  setState(() {
+                    progress = p / 100;
+                  });
+                  
+                  // Inject content enhancements when page is loading
+                  if (p > 50 && p < 70 && !_isOfflineMode) {
+                    _injectContentEnhancements(controller, isDark);
+                  }
+                },
+                onLoadStop: (controller, url) async {
+                  // Apply final enhancements after page loads
+                  if (!_isOfflineMode) {
+                    await _injectContentEnhancements(controller, isDark);
+                  }
+                },
+                shouldOverrideUrlLoading: (controller, navigationAction) async {
+                  // Open external links in browser
+                  return NavigationActionPolicy.ALLOW;
+                },
+                // Block unwanted new windows/pop-ups
+                onCreateWindow: (controller, createWindowAction) async {
+                  return false; // Block all new windows
+                },
               ),
-            ],
-          ),
-        ),
+
+          if (progress < 1.0)
+            LinearProgressIndicator(value: progress, color: Colors.green),
+
+        ],
+      ),
+
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final notifier = ref.read(savedArticlesProvider.notifier);
+  
+          if (isSaved) {
+                await notifier.removeArticle(widget.news.url);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Article removed from downloads')),
+                );
+                // Reload live URL if we just removed the offline copy
+                if (_isOfflineMode) {
+                  webViewController?.loadUrl(
+                    urlRequest: URLRequest(url: WebUri(widget.news.url)),
+                  );
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Downloading article...')),
+                );
+  
+                final success = await notifier.saveArticle(widget.news);
+  
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? 'Article saved for offline reading'
+                          : 'Failed to save article',
+                    ),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                  ),
+                );
+              }
+            },
+        icon: Icon(isSaved ? Icons.download_done : Icons.download),
+        label: Text(isSaved ? 'Saved' : 'Save Offline'),
+        backgroundColor: isSaved ? Colors.green : null,
+        foregroundColor: isSaved ? Colors.white : null,
       ),
     );
   }

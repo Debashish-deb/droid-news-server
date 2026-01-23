@@ -1,84 +1,50 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-
-import 'features/home/home_screen.dart';
-import 'features/news/newspaper_screen.dart';
-import 'features/magazine/magazine_screen.dart';
-import 'features/settings/settings_screen.dart';
-import 'features/extras/extras_screen.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:change_case/change_case.dart';
 import 'l10n/app_localizations.dart';
+import 'core/services/theme_providers.dart';
 import 'core/theme_provider.dart';
-import 'core/theme.dart';
+import 'presentation/providers/theme_providers.dart';
+import 'presentation/providers/tab_providers.dart';
 
-class MainNavigationScreen extends StatefulWidget {
-  final int selectedTab;
-  const MainNavigationScreen({Key? key, this.selectedTab = 0}) : super(key: key);
+class MainNavigationScreen extends ConsumerWidget {
+  const MainNavigationScreen({required this.navigationShell, super.key});
 
-  @override
-  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
-}
-
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  late int _currentIndex;
-  late final List<Widget> _tabs;
-
-  final List<String> _iconNames = [
-    'home',
-    'newspapers',
-    'magazines',
-    'settings',
-    'Extras',
-  ];
+  final StatefulNavigationShell navigationShell;
 
   @override
-  void initState() {
-    super.initState();
-    _currentIndex = widget.selectedTab;
-    _tabs = const [
-      HomeScreen(),
-      NewspaperScreen(),
-      MagazineScreen(),
-      SettingsScreen(),
-      ExtrasScreen(),
-    ];
-  }
-
-  void _onItemTapped(int index) {
-    setState(() => _currentIndex = index);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final themeProv = context.watch<ThemeProvider>();
-    final mode = themeProv.appThemeMode;
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Use Riverpod providers instead of legacy context.watch
+    final themeState = ref.watch(themeProvider);
+    final AppThemeMode mode = themeState.mode;
     final loc = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final textTheme = theme.textTheme;
 
-    final labels = [
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme cs = theme.colorScheme;
+    final TextTheme textTheme = theme.textTheme;
+    final String locale = Localizations.localeOf(context).languageCode;
+
+    // Get theme colors from Riverpod providers
+    final glassColor = ref.watch(glassColorProvider);
+    final borderColor = ref.watch(borderColorProvider);
+
+    final List<String> iconNames = <String>[
+      'home',
+      'newspapers',
+      'magazines',
+      'settings',
+      'extras',
+    ];
+
+    final List<String> labels = <String>[
       loc.home,
       loc.newspapers,
       loc.magazines,
       loc.settings,
-      'Extras',
+      getExtrasLabel(context),
     ];
-
-    final activeGradient = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: AppGradients.getGradientColors(mode),
-    );
-
-    final inactiveGradient = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        cs.surfaceVariant.withOpacity(0.3),
-        cs.surface.withOpacity(0.3),
-      ],
-    );
 
     String themeSuffix;
     switch (mode) {
@@ -92,48 +58,148 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         themeSuffix = 'light';
     }
 
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _tabs,
-      ),
-      bottomNavigationBar: ClipRRect(
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
-        ),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  cs.background.withOpacity(0.85),
-                  cs.surface.withOpacity(0.65),
-                ],
+    DateTime? lastBackPressed;
+
+    return WillPopScope(
+      onWillPop: () async {
+        final now = DateTime.now();
+
+        // If on first tab (home), require double press to exit
+        if (navigationShell.currentIndex == 0) {
+          if (lastBackPressed == null ||
+              now.difference(lastBackPressed!) > const Duration(seconds: 2)) {
+            lastBackPressed = now;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Text('👋', style: TextStyle(fontSize: 24)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        loc.pressBackToExit,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.all(16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              border: Border.all(color: themeProv.borderColor, width: 1),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(_tabs.length, (i) {
-                final selected = i == _currentIndex;
-                final String assetPath = 'assets/icons/${_iconNames[i]}_$themeSuffix.png';
-                return GestureDetector(
-                  onTap: () => _onItemTapped(i),
-                  child: _buildNavIcon(
-                    assetPath: assetPath,
-                    label: labels[i],
-                    selected: selected,
-                    activeGradient: activeGradient,
-                    inactiveGradient: inactiveGradient,
-                    textTheme: textTheme,
+            );
+            return false; // Don't exit
+          }
+          return true; // Exit app
+        }
+
+        // For other tabs, go back to home
+        navigationShell.goBranch(0);
+        ref.read(tabProvider.notifier).setTab(0);
+        return false;
+      },
+      child: Scaffold(
+        body: navigationShell, // The branch content
+
+        extendBody: true,
+        bottomNavigationBar: UnconstrainedBox(
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.92,
+            margin: const EdgeInsets.fromLTRB(0, 0, 0, 24),
+            decoration: BoxDecoration(
+              color: glassColor,
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(
+                color: borderColor.withOpacity(0.5),
+                width: 0.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 25,
+                  offset: const Offset(0, 8),
+                ),
+                if (mode == AppThemeMode.bangladesh)
+                  const BoxShadow(
+                    color: Color(0xFF006A4E),
+                    blurRadius: 15,
+                    spreadRadius: -5,
                   ),
-                );
-              }),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(32),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 8,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: List.generate(iconNames.length, (int i) {
+                      final bool selected = i == navigationShell.currentIndex;
+
+                      // Vector Icons Logic
+                      IconData icon;
+                      IconData activeIcon;
+
+                      switch (i) {
+                        case 0:
+                          icon = Icons.home_outlined;
+                          activeIcon = Icons.home_rounded;
+                          break;
+                        case 1:
+                          icon = Icons.newspaper_outlined;
+                          activeIcon = Icons.newspaper_rounded;
+                          break;
+                        case 2:
+                          icon = Icons.auto_stories_outlined;
+                          activeIcon = Icons.auto_stories;
+                          break;
+                        case 3:
+                          icon = Icons.settings_outlined;
+                          activeIcon = Icons.settings_rounded;
+                          break;
+                        case 4:
+                          icon = Icons.widgets_outlined;
+                          activeIcon = Icons.widgets_rounded;
+                          break;
+                        default:
+                          icon = Icons.circle_outlined;
+                          activeIcon = Icons.circle;
+                      }
+
+                      return Expanded(
+                        child: Semantics(
+                          label:
+                              '${labels[i]} tab${selected ? ', selected' : ''}',
+                          button: true,
+                          selected: selected,
+                          child: GestureDetector(
+                            onTap: () => _onItemTapped(ref, i),
+                            behavior: HitTestBehavior.opaque,
+                            child: _buildNavIcon(
+                              icon: icon,
+                              activeIcon: activeIcon,
+                              label: labels[i],
+                              selected: selected,
+                              cs: cs,
+                              textTheme: textTheme,
+                              locale: locale,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -141,59 +207,73 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 
+  void _onItemTapped(WidgetRef ref, int index) {
+    // Broadcast tab change using Riverpod
+    ref.read(tabProvider.notifier).setTab(index);
+    navigationShell.goBranch(index);
+  }
+
   Widget _buildNavIcon({
-    required String assetPath,
+    required IconData icon,
+    required IconData activeIcon,
     required String label,
     required bool selected,
-    required Gradient activeGradient,
-    required Gradient inactiveGradient,
+    required ColorScheme cs,
     required TextTheme textTheme,
+    required String locale,
   }) {
-    final double size = 60;
-    final double iconSize = size;
-    final Color shadowColor =
-        selected ? activeGradient.colors.first.withOpacity(0.4) : Colors.black26;
+    // Stylish Vector Implementation
+    const double iconSize = 26;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: selected ? activeGradient : inactiveGradient,
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: shadowColor,
-                      blurRadius: 14,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Center(
-            child: Image.asset(
-              assetPath,
-              width: iconSize,
-              height: iconSize,
-              fit: BoxFit.contain,
+    final String displayLabel = locale == 'en' ? label.toSentenceCase() : label;
+    final Color accentColor = cs.primary;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          // Icon Animation
+          AnimatedScale(
+            scale: selected ? 1.15 : 1.0,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutBack,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                selected ? activeIcon : icon,
+                key: ValueKey(selected),
+                size: iconSize,
+                color: selected ? accentColor : cs.onSurface.withOpacity(0.6),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: selected
-                ? textTheme.labelLarge?.color
-                : textTheme.labelLarge?.color?.withOpacity(0.6),
+          const SizedBox(height: 4),
+          // Label
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: selected ? accentColor : cs.onSurface.withOpacity(0.6),
+              letterSpacing: -0.1,
+            ),
+            child: Text(
+              displayLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
+  }
+
+  /// Hardcoded bilingual label for "Extras"
+  String getExtrasLabel(BuildContext context) {
+    final String locale = Localizations.localeOf(context).languageCode;
+    return locale == 'bn' ? 'বিবিধ' : 'Extras';
   }
 }

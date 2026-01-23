@@ -14,10 +14,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   String? message;
 
   Future<void> _resetPassword() async {
-    final loc = AppLocalizations.of(context)!;
+    final AppLocalizations loc = AppLocalizations.of(context)!;
+
     try {
-      await FirebaseAuth.instance
-          .sendPasswordResetEmail(email: emailController.text.trim());
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: emailController.text.trim(),
+      );
       setState(() => message = loc.resetEmailSent);
     } on FirebaseAuthException catch (e) {
       setState(() => message = e.message);
@@ -26,18 +28,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context)!;
+    final AppLocalizations loc = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(loc.forgotPassword),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: Text(loc.forgotPassword), centerTitle: true),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+          children: <Widget>[
             Text(loc.enterEmailReset),
             const SizedBox(height: 12),
             TextField(
@@ -53,7 +52,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               onPressed: _resetPassword,
               child: Text(loc.sendResetLink),
             ),
-            if (message != null) ...[
+            if (message != null) ...<Widget>[
               const SizedBox(height: 20),
               Text(
                 message!,

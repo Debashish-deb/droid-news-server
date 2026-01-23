@@ -2,13 +2,14 @@
 
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/news_article.dart';
-import '../core/utils/favorites_manager.dart';
+import '../core/services/favorites_providers.dart';
 
-class FavoriteButton extends StatefulWidget {
+class FavoriteButton extends ConsumerStatefulWidget {
   const FavoriteButton({
-    super.key,
     required this.article,
+    super.key,
     this.onFavoriteChanged,
   });
 
@@ -16,12 +17,11 @@ class FavoriteButton extends StatefulWidget {
   final VoidCallback? onFavoriteChanged;
 
   @override
-  State<FavoriteButton> createState() => _FavoriteButtonState();
+  ConsumerState<FavoriteButton> createState() => _FavoriteButtonState();
 }
 
-class _FavoriteButtonState extends State<FavoriteButton>
+class _FavoriteButtonState extends ConsumerState<FavoriteButton>
     with SingleTickerProviderStateMixin {
-  bool _isFavorite = false;
   late final AnimationController _animController;
   late final Animation<double> _scaleAnim;
   late final Animation<double> _flashAnim;
@@ -29,14 +29,13 @@ class _FavoriteButtonState extends State<FavoriteButton>
   @override
   void initState() {
     super.initState();
-    _loadFavoriteStatus();
 
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
 
-    _scaleAnim = TweenSequence<double>([
+    _scaleAnim = TweenSequence<double>(<TweenSequenceItem<double>>[
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.3), weight: 50),
       TweenSequenceItem(tween: Tween(begin: 1.3, end: 1.0), weight: 50),
     ]).animate(
@@ -54,43 +53,40 @@ class _FavoriteButtonState extends State<FavoriteButton>
     super.dispose();
   }
 
-  Future<void> _loadFavoriteStatus() async {
-    final articles = FavoritesManager.instance.favoriteArticles;
-    final status =
-        articles.any((a) => a.url == widget.article.url);
-    setState(() => _isFavorite = status);
-  }
-
   Future<void> _toggleFavorite() async {
     // Start the pop+flash
     _animController.forward(from: 0);
-    if (_isFavorite) {
-      await FavoritesManager.instance.removeFavorite(widget.article);
-    } else {
-      await FavoritesManager.instance.addFavorite(widget.article);
-    }
-    await _loadFavoriteStatus();
+    // Toggle using Riverpod
+    await ref.read(favoritesProvider.notifier).toggleArticle(widget.article);
     widget.onFavoriteChanged?.call();
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final heartColor = _isFavorite
-        ? colorScheme.secondary
-        : colorScheme.onSurface.withOpacity(0.6);
+    // Watch using Riverpod
+    final bool isFavorite = ref.watch(
+      favoritesProvider.select(
+        (state) => state.articles.any((a) => a.url == widget.article.url),
+      ),
+    );
+
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final Color heartColor =
+        isFavorite
+            ? colorScheme.secondary
+            : colorScheme.onSurface.withOpacity(0.6);
 
     return Semantics(
-      label: _isFavorite ? 'Remove from favorites' : 'Add to favorites',
+      label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
       button: true,
       child: GestureDetector(
         onTap: _toggleFavorite,
         child: AnimatedBuilder(
           animation: _animController,
-          builder: (context, child) {
+          builder: (BuildContext context, Widget? child) {
             return Stack(
               alignment: Alignment.center,
-              children: [
+              children: <Widget>[
                 // Flashing frosted circle
                 if (_flashAnim.value > 0)
                   BackdropFilter(
@@ -102,8 +98,7 @@ class _FavoriteButtonState extends State<FavoriteButton>
                       width: 40 + 20 * _flashAnim.value,
                       height: 40 + 20 * _flashAnim.value,
                       decoration: BoxDecoration(
-                        color:
-                            Colors.white.withOpacity(_flashAnim.value * 0.2),
+                        color: Colors.white.withOpacity(_flashAnim.value * 0.2),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -112,7 +107,7 @@ class _FavoriteButtonState extends State<FavoriteButton>
                 Transform.scale(
                   scale: _scaleAnim.value,
                   child: Icon(
-                    _isFavorite ? Icons.favorite : Icons.favorite_border,
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
                     color: heartColor,
                     size: 28,
                   ),

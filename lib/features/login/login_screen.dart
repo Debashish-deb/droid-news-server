@@ -40,9 +40,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final result = await AuthService().signInWithGoogle();
     if (!mounted) return;
     if (result != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result)));
     } else {
       context.go('/home');
     }
@@ -88,7 +88,9 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _login,
-                style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                ),
                 child: Text(loc.login),
               ),
               const SizedBox(height: 12),

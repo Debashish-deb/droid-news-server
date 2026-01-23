@@ -1,86 +1,127 @@
-// lib/data/services/hive_service.dart
-
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter/foundation.dart';
+import '../../core/services/app_network_service.dart'; // Unified network service
 import '../models/news_article.dart';
 
 class HiveService {
-  HiveService._();
+  HiveService._(); // Private constructor prevents instantiation
 
-  /// How long before cached articles expire.
-  static const Duration cacheDuration = Duration(minutes: 30);
+  static bool _initialized = false;
 
-  /// Initialize Hive & open one articles‐box and one meta‐box per category.
-  /// 
-  /// Pass in exactly the list of category keys you're using (e.g. from
-  /// your RSS service). Hive will register the adapter (once) and open
-  /// two boxes for each category.
+  static const int _CACHE_VERSION = 2; // Increment when NewsArticle schema changes
+
   static Future<void> init(List<String> categories) async {
-    await Hive.initFlutter();
+    if (_initialized) return;
 
-    // Register the adapter if not already done
-    final adapterId = NewsArticleAdapter().typeId;
-    if (!Hive.isAdapterRegistered(adapterId)) {
+    await Hive.initFlutter();
+    
+    // Check version and clear if needed
+    final Box versionBox = await Hive.openBox('app_version');
+    final int? storedVersion = versionBox.get('cache_version');
+    
+    if (storedVersion != _CACHE_VERSION) {
+      if (kDebugMode) debugPrint('♻️ Cache version mismatch. Clearing old data...');
+      await Hive.deleteFromDisk(); // Nuclear option for safety
+      await Hive.initFlutter(); // Re-init after delete
+      
+      final Box newVersionBox = await Hive.openBox('app_version');
+      await newVersionBox.put('cache_version', _CACHE_VERSION);
+    }
+
+    if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(NewsArticleAdapter());
     }
 
-    // Open a box for each category and its metadata
-    for (final cat in categories) {
-      final boxName = _boxName(cat);
-      final metaName = _metaName(cat);
+    for (final String key in categories) {
+      await Hive.openBox<NewsArticle>(key);
+      await Hive.openBox("${key}_meta");
+    }
 
-      if (!Hive.isBoxOpen(boxName)) {
-        await Hive.openBox<NewsArticle>(boxName);
+    _initialized = true;
+  }
+
+  static bool hasArticles(String key) {
+    try {
+      if (!Hive.isBoxOpen(key)) return false;
+      final Box<NewsArticle> box = Hive.box<NewsArticle>(key);
+      return box.isNotEmpty;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('⚠️ Error checking articles for $key: $e');
       }
-      if (!Hive.isBoxOpen(metaName)) {
-        // meta box holds a String under 'lastSaved'
-        await Hive.openBox<String>(metaName);
+      return false;
+    }
+  }
+
+  static List<NewsArticle> getArticles(String key) {
+    try {
+      if (!Hive.isBoxOpen(key)) return <NewsArticle>[];
+      return Hive.box<NewsArticle>(key).values.toList();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('⚠️ Error getting articles for $key: $e');
+      }
+      return <NewsArticle>[];
+    }
+  }
+
+  static bool isExpired(String key) {
+    try {
+      final String metaBoxKey = "${key}_meta";
+      if (!Hive.isBoxOpen(metaBoxKey)) return true;
+
+      final Box<dynamic> meta = Hive.box(metaBoxKey);
+      final int? timestamp = meta.get("time") as int?;
+
+      if (timestamp == null) return true;
+
+      final int age = DateTime.now().millisecondsSinceEpoch - timestamp;
+
+      // ⚡ ADAPTIVE CACHE for Bangladesh: Longer cache on poor connections
+      // WiFi/4G: 20min, 3G: 1hr, 2G: 3hrs
+      final Duration cacheDuration = AppNetworkService().getCacheDuration();
+
+      return age > cacheDuration.inMilliseconds;
+    } catch (e) {
+      if (kDebugMode) debugPrint('⚠️ Error checking expiry for $key: $e');
+      return true; // Assume expired on error
+    }
+  }
+
+  static Future<void> saveArticles(String key, List<NewsArticle> data) async {
+    try {
+      // 🚨 NEVER overwrite valid cache with empty list
+      if (data.isEmpty) return;
+
+      if (!Hive.isBoxOpen(key)) {
+        if (kDebugMode) {
+          debugPrint('⚠️ Box $key is not open, cannot save');
+        }
+        return;
+      }
+
+      final Box<NewsArticle> box = Hive.box<NewsArticle>(key);
+      await box.clear();
+      await box.addAll(data);
+
+      final String metaBoxKey = "${key}_meta";
+      if (!Hive.isBoxOpen(metaBoxKey)) {
+        if (kDebugMode) {
+          debugPrint(
+            '⚠️ Meta box $metaBoxKey is not open, cannot save timestamp',
+          );
+        }
+        return;
+      }
+
+      final Box<dynamic> meta = Hive.box(metaBoxKey);
+      await meta.put("time", DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('⚠️ Error saving articles for $key: $e');
       }
     }
   }
 
-  static String _boxName(String category) => 'news_$category';
-  static String _metaName(String category) => 'news_${category}_meta';
-
-  static Box<NewsArticle> _articleBox(String category) =>
-      Hive.box<NewsArticle>(_boxName(category));
-  static Box<String> _metaBox(String category) =>
-      Hive.box<String>(_metaName(category));
-
-  /// Persist the list of articles, then stamp the time.
-  static Future<void> saveArticles(
-    String category,
-    List<NewsArticle> articles,
-  ) async {
-    final box = _articleBox(category);
-    await box.clear();
-    for (final a in articles) {
-      await box.put(a.url, a);
-    }
-    await _metaBox(category).put(
-      'lastSaved',
-      DateTime.now().toIso8601String(),
-    );
-  }
-
-  /// Read back cached articles, marking them from cache.
-  static List<NewsArticle> getArticles(String category) {
-    return _articleBox(category)
-        .values
-        .map((a) => a..fromCache = true)
-        .toList();
-  }
-
-  /// True if no saved timestamp or older than [cacheDuration].
-  static bool isExpired(String category) {
-    final savedStr = _metaBox(category).get('lastSaved');
-    if (savedStr == null) return true;
-    final saved = DateTime.tryParse(savedStr);
-    if (saved == null) return true;
-    return DateTime.now().difference(saved) > cacheDuration;
-  }
-
-  /// True if there are *any* cached articles.
-  static bool hasArticles(String category) =>
-      _articleBox(category).isNotEmpty;
+  static void instance() {}
 }

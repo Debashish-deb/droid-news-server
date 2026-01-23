@@ -77,6 +77,28 @@ class NewsArticle extends HiveObject {
     );
   }
 
+  factory NewsArticle.fromAtomItem(AtomItem item) {
+    // Extract image from media or content
+    String? imageUrl;
+    if (item.media?.thumbnails?.isNotEmpty ?? false) {
+      imageUrl = item.media!.thumbnails!.first.url;
+    } else if (item.media?.contents?.isNotEmpty ?? false) {
+      imageUrl = item.media!.contents!.first.url;
+    } else if (item.content != null) {
+      imageUrl = _extractImageFromHtml(item.content!);
+    }
+
+    return NewsArticle(
+      title: item.title ?? '',
+      description: item.summary ?? '',
+      url: item.links?.firstOrNull?.href ?? '',
+      source: item.source?.title ?? '',
+      imageUrl: imageUrl,
+      language: 'en',
+      publishedAt: (item.updated as DateTime?) ?? (item.published as DateTime?) ?? DateTime.now(),
+    );
+  }
+
   factory NewsArticle.fromMap(Map<String, dynamic> map) => NewsArticle(
         title: map['title'] ?? '',
         description: map['description'] ?? '',

@@ -1,4 +1,274 @@
-Disclaimer
-This app aggregates content via publicly available RSS feeds and official links.
-All news, articles, magazines, logos, and brands are property of their respective owners.
-We do not host any content. We redirect users to the official source.
+═══════════════════════════════════════════════════════════════════════════════
+                              TERMS OF SERVICE & DISCLAIMER
+                                    BD News Reader
+                           Last Updated: December 23, 2024
+═══════════════════════════════════════════════════════════════════════════════
+
+BY USING THIS APPLICATION, YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD, AND 
+AGREE TO BE BOUND BY THESE TERMS. IF YOU DO NOT AGREE, DISCONTINUE USE IMMEDIATELY.
+
+───────────────────────────────────────────────────────────────────────────────
+1. CONTENT AGGREGATION & INTELLECTUAL PROPERTY
+───────────────────────────────────────────────────────────────────────────────
+
+1.1 THIRD-PARTY CONTENT
+This application ("BD News Reader") is a news aggregation platform that collects 
+and displays content from publicly accessible RSS feeds, APIs, and official news 
+sources. ALL articles, images, videos, logos, trademarks, and other media remain 
+the exclusive intellectual property of their respective copyright holders.
+
+1.2 NO CONTENT HOSTING
+We do NOT host, store, or claim ownership of any copyrighted material. Users are 
+redirected to original content sources via embedded WebView or external browser. 
+All content attribution is preserved and linked to original publishers.
+
+1.3 FAIR USE & COMPLIANCE
+Content aggregation is conducted under principles of fair use for informational 
+purposes. We comply with robots.txt directives, RSS feed terms of service, and 
+copyright laws of Bangladesh and international jurisdictions.
+
+1.4 DMCA & TAKEDOWN POLICY
+Copyright holders may request content removal by contacting: 
+customerservice@dsmobiles.com. We will respond to valid DMCA notices within 48 
+hours and remove infringing content promptly.
+
+───────────────────────────────────────────────────────────────────────────────
+2. AUTOMATED TRANSLATION SERVICES
+───────────────────────────────────────────────────────────────────────────────
+
+2.1 TRANSLATION ACCURACY
+Selected content may be automatically translated using Google Translate™, ML Kit, 
+or similar AI-powered translation services. AUTOMATED TRANSLATIONS ARE PROVIDED 
+"AS IS" WITHOUT WARRANTY OF ACCURACY, COMPLETENESS, OR SUITABILITY.
+
+2.2 USER DISCRETION REQUIRED
+Translation algorithms may produce errors, mistranslations, cultural misinterpretations, 
+or contextually inappropriate renderings. Users must exercise independent judgment 
+and verify critical information from original sources.
+
+2.3 NO LIABILITY FOR MISTRANSLATION
+We disclaim ALL liability for:
+  • Misunderstandings arising from automated translations
+  • Financial, legal, or personal consequences of relying on translated content
+  • Cultural or religious sensitivities inadvertently violated by AI translations
+
+2.4 ORIGINAL CONTENT PRIORITY
+When accuracy is paramount, users MUST consult the original, untranslated source 
+material. Translated content is supplementary and intended solely for convenience.
+
+───────────────────────────────────────────────────────────────────────────────
+3. IN-APP ENTERTAINMENT FEATURES
+───────────────────────────────────────────────────────────────────────────────
+
+3.1 SNAKE GAME IMPLEMENTATION
+The integrated Snake game is an original implementation inspired by the classic 
+1990s Nokia game concept. It is provided purely for entertainment during content 
+loading or offline periods.
+
+3.2 NO OWNERSHIP CLAIM
+We acknowledge that the original Snake game concept, mechanics, and design patterns 
+are the intellectual property of their respective creators (Nokia, Taneli Armanto, 
+and others). Our implementation is a transformative work under fair use principles.
+
+3.3 NO ENDORSEMENT
+This feature does NOT imply endorsement, affiliation, or sponsorship by Nokia or 
+any other entity associated with the original Snake game franchise.
+
+───────────────────────────────────────────────────────────────────────────────
+4. DATA PRIVACY & SECURITY
+───────────────────────────────────────────────────────────────────────────────
+
+4.1 USER DATA COLLECTION
+We collect minimal user data necessary for app functionality:
+  • Firebase Authentication (email, user ID)
+  • Firebase Analytics (anonymous usage metrics, crash reports)
+  • Cloud Sync (user preferences, favorites, reading history)
+  • Device information (OS version, screen size for optimization)
+
+4.2 DATA USAGE
+User data is used exclusively for:
+  • Providing and improving app services
+  • Syncing settings across devices
+  • Analyzing app performance and stability
+  • Delivering personalized content recommendations
+
+4.3 THIRD-PARTY SERVICES
+The app integrates with:
+  • Google Firebase (Analytics, Authentication, Firestore, Cloud Storage)
+  • Google AdMob (advertising for free-tier users)
+  • CachedNetworkImage (image caching)
+  • Supabase (potential future integration)
+
+Each service has its own privacy policy. Users should review:
+  • Google Privacy Policy: https://policies.google.com/privacy
+  • Firebase Privacy: https://firebase.google.com/support/privacy
+
+4.4 GDPR & ePrivacy COMPLIANCE
+For EU users, we comply with GDPR and ePrivacy Directive:
+  • Right to access personal data
+  • Right to deletion (contact customerservice@dsmobiles.com)
+  • Right to data portability
+  • Consent-based advertising tracking
+
+4.5 DATA SECURITY
+We implement industry-standard security measures:
+  • SSL/TLS encryption for data transmission
+  • Firebase Security Rules for database access control
+  • Secure authentication tokens
+  • Regular security audits
+
+4.6 NO ABSOLUTE SECURITY
+Despite best efforts, NO system is 100% secure. We cannot guarantee absolute 
+protection against unauthorized access, data breaches, or cyberattacks. Users 
+accept this inherent risk by using the app.
+
+───────────────────────────────────────────────────────────────────────────────
+5. ADVERTISING & PREMIUM SUBSCRIPTIONS
+───────────────────────────────────────────────────────────────────────────────
+
+5.1 AD-SUPPORTED FREE TIER
+Free users will experience third-party advertisements served via Google AdMob. 
+Ad content is controlled by Google and may not reflect our endorsement.
+
+5.2 PREMIUM SUBSCRIPTION
+Premium users enjoy:
+  • Ad-free experience
+  • Exclusive Bangladesh-themed UI
+  • Priority support
+  • Advanced features (subject to change)
+
+5.3 NO REFUND POLICY
+In-app purchases are NON-REFUNDABLE except as required by applicable law or as 
+determined by the Google Play Store refund policy.
+
+5.4 SUBSCRIPTION MODIFICATION
+We reserve the right to modify subscription pricing, features, or availability 
+with advance notice to existing subscribers.
+
+───────────────────────────────────────────────────────────────────────────────
+6. USER RESPONSIBILITIES & LEGAL COMPLIANCE
+───────────────────────────────────────────────────────────────────────────────
+
+6.1 JURISDICTIONAL COMPLIANCE
+Users are solely responsible for ensuring their use of this app complies with:
+  • Local laws in Bangladesh (Information and Communication Technology Act 2006)
+  • GDPR (for EU residents)
+  • CCPA (for California residents)
+  • Any other applicable regional regulations
+
+6.2 PROHIBITED USE
+Users may NOT:
+  • Reverse engineer, decompile, or disassemble the app
+  • Use automated scripts to scrape content in violation of Terms of Service
+  • Redistribute app content without attribution to original sources
+  • Use the app for illegal activities, including defamation or hate speech
+
+6.3 ACCOUNT TERMINATION
+We reserve the right to suspend or terminate accounts that violate these terms, 
+engage in fraudulent activity, or abuse app services.
+
+───────────────────────────────────────────────────────────────────────────────
+7. LIMITATION OF LIABILITY
+───────────────────────────────────────────────────────────────────────────────
+
+7.1 "AS IS" PROVISION
+This app is provided "AS IS" and "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, 
+either express or implied, including but not limited to:
+  • Merchantability
+  • Fitness for a particular purpose
+  • Non-infringement
+  • Accuracy of content
+  • Uninterrupted service
+
+7.2 NO DAMAGES LIABILITY
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, we disclaim liability for:
+  • Direct, indirect, incidental, consequential, or punitive damages
+  • Loss of profits, data, revenue, or business opportunities
+  • Device damage or malfunction
+  • Reliance on translated or aggregated content
+  • Third-party advertisement accuracy or safety
+
+7.3 FORCE MAJEURE
+We are not liable for failures caused by circumstances beyond our reasonable control, 
+including natural disasters, government actions, internet outages, or third-party 
+service disruptions (e.g., Firebase downtime).
+
+───────────────────────────────────────────────────────────────────────────────
+8. INDEMNIFICATION
+───────────────────────────────────────────────────────────────────────────────
+
+Users agree to indemnify, defend, and hold harmless BD News Reader, its developers, 
+and affiliates from any claims, liabilities, damages, or expenses (including 
+legal fees) arising from:
+  • User violations of these Terms
+  • Misuse of aggregated content
+  • Infringement of third-party intellectual property rights
+  • Illegal activities conducted using the app
+
+───────────────────────────────────────────────────────────────────────────────
+9. MODIFICATIONS & UPDATES
+───────────────────────────────────────────────────────────────────────────────
+
+9.1 TERMS UPDATES
+We reserve the right to modify these Terms at any time. Material changes will be 
+communicated via in-app notification. Continued use after such notice constitutes 
+acceptance of the updated Terms.
+
+9.2 APP UPDATES
+We may release updates, patches, or new versions that modify functionality, add 
+features, or remove outdated services. Users are encouraged to keep the app updated 
+for optimal security and performance.
+
+───────────────────────────────────────────────────────────────────────────────
+10. DISPUTE RESOLUTION & GOVERNING LAW
+───────────────────────────────────────────────────────────────────────────────
+
+10.1 GOVERNING LAW
+These Terms are governed by the laws of the People's Republic of Bangladesh, 
+without regard to conflict of law principles.
+
+10.2 ARBITRATION CLAUSE
+Any disputes arising from app use shall be resolved through binding arbitration 
+in Dhaka, Bangladesh, under the Arbitration Act 2001, before litigation.
+
+10.3 CLASS ACTION WAIVER
+Users agree to resolve disputes on an individual basis and waive the right to 
+participate in class-action lawsuits.
+
+───────────────────────────────────────────────────────────────────────────────
+11. CONTACT INFORMATION
+───────────────────────────────────────────────────────────────────────────────
+
+For questions, concerns, or legal inquiries:
+
+Email: customerservice@dsmobiles.com
+Developer: DS Mobiles
+Location: Dhaka, Bangladesh
+
+DMCA Takedown Requests: customerservice@dsmobiles.com (Subject: "DMCA Takedown")
+Data Privacy Requests: customerservice@dsmobiles.com (Subject: "GDPR Request")
+
+───────────────────────────────────────────────────────────────────────────────
+12. FINAL PROVISIONS
+───────────────────────────────────────────────────────────────────────────────
+
+12.1 SEVERABILITY
+If any provision of these Terms is found unenforceable, the remaining provisions 
+remain in full force and effect.
+
+12.2 ENTIRE AGREEMENT
+These Terms constitute the entire agreement between users and BD News Reader, 
+superseding any prior understandings or agreements.
+
+12.3 NO WAIVER
+Failure to enforce any right or provision does not constitute a waiver of that 
+right or future enforcement.
+
+═══════════════════════════════════════════════════════════════════════════════
+                           USE AT YOUR OWN RISK
+                     
+BY USING THIS APP, YOU ACKNOWLEDGE AND ACCEPT ALL RISKS, LIMITATIONS, AND LEGAL 
+TERMS OUTLINED ABOVE. IF YOU DO NOT AGREE, UNINSTALL THE APP IMMEDIATELY.
+
+                          © 2024 DS Mobiles. All Rights Reserved.
+═══════════════════════════════════════════════════════════════════════════════

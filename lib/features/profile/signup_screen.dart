@@ -3,22 +3,23 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme_provider.dart';
 import '../../../features/profile/auth_service.dart';
-import '/l10n/app_localizations.dart';
+import '../../l10n/app_localizations.dart';
+import '../../presentation/providers/theme_providers.dart';
 
-class SignupScreen extends StatefulWidget {
+class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
 
   @override
-  State<SignupScreen> createState() => _SignupScreenState();
+  ConsumerState<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> {
-  final _nameCtl = TextEditingController();
-  final _emailCtl = TextEditingController();
-  final _passCtl = TextEditingController();
+class _SignupScreenState extends ConsumerState<SignupScreen> {
+  final TextEditingController _nameCtl = TextEditingController();
+  final TextEditingController _emailCtl = TextEditingController();
+  final TextEditingController _passCtl = TextEditingController();
   String? _error;
   bool _loading = false;
 
@@ -32,7 +33,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _signup() async {
     setState(() => _loading = true);
-    final msg = await AuthService().signUp(
+    final String? msg = await AuthService().signUp(
       _nameCtl.text.trim(),
       _emailCtl.text.trim(),
       _passCtl.text.trim(),
@@ -41,33 +42,40 @@ class _SignupScreenState extends State<SignupScreen> {
     if (msg != null) {
       setState(() => _error = msg);
     } else {
+      if (!mounted) return;
       context.go('/home');
     }
   }
 
   Future<void> _signupWithGoogle() async {
     setState(() => _loading = true);
-    final result = await AuthService().signInWithGoogle();
+    final String? result = await AuthService().signInWithGoogle();
     setState(() => _loading = false);
     if (result != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result)));
     } else {
+      if (!mounted) return;
       context.go('/home');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context)!;
-    final mode = context.watch<ThemeProvider>().appThemeMode;
-    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white;
+    final AppLocalizations loc = AppLocalizations.of(context)!;
+
+    final AppThemeMode mode = ref.watch(currentThemeModeProvider);
+    final Color textColor =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.transparent,
       body: Stack(
         fit: StackFit.expand,
-        children: [
+        children: <Widget>[
           _buildBackground(mode),
           Container(color: _glassTint(mode)),
           SafeArea(
@@ -82,11 +90,11 @@ class _SignupScreenState extends State<SignupScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white30, width: 1),
+                      border: Border.all(color: Colors.white30),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+                      children: <Widget>[
                         Text(
                           loc.signup,
                           textAlign: TextAlign.center,
@@ -98,7 +106,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        if (_error != null) ...[
+                        if (_error != null) ...<Widget>[
                           Text(
                             _mapError(loc, _error!),
                             style: const TextStyle(color: Colors.redAccent),
@@ -107,9 +115,17 @@ class _SignupScreenState extends State<SignupScreen> {
                           const SizedBox(height: 16),
                         ],
 
-                        _glassField(loc.fullName, controller: _nameCtl, textColor: textColor),
+                        _glassField(
+                          loc.fullName,
+                          controller: _nameCtl,
+                          textColor: textColor,
+                        ),
                         const SizedBox(height: 12),
-                        _glassField(loc.email, controller: _emailCtl, textColor: textColor),
+                        _glassField(
+                          loc.email,
+                          controller: _emailCtl,
+                          textColor: textColor,
+                        ),
                         const SizedBox(height: 12),
                         _glassField(
                           loc.password,
@@ -128,18 +144,34 @@ class _SignupScreenState extends State<SignupScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: _loading
-                              ? const CircularProgressIndicator(color: Colors.white)
-                              : Text(
-                                  loc.signup,
-                                  style: TextStyle(
-                                      color: textColor, fontWeight: FontWeight.bold),
-                                ),
+                          child:
+                              _loading
+                                  ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                  : Text(
+                                    loc.signup,
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                         ),
                         const SizedBox(height: 12),
 
                         ElevatedButton.icon(
-                          icon: Image.asset('assets/google_logo.png', height: 24),
+                          icon: Image.asset(
+                            'assets/google_logo.png',
+                            height: 24,
+                            errorBuilder: (context, error, stackTrace) {
+                              // Fallback to icon if image fails to load
+                              return const Icon(
+                                Icons.login,
+                                size: 24,
+                                color: Colors.white,
+                              );
+                            },
+                          ),
                           label: Text(
                             loc.continueWithGoogle,
                             style: TextStyle(color: textColor),
@@ -193,7 +225,7 @@ class _SignupScreenState extends State<SignupScreen> {
         return Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF0D0F13), Color(0xFF1A1C20)],
+              colors: <Color>[Color(0xFF0D0F13), Color(0xFF1A1C20)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -203,7 +235,7 @@ class _SignupScreenState extends State<SignupScreen> {
         return Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFFE0E0E0), Color(0xFFF5F5F5)],
+              colors: <Color>[Color(0xFFE0E0E0), Color(0xFFF5F5F5)],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
@@ -214,7 +246,7 @@ class _SignupScreenState extends State<SignupScreen> {
         return Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF006B3C), Color(0xFFBD1F2D)],
+              colors: <Color>[Color(0xFF006B3C), Color(0xFFBD1F2D)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -238,8 +270,8 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget _glassField(
     String label, {
     required TextEditingController controller,
-    bool obscure = false,
     required Color textColor,
+    bool obscure = false,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -255,7 +287,10 @@ class _SignupScreenState extends State<SignupScreen> {
           labelText: label,
           labelStyle: TextStyle(color: textColor.withOpacity(0.7)),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
       ),
     );

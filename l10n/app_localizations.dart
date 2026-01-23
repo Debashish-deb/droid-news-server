@@ -1,146 +1,723 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
-class AppLocalizations {
-  final Locale locale;
-  AppLocalizations(this.locale);
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/intl.dart' as intl;
 
-  static AppLocalizations of(BuildContext context) =>
-      Localizations.of<AppLocalizations>(context, AppLocalizations)!;
+import 'app_localizations_bn.dart';
+import 'app_localizations_en.dart';
+
+// ignore_for_file: type=lint
+
+/// Callers can lookup localized strings with an instance of AppLocalizations
+/// returned by `AppLocalizations.of(context)`.
+///
+/// Applications need to include `AppLocalizations.delegate()` in their app's
+/// `localizationDelegates` list, and the locales they support in the app's
+/// `supportedLocales` list. For example:
+///
+/// ```dart
+/// import 'l10n/app_localizations.dart';
+///
+/// return MaterialApp(
+///   localizationsDelegates: AppLocalizations.localizationsDelegates,
+///   supportedLocales: AppLocalizations.supportedLocales,
+///   home: MyApplicationHome(),
+/// );
+/// ```
+///
+/// ## Update pubspec.yaml
+///
+/// Please make sure to update your pubspec.yaml to include the following
+/// packages:
+///
+/// ```yaml
+/// dependencies:
+///   # Internationalization support.
+///   flutter_localizations:
+///     sdk: flutter
+///   intl: any # Use the pinned version from flutter_localizations
+///
+///   # Rest of dependencies
+/// ```
+///
+/// ## iOS Applications
+///
+/// iOS applications define key application metadata, including supported
+/// locales, in an Info.plist file that is built into the application bundle.
+/// To configure the locales supported by your app, you’ll need to edit this
+/// file.
+///
+/// First, open your project’s ios/Runner.xcworkspace Xcode workspace file.
+/// Then, in the Project Navigator, open the Info.plist file under the Runner
+/// project’s Runner folder.
+///
+/// Next, select the Information Property List item, select Add Item from the
+/// Editor menu, then select Localizations from the pop-up menu.
+///
+/// Select and expand the newly-created Localizations item then, for each
+/// locale your application supports, add a new item and select the locale
+/// you wish to add from the pop-up menu in the Value field. This list should
+/// be consistent with the languages listed in the AppLocalizations.supportedLocales
+/// property.
+abstract class AppLocalizations {
+  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+
+  final String localeName;
+
+  static AppLocalizations? of(BuildContext context) {
+    return Localizations.of<AppLocalizations>(context, AppLocalizations);
+  }
 
   static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
 
-  // General UI
-  String get close => _t('বন্ধ করুন', 'Close');
-  String get home => _t('হোম', 'Home');
-  String get profile => _t('প্রোফাইল', 'Profile');
-  String get editProfile => _t('প্রোফাইল সম্পাদনা', 'Edit Profile');
-  String get settings => _t('সেটিংস', 'Settings');
-  String get theme => _t('থিম', 'Theme');
-  String get language => _t('ভাষা', 'Language');
-  String get darkMode => _t('ডার্ক মোড', 'Dark Mode');
-  String get version => _t('সংস্করণ', 'Version');
-  String get versionPrefix => _t('সংস্করণ', 'Version');
-  String get bdNewsHub => _t('বিডিনিউজ হাব 📰', 'BDNews Hub 📰');
-  String get sharePage => _t('এই পৃষ্ঠাটি শেয়ার করুন', 'Share this page');
-String get bookmarkPage => _t('এই পৃষ্ঠাটি সংরক্ষণ করুন', 'Bookmark this page');
-String get bookmarkSuccess => _t('সফলভাবে সংরক্ষিত হয়েছে!', 'URL saved successfully!');
-String get originalView => _t('মূল ভিউ', 'Original view');
-String get back => _t('পিছনে যান', 'Go back');
-String get forward => _t('সামনে যান', 'Go forward');
-String get refresh => _t('রিফ্রেশ করুন', 'Refresh');
+  /// A list of this localizations delegate along with the default localizations
+  /// delegates.
+  ///
+  /// Returns a list of localizations delegates containing this delegate along with
+  /// GlobalMaterialLocalizations.delegate, GlobalCupertinoLocalizations.delegate,
+  /// and GlobalWidgetsLocalizations.delegate.
+  ///
+  /// Additional delegates can be added by appending to this list in
+  /// MaterialApp. This list does not have to be used at all if a custom list
+  /// of delegates is preferred or required.
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
-  // Auth
-  String get login => _t('লগইন', 'Login');
-  String get latest => _t('সর্বশেষ', 'Latest');
-  String get logout => _t('লগআউট', 'Logout');
-  String get signup => _t('সাইন আপ', 'Sign Up');
-  String get password => _t('পাসওয়ার্ড', 'Password');
-  String get email => _t('ইমেইল', 'Email');
-  String get fullName => _t('পুরো নাম', 'Full Name');
-  String get forgotPassword => _t('পাসওয়ার্ড ভুলে গেছেন', 'Forgot Password');
-  String get sendResetLink => _t('রিসেট লিঙ্ক পাঠান', 'Send Reset Link');
-  String get enterEmailReset => _t('পাসওয়ার্ড রিসেট করতে আপনার ইমেল লিখুন:', 'Enter your email to reset your password:');
-  String get alreadyHaveAccount => _t('ইতিমধ্যে একটি অ্যাকাউন্ট আছে?', 'Already have an account? Login');
-  String get createAccount => _t('অ্যাকাউন্ট তৈরি করুন', 'Create account');
-  String get invalidCredentials => _t('ভুল ইমেইল বা পাসওয়ার্ড।', 'Invalid email or password.');
-  String get noAccountFound => _t('এই ইমেইলে কোন অ্যাকাউন্ট নেই।', 'No account found for this email.');
-  String get accountExists => _t('এই ইমেইলে ইতিমধ্যে অ্যাকাউন্ট আছে।', 'An account already exists with this email.');
-  String get resetEmailSent => _t('📧 পাসওয়ার্ড রিসেট ইমেইল পাঠানো হয়েছে!', '📧 Password reset email sent!');
+  /// A list of this localizations delegate's supported locales.
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('bn'),
+    Locale('en')
+  ];
 
-  // Profile Fields
-  String get phone => _t('ফোন', 'Phone');
-  String get bio => _t('জীবন বৃত্তান্ত', 'Bio');
-  String get address => _t('ঠিকানা', 'Address');
-  String get website => _t('ওয়েবসাইট', 'Website');
-  String get role => _t('ভূমিকা', 'Role');
-  String get department => _t('বিভাগ', 'Department');
-  String get changeImage => _t('ছবি পরিবর্তন করুন', 'Change Image');
-  String get removeImage => _t('ছবি অপসারণ', 'Remove Image');
+  /// No description provided for @home.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get home;
 
-  // Editor Features
-  String get saveChanges => _t('পরিবর্তনগুলি সংরক্ষণ করুন', 'Save Changes');
-  String get profileSaved => _t('প্রোফাইল সংরক্ষিত', 'Profile saved');
-  String get required => _t('আবশ্যক', 'Required');
+  /// No description provided for @settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settings;
 
-  // News Categories
-  String get breakingNews => _t('ব্রেকিংনিউজ', 'Breaking News');
-  String get newspapers => _t('সংবাদপত্র', 'Newspapers');
-  String get magazines => _t('ম্যাগাজিন', 'Magazines');
-  String get favorites => _t('প্রিয়', 'Favorites');
-  String get national => _t('জাতীয়', 'National');
-  String get international => _t('আন্তর্জাতিক', 'International');
-  String get businessFinance => _t('ব্যবসা ও অর্থনীতি', 'Business & Finance');
-  String get digitalTech => _t('ডিজিটাল ও প্রযুক্তি', 'Digital & Technology');
-  String get sportsNews => _t('খেলার খবর', 'Sports News');
-  String get entertainmentArts => _t('বিনোদন ও শিল্প', 'Entertainment & Arts');
-  String get worldPolitics => _t('বিশ্ব ও রাজনীতি', 'World & Politics');
-  String get blog => _t('ব্লগ', 'Blog');
-  String get business => _t('ব্যবসা', 'Business');
-  String get sports => _t('খেলা', 'Sports');
-  String get technology => _t('প্রযুক্তি', 'Technology');
-  String get entertainment => _t('বিনোদন', 'Entertainment');
-  String get lifestyle => _t('জীবনধারা', 'LifeStyle');
+  /// No description provided for @version.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get version;
 
-  // Premium Features
-  String get bangladeshTheme => _t('দেশ 🇧🇩', 'Desh 🇧🇩');
-  String get adFree => _t('বিজ্ঞাপনবিহীন অভিজ্ঞতা', 'Ad-Free Experience');
-  String get adFreeHint => _t('পরিষ্কার পড়ার অভিজ্ঞতার জন্য বিজ্ঞাপন সরানো হয়।', 'Removes all ads for a clean reading experience.');
-  String get offlineDownloads => _t('অফলাইন ডাউনলোড', 'Offline Downloads');
-  String get offlineHint => _t('অফলাইনে দেখার জন্য কনটেন্ট সংরক্ষণ করুন।', 'Save content locally for offline viewing.');
-  String get prioritySupport => _t('প্রাধান্য সহায়তা', 'Priority Support');
-  String get prioritySupportHint => _t('সহায়তা টিম থেকে দ্রুত সহায়তা।', 'Get faster responses from our support team.');
+  /// No description provided for @darkMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark Mode'**
+  String get darkMode;
 
-  // Search and Empty States
-  String get searchHint => _t('সন্ধান করুন...', 'Search...');
-  String get searchPapers => _t('পত্রিকা খুঁজুন…', 'Search…');
-  String get noMagazines => _t('কোন ম্যাগাজিন পাওয়া যায়নি', 'No magazines found');
-  String get noPapersFound => _t('কোন সংবাদপত্র পাওয়া যায়নি', 'No papers found');
-  String get allLanguages => _t('সব ভাষা', 'All Languages');
+  /// No description provided for @theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get theme;
 
-  // Categories for Magazines
-  String get catFashion => _t('ফ্যাশন ও সৌন্দর্য', 'Fashion & Aesthetics');
-  String get catScience => _t('বিজ্ঞান ও আবিষ্কার', 'Science & Discovery');
-  String get catFinance => _t('অর্থনীতি ও অর্থ', 'Economics & Finance');
-  String get catAffairs => _t('আন্তর্জাতিক সম্পর্ক', 'Global Affairs');
-  String get catTech => _t('প্রযুক্তি', 'Emerging Technologies');
-  String get catArts => _t('শিল্প ও মানবিকতা', 'Arts & Humanities');
-  String get catLifestyle => _t('জীবনধারা ও বিলাসিতা', 'Lifestyle & Luxury');
-  String get catSports => _t('খেলা ও পারফরম্যান্স', 'Sports & Performance');
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
 
-  // Feedback
-  String get feedback => _t('প্রতিক্রিয়া', 'Feedback');
-  String get rateApp => _t('অ্যাপ রেট দিন', 'Rate this App');
-  String get contactSupport => _t('সহায়তা যোগাযোগ', 'Contact Support');
-  String get contactEmail => 'customerservice@dsmobiles.com';
-  String get mailClientError => _t('মেইল ক্লায়েন্ট চালু করা যায়নি।', 'Could not launch mail client.');
-  String get storeOpenError => _t('স্টোর খুলতে অক্ষম।', 'Unable to open store.');
-  String get viewArticle => _t('নিবন্ধ দেখুন', 'View Article');
-  String get loadError => _t('লোড করতে ব্যর্থ', 'Load failed');
-  String get noUserConnected => _t('কোনো ব্যবহারকারী সংযুক্ত নেই', 'No user connected yet');
-  String get enterEmail => _t('ইমেইল লিখুন', 'Enter your email');
-String get save => _t('সংরক্ষণ করুন', 'Save');
-String get getFullProfile => _t('পূর্ণ প্রোফাইল পান', 'Get Full Profile');
-  String get bangla => _t('বাংলা', 'Bengali');
-  String get english => _t('ইংরেজি', 'English');
-  String get supports => _t('সাপোর্ট', 'Supports');
-  String get health => _t('স্বাস্থ্য', 'Health');
-  String get opinion => _t('মতামত', 'Opinion');
-  String get about => _t('সম্পর্কে', 'About');
-  String get education => _t('শিক্ষা', 'Education');
+  /// No description provided for @misc.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get misc;
 
-  // Dynamic Translation Helper
-  String _t(String bn, String en) => locale.languageCode == 'bn' ? bn : en;
+  /// No description provided for @advancedSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced Settings'**
+  String get advancedSettings;
+
+  /// No description provided for @adFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Ad-Free Experience'**
+  String get adFree;
+
+  /// No description provided for @adFreeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Removes all ads for a clean reading experience.'**
+  String get adFreeHint;
+
+  /// No description provided for @offlineDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline Downloads'**
+  String get offlineDownloads;
+
+  /// No description provided for @offlineHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Save content locally for offline viewing.'**
+  String get offlineHint;
+
+  /// No description provided for @prioritySupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Priority Support'**
+  String get prioritySupport;
+
+  /// No description provided for @prioritySupportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Get faster responses from our support team.'**
+  String get prioritySupportHint;
+
+  /// No description provided for @feedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback'**
+  String get feedback;
+
+  /// No description provided for @rateApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate this App'**
+  String get rateApp;
+
+  /// No description provided for @contactSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact Support'**
+  String get contactSupport;
+
+  /// No description provided for @contactEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'customerservice@dsmobiles.com'**
+  String get contactEmail;
+
+  /// No description provided for @mailClientError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not launch mail client.'**
+  String get mailClientError;
+
+  /// No description provided for @storeOpenError.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to open store.'**
+  String get storeOpenError;
+
+  /// No description provided for @bdNewsHub.
+  ///
+  /// In en, this message translates to:
+  /// **'BDNews Hub 📰'**
+  String get bdNewsHub;
+
+  /// No description provided for @viewArticle.
+  ///
+  /// In en, this message translates to:
+  /// **'View Article'**
+  String get viewArticle;
+
+  /// No description provided for @latest.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest'**
+  String get latest;
+
+  /// No description provided for @national.
+  ///
+  /// In en, this message translates to:
+  /// **'National'**
+  String get national;
+
+  /// No description provided for @trending.
+  ///
+  /// In en, this message translates to:
+  /// **'Trending'**
+  String get trending;
+
+  /// No description provided for @business.
+  ///
+  /// In en, this message translates to:
+  /// **'Business'**
+  String get business;
+
+  /// No description provided for @technology.
+  ///
+  /// In en, this message translates to:
+  /// **'Technology'**
+  String get technology;
+
+  /// No description provided for @sports.
+  ///
+  /// In en, this message translates to:
+  /// **'Sports & Performance'**
+  String get sports;
+
+  /// No description provided for @entertainment.
+  ///
+  /// In en, this message translates to:
+  /// **'Entertainment'**
+  String get entertainment;
+
+  /// No description provided for @noImage.
+  ///
+  /// In en, this message translates to:
+  /// **'No Image'**
+  String get noImage;
+
+  /// No description provided for @profile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get profile;
+
+  /// No description provided for @editProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Profile'**
+  String get editProfile;
+
+  /// No description provided for @fullName.
+  ///
+  /// In en, this message translates to:
+  /// **'Full Name'**
+  String get fullName;
+
+  /// No description provided for @email.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get email;
+
+  /// No description provided for @password.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get password;
+
+  /// No description provided for @bio.
+  ///
+  /// In en, this message translates to:
+  /// **'Bio'**
+  String get bio;
+
+  /// No description provided for @phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get phone;
+
+  /// No description provided for @address.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get address;
+
+  /// No description provided for @website.
+  ///
+  /// In en, this message translates to:
+  /// **'Website'**
+  String get website;
+
+  /// No description provided for @removeImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Image'**
+  String get removeImage;
+
+  /// No description provided for @changeImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Image'**
+  String get changeImage;
+
+  /// No description provided for @saveChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Changes'**
+  String get saveChanges;
+
+  /// No description provided for @required.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get required;
+
+  /// No description provided for @login.
+  ///
+  /// In en, this message translates to:
+  /// **'Login'**
+  String get login;
+
+  /// No description provided for @createAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Create account'**
+  String get createAccount;
+
+  /// No description provided for @signup.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign Up'**
+  String get signup;
+
+  /// No description provided for @alreadyHaveAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account? Login'**
+  String get alreadyHaveAccount;
+
+  /// No description provided for @forgotPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot Password'**
+  String get forgotPassword;
+
+  /// No description provided for @sendResetLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Reset Link'**
+  String get sendResetLink;
+
+  /// No description provided for @resetEmailSent.
+  ///
+  /// In en, this message translates to:
+  /// **'📧 Password reset email sent!'**
+  String get resetEmailSent;
+
+  /// No description provided for @enterEmailReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your email to reset your password:'**
+  String get enterEmailReset;
+
+  /// No description provided for @accountExists.
+  ///
+  /// In en, this message translates to:
+  /// **'Account already exists. Please log in.'**
+  String get accountExists;
+
+  /// No description provided for @invalidCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid email or password.'**
+  String get invalidCredentials;
+
+  /// No description provided for @noAccountFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No account found. Please sign up first.'**
+  String get noAccountFound;
+
+  /// No description provided for @profileSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile saved'**
+  String get profileSaved;
+
+  /// No description provided for @aboutUs.
+  ///
+  /// In en, this message translates to:
+  /// **'About Us'**
+  String get aboutUs;
+
+  /// No description provided for @ourStory.
+  ///
+  /// In en, this message translates to:
+  /// **'Our Story'**
+  String get ourStory;
+
+  /// No description provided for @ourVision.
+  ///
+  /// In en, this message translates to:
+  /// **'Our Vision'**
+  String get ourVision;
+
+  /// No description provided for @contactUs.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact Us'**
+  String get contactUs;
+
+  /// No description provided for @copySuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'{label} copied to clipboard'**
+  String copySuccess(Object label);
+
+  /// No description provided for @appSlogan.
+  ///
+  /// In en, this message translates to:
+  /// **'Real-time News at Your Fingertips'**
+  String get appSlogan;
+
+  /// No description provided for @appName.
+  ///
+  /// In en, this message translates to:
+  /// **'BDNewspaper'**
+  String get appName;
+
+  /// No description provided for @versionPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get versionPrefix;
+
+  /// No description provided for @companyFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'© {year} DreamSD Group'**
+  String companyFooter(Object year);
+
+  /// No description provided for @magazines.
+  ///
+  /// In en, this message translates to:
+  /// **'Magazines'**
+  String get magazines;
+
+  /// No description provided for @searchMagazines.
+  ///
+  /// In en, this message translates to:
+  /// **'Search magazines...'**
+  String get searchMagazines;
+
+  /// No description provided for @noMagazinesFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No magazines found'**
+  String get noMagazinesFound;
+
+  /// No description provided for @favorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites'**
+  String get favorites;
+
+  /// No description provided for @fashion.
+  ///
+  /// In en, this message translates to:
+  /// **'Fashion & Aesthetics'**
+  String get fashion;
+
+  /// No description provided for @science.
+  ///
+  /// In en, this message translates to:
+  /// **'Science & Discovery'**
+  String get science;
+
+  /// No description provided for @finance.
+  ///
+  /// In en, this message translates to:
+  /// **'Economics & Finance'**
+  String get finance;
+
+  /// No description provided for @global.
+  ///
+  /// In en, this message translates to:
+  /// **'Global Affairs'**
+  String get global;
+
+  /// No description provided for @arts.
+  ///
+  /// In en, this message translates to:
+  /// **'Arts & Humanities'**
+  String get arts;
+
+  /// No description provided for @lifestyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lifestyle & Luxury'**
+  String get lifestyle;
+
+  /// No description provided for @noWebsite.
+  ///
+  /// In en, this message translates to:
+  /// **'No website available for this magazine'**
+  String get noWebsite;
+
+  /// No description provided for @failedToOpenWebsite.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open website'**
+  String get failedToOpenWebsite;
+
+  /// No description provided for @unknownMagazine.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Magazine'**
+  String get unknownMagazine;
+
+  /// No description provided for @unknownCountry.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Country'**
+  String get unknownCountry;
+
+  /// No description provided for @unknownLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Language'**
+  String get unknownLanguage;
+
+  /// No description provided for @share.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get share;
+
+  /// No description provided for @catSatire.
+  ///
+  /// In en, this message translates to:
+  /// **'Satire'**
+  String get catSatire;
+
+  /// No description provided for @reload.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload'**
+  String get reload;
+
+  /// No description provided for @loadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Load error: {message}'**
+  String loadError(Object message);
+
+  /// No description provided for @newspapers.
+  ///
+  /// In en, this message translates to:
+  /// **'Newspapers'**
+  String get newspapers;
+
+  /// No description provided for @searchPapers.
+  ///
+  /// In en, this message translates to:
+  /// **'Search…'**
+  String get searchPapers;
+
+  /// No description provided for @noPapersFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No papers found'**
+  String get noPapersFound;
+
+  /// No description provided for @international.
+  ///
+  /// In en, this message translates to:
+  /// **'International'**
+  String get international;
+
+  /// No description provided for @businessFinance.
+  ///
+  /// In en, this message translates to:
+  /// **'Business & Finance'**
+  String get businessFinance;
+
+  /// No description provided for @digitalTech.
+  ///
+  /// In en, this message translates to:
+  /// **'Digital & Technology'**
+  String get digitalTech;
+
+  /// No description provided for @sportsNews.
+  ///
+  /// In en, this message translates to:
+  /// **'Sports News'**
+  String get sportsNews;
+
+  /// No description provided for @entertainmentArts.
+  ///
+  /// In en, this message translates to:
+  /// **'Entertainment & Arts'**
+  String get entertainmentArts;
+
+  /// No description provided for @worldPolitics.
+  ///
+  /// In en, this message translates to:
+  /// **'World & Politics'**
+  String get worldPolitics;
+
+  /// No description provided for @blog.
+  ///
+  /// In en, this message translates to:
+  /// **'Blog'**
+  String get blog;
+
+  /// No description provided for @allLanguages.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get allLanguages;
+
+  /// No description provided for @bangla.
+  ///
+  /// In en, this message translates to:
+  /// **'Bangla'**
+  String get bangla;
+
+  /// No description provided for @english.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get english;
+
+  /// No description provided for @unknownNewspaper.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Newspaper'**
+  String get unknownNewspaper;
+
+  /// No description provided for @noWebsiteNewspaper.
+  ///
+  /// In en, this message translates to:
+  /// **'No website available for this newspaper'**
+  String get noWebsiteNewspaper;
+
+  /// No description provided for @shareNews.
+  ///
+  /// In en, this message translates to:
+  /// **'Share News'**
+  String get shareNews;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
-  bool isSupported(Locale locale) => ['en', 'bn'].contains(locale.languageCode);
+  Future<AppLocalizations> load(Locale locale) {
+    return SynchronousFuture<AppLocalizations>(lookupAppLocalizations(locale));
+  }
 
   @override
-  Future<AppLocalizations> load(Locale locale) async => AppLocalizations(locale);
+  bool isSupported(Locale locale) => <String>['bn', 'en'].contains(locale.languageCode);
 
   @override
-  bool shouldReload(covariant LocalizationsDelegate<AppLocalizations> old) => false;
+  bool shouldReload(_AppLocalizationsDelegate old) => false;
+}
+
+AppLocalizations lookupAppLocalizations(Locale locale) {
+
+
+  // Lookup logic when only language code is specified.
+  switch (locale.languageCode) {
+    case 'bn': return AppLocalizationsBn();
+    case 'en': return AppLocalizationsEn();
+  }
+
+  throw FlutterError(
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.'
+  );
 }

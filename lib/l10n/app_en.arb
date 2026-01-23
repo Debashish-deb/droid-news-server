@@ -1,4 +1,5 @@
 {
+  "@@locale": "en",
   "home": "Home",
   "settings": "Settings",
   "version": "Version",
@@ -10,7 +11,10 @@
   "adFree": "Ad-Free Experience",
   "adFreeHint": "Removes all ads for a clean reading experience.",
   "offlineDownloads": "Offline Downloads",
+  "offlineReading": "Offline Reading",
   "offlineHint": "Save content locally for offline viewing.",
+  "offlineShowingCached": "Offline — showing cached news",
+  "checkBackLater": "Check back later for the latest updates.",
   "prioritySupport": "Priority Support",
   "prioritySupportHint": "Get faster responses from our support team.",
   "feedback": "Feedback",
@@ -22,6 +26,18 @@
   "bdNewsHub": "BDNews Hub 📰",
   "viewArticle": "View Article",
   "latest": "Latest",
+  "latestNewsUpdates": "Latest news and updates",
+  "live": "Live",
+  "now": "Now",
+  "updated": "Updated",
+  "storiesCount": "{count} stories",
+  "@storiesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "national": "National",
   "trending": "Trending",
   "business": "Business",
@@ -73,7 +89,6 @@
   "global": "Global Affairs",
   "arts": "Arts & Humanities",
   "lifestyle": "Lifestyle & Luxury",
-  "sports": "Sports & Performance",
   "noWebsite": "No website available for this magazine",
   "failedToOpenWebsite": "Failed to open website",
   "unknownMagazine": "Unknown Magazine",
@@ -98,5 +113,176 @@
   "english": "English",
   "unknownNewspaper": "Unknown Newspaper",
   "noWebsiteNewspaper": "No website available for this newspaper",
-  "shareNews": "Share News"
+  "shareNews": "Share News",
+  "bookmarkSuccess": "Bookmarked Successfully",
+  "readerMode": "Reader Mode",
+  "articles": "Articles",
+  "noFavoritesYet": "No Favorites Yet",
+  "bdNewsreader": "BD News Reader",
+  "noArticlesFound": "No Articles Found",
+  "catFashion": "Fashion",
+  "noMagazines": "No Magazines",
+  "about": "About",
+  "supports": "Supports",
+  "search": "Search",
+  "logout": "Logout",
+  "loading": "Loading",
+  "guest": "Guest",
+  "productNotAvailable": "Product Not Available",
+  "clearCacheSuccess": "Cache Cleared Successfully",
+  "lightTheme": "Light Theme",
+  "darkTheme": "Dark Theme",
+  "bangladeshTheme": "Desh Theme",
+  "adsRemoved": "Ads Removed",
+  "removeAds": "Remove Ads",
+  "paypalDonate": "Donate by Paypal",
+  "clearCache": "Clear Cache",
+  "searchHint": "Search Hint",
+  "dailyQuiz": "Daily Quiz",
+  "streak": "Streak",
+  "highScore": "HighScore",
+  "continueWithGoogle": "Continue With Google",
+  "quizSummary": "Quiz Summary",
+  "correct": "Correct",
+  "tryAgain": "Try Again",
+  "save": "Save",
+  "getStarted": "Get Started",
+  "next": "Next",
+  "fastReliable": "Fast & Reliable",
+  "close": "Close",
+  "catScience": "Science",
+  "catFinance": "Finance",
+  "catAffairs": "World Affairs",
+  "catTech": "Tech",
+  "catArts": "Arts",
+  "catLifestyle": "Lifestyle",
+  "catSports": "Sports",
+  "loadFailed": "Load failed",
+  "pressBackToExit": "Press back again to exit",
+  "education": "Education",
+  "replaceFirst": "Replace First",
+  "personalizedExperience": "Personalized Experience",
+  "extras": "Extras",
+  "currentLanguage": "Current Language",
+  "changeLanguage": "Change Language",
+  "previous": "Previous",
+  "score": "Score",
+  "excellentScore": "Excellent Score!",
+  "goodScore": "Good Job!",
+  "keepPracticing": "Keep Practicing!",
+  "exit": "Exit",
+  "chooseCorrect": "Choose the correct answer",
+  "noData": "No Data Available",
+  "retry": "Retry",
+  "question": "Question",
+  "exploreFeatures": "Explore Features",
+  "onThisDay": "OnThisDay...",
+  "onThisDayDesc": "Historical events, birthdays & inventions",
+  "brainBuzz": "BrainBuzz",
+  "dataSaver": "Data Saver",
+  "dataSaverDesc": "Reduce image quality and background syncing",
+  "pushNotifications": "Push Notifications",
+  "pushNotificationsDesc": "Breaking news alerts",
+  "privacyData": "Privacy & Data",
+  "privacyDataDesc": "Manage your data and privacy",
+  "premiumFeature": "Premium Feature",
+  "premiumFeatureDesc": "{feature} is available for Premium users only.",
+  "@premiumFeatureDesc": {
+    "placeholders": {
+      "feature": {
+        "type": "String"
+      }
+    }
+  },
+  "goPremium": "Go Premium",
+  "brainBuzzDesc": "Test your knowledge with daily trivia",
+  "snakeCircuit": "Snake Circuit",
+  "helpSupport": "Help & Support",
+  "faqHowToUse": "How to use BD News Reader?",
+  "faqHowToUseDesc": "Navigate news categories from the homepage.",
+  "faqDataSecure": "Is my data secure?",
+  "faqDataSecureDesc": "Yes, we respect your privacy and do not store personal data.",
+  "faqUpdates": "How to get latest updates?",
+  "faqUpdatesDesc": "Updates are pushed automatically via Play Store.",
+  "visitWebsite": "Visit Website",
+  "helpInquiry": "Help & Support Inquiry",
+  "ourStoryDesc": "BD News Reader is the first mobile app by DSMobiles Group, delivering fast and reliable news updates. Our mission is to create free, high-quality apps that inform and empower.",
+  "ourVisionDesc": "We envision a world where information is free and universal. Through user-first design and innovative tools, we aim to create digital experiences that inspire.",
+  "copiedToClipboard": "{label} copied to clipboard",
+  "@copiedToClipboard": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "emailError": "Could not open email app.",
+  "snakeCircuitDesc": "Classic 90s reimagined",
+  "recentSearches": "Recent Searches",
+  "noMatchFound": "No match found for \"{query}\"",
+  "@noMatchFound": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "allSources": "All Sources",
+  "allTime": "All Time",
+  "today": "Today",
+  "thisWeek": "This Week",
+  "thisMonth": "This Month",
+  "sourceLabel": "Source",
+  "dateLabel": "Date",
+  "nameLabel": "Name",
+  "emailLabel": "Email",
+  "phoneLabel": "Phone",
+  "roleLabel": "Role",
+  "departmentLabel": "Department",
+  "enterName": "Enter your name",
+  "nameRequired": "Name required",
+  "profileUpdated": "Profile updated successfully",
+  "cancel": "Cancel",
+  "logoutConfirmation": "Are you sure you want to logout?",
+  "downloaded": "Downloaded",
+  "information": "Information",
+  "notSet": "Not set",
+  "privacyPolicy": "Privacy Policy",
+  "privacyPolicyDesc": "Read how we handle your data",
+  "termsOfService": "Terms of Service",
+  "termsOfServiceDesc": "Read our terms and conditions",
+  "dataManagement": "Data Management",
+  "exportData": "Export Your Data",
+  "exportDataDesc": "Download all your data (GDPR right)",
+  "deleteAccount": "Delete Account",
+  "deleteAccountDesc": "Permanently delete all your data",
+  "deleteAccountConfirmation": "Delete Account?",
+  "deleteAccountWarning": "This will permanently delete:\n\n• Your account\n• All favorites and history\n• All preferences\n• All synced data\n\nThis action cannot be undone.",
+  "deleteEverything": "Delete Everything",
+  "accountDeleted": "Account deleted successfully",
+  "dataExportTitle": "Your Data Export",
+  "dataExportComplete": "Data export complete",
+  "copy": "Copy",
+  "openUrlError": "Could not open link",
+  "exportError": "Export failed: {error}",
+  "@exportError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteError": "Deletion failed: {error}",
+  "@deleteError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "moreFeaturesComingSoon": "More features coming soon",
+  "whatWeCollect": "What We Collect",
+  "whatWeCollectDetails": "• Email and name (if signed in)\\n• Reading preferences and favorites\\n• App usage statistics\\n• Crash and performance data\\n• Device information",
+  "yourRights": "Your Rights",
+  "yourRightsDetails": "✓ Right to access your data\\n✓ Right to export your data\\n✓ Right to delete your data\\n✓ Right to opt-out of analytics\\n✓ Right to be forgotten"
 }

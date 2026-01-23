@@ -1,46 +1,44 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme.dart';
 import '../../core/theme_provider.dart';
-import '../../core/utils/favorites_manager.dart';
-import '/l10n/app_localizations.dart';
+import '../../core/services/favorites_providers.dart';
+import '../../l10n/app_localizations.dart';
 import '../../widgets/app_drawer.dart';
 import '../common/animated_background.dart';
+import '../home/widgets/news_card.dart' show NewsCard;
 import '../magazine/widgets/magazine_card.dart';
-import '../news/widgets/news_card.dart';
+// import '../news/widgets/news_card.dart';
 import '../../data/models/news_article.dart';
+import '../../presentation/providers/theme_providers.dart';
 
-class FavoritesScreen extends StatefulWidget {
+class FavoritesScreen extends ConsumerStatefulWidget {
   const FavoritesScreen({super.key});
 
   @override
-  State<FavoritesScreen> createState() => _FavoritesScreenState();
+  ConsumerState<FavoritesScreen> createState() => _FavoritesScreenState();
 }
 
-class _FavoritesScreenState extends State<FavoritesScreen> {
+class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   String _filter = 'All';
   String _timeFilter = 'All';
-
-  late FavoritesManager _favorites;
-
   @override
   void initState() {
     super.initState();
-    _favorites = FavoritesManager.instance;
-    _favorites.loadFavorites().then((_) => setState(() {}));
   }
 
   List<Map<String, dynamic>> _applyTimeFilter(List<Map<String, dynamic>> list) {
     if (_timeFilter == 'All') return list;
-    final now = DateTime.now();
-    return list.where((item) {
-      final savedAt = DateTime.tryParse(item['savedAt'] ?? '') ?? DateTime(2000);
-      final diff = now.difference(savedAt);
+    final DateTime now = DateTime.now();
+    return list.where((Map<String, dynamic> item) {
+      final DateTime savedAt =
+          DateTime.tryParse(item['savedAt'] ?? '') ?? DateTime(2000);
+      final Duration diff = now.difference(savedAt);
       switch (_timeFilter) {
         case 'Today':
           return diff.inDays == 0;
@@ -56,31 +54,43 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.white;
-    final categories = ['All', loc.articles, loc.magazines, loc.newspapers];
-    final filters = ['All', 'Today', 'This Week', 'Older'];
+    final AppLocalizations loc = AppLocalizations.of(context)!;
 
-    final mode = context.watch<ThemeProvider>().appThemeMode;
-    final colors = AppGradients.getGradientColors(mode);
-    final start = colors[0], end = colors[1];
+    final ThemeData theme = Theme.of(context);
+    final Color textColor = theme.textTheme.bodyLarge?.color ?? Colors.white;
+    final List<String> categories = <String>[
+      'All',
+      loc.articles,
+      loc.magazines,
+      loc.newspapers,
+    ];
+    final List<String> filters = <String>['All', 'Today', 'This Week', 'Older'];
 
-    final allItems = [
-      ..._favorites.favoriteArticles.map((a) => a.toMap()),
-      ..._favorites.favoriteMagazines,
-      ..._favorites.favoriteNewspapers
+    final AppThemeMode mode = ref.watch(currentThemeModeProvider);
+    // Use getBackgroundGradient for correct Dark Mode colors
+    final List<Color> colors = AppGradients.getBackgroundGradient(mode);
+    final Color start = colors[0], end = colors[1];
+
+    // Use Riverpod for favorites
+    final favoriteArticles = ref.watch(favoriteArticlesProvider);
+    final favoriteMagazines = ref.watch(favoriteMagazinesProvider);
+    final favoriteNewspapers = ref.watch(favoriteNewspapersProvider);
+
+    final List<Map<String, dynamic>> allItems = <Map<String, dynamic>>[
+      ...favoriteArticles.map((NewsArticle a) => a.toMap()),
+      ...favoriteMagazines,
+      ...favoriteNewspapers,
     ];
 
     List<Map<String, dynamic>> filtered = allItems;
 
     if (_filter != 'All') {
       if (_filter == loc.articles) {
-        filtered = _favorites.favoriteArticles.map((a) => a.toMap()).toList();
+        filtered = favoriteArticles.map((NewsArticle a) => a.toMap()).toList();
       } else if (_filter == loc.magazines) {
-        filtered = _favorites.favoriteMagazines;
+        filtered = favoriteMagazines;
       } else if (_filter == loc.newspapers) {
-        filtered = _favorites.favoriteNewspapers;
+        filtered = favoriteNewspapers;
       }
     }
 
@@ -94,40 +104,55 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       child: Scaffold(
         drawer: const AppDrawer(),
         appBar: AppBar(
-          title: Text(loc.favorites, style: const TextStyle(fontWeight: FontWeight.bold)),
+          title: Text(loc.favorites, style: theme.appBarTheme.titleTextStyle),
           centerTitle: true,
+          backgroundColor: theme.appBarTheme.backgroundColor,
+          elevation: theme.appBarTheme.elevation,
+          iconTheme: theme.appBarTheme.iconTheme,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => context.go('/home'),
           ),
-          flexibleSpace: _blurredAppBar(context, start, end),
         ),
         body: Stack(
           fit: StackFit.expand,
-          children: [
+          children: <Widget>[
             _backgroundGradient(start, end),
             AnimatedBackground(
               child: Column(
-                children: [
+                children: <Widget>[
                   Padding(
                     padding: const EdgeInsets.all(12),
                     child: _glassSection(
                       context,
                       child: Row(
-                        children: [
+                        children: <Widget>[
                           Expanded(
                             child: DropdownButton<String>(
                               value: _filter,
                               isExpanded: true,
                               dropdownColor: theme.cardColor.withOpacity(0.9),
                               iconEnabledColor: textColor,
-                              style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                color: textColor,
+                                fontWeight: FontWeight.w600,
+                              ),
                               underline: const SizedBox(),
-                              items: categories.map((cat) => DropdownMenuItem(
-                                value: cat,
-                                child: Text(cat, style: TextStyle(color: textColor)),
-                              )).toList(),
-                              onChanged: (val) => setState(() => _filter = val!),
+                              items:
+                                  categories
+                                      .map(
+                                        (String cat) => DropdownMenuItem(
+                                          value: cat,
+                                          child: Text(
+                                            cat,
+                                            style: TextStyle(color: textColor),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                              onChanged:
+                                  (String? val) =>
+                                      setState(() => _filter = val!),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -137,11 +162,21 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                             iconEnabledColor: textColor,
                             style: TextStyle(color: textColor),
                             underline: const SizedBox(),
-                            items: filters.map((f) => DropdownMenuItem(
-                              value: f,
-                              child: Text(f, style: TextStyle(color: textColor)),
-                            )).toList(),
-                            onChanged: (val) => setState(() => _timeFilter = val!),
+                            items:
+                                filters
+                                    .map(
+                                      (String f) => DropdownMenuItem(
+                                        value: f,
+                                        child: Text(
+                                          f,
+                                          style: TextStyle(color: textColor),
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                            onChanged:
+                                (String? val) =>
+                                    setState(() => _timeFilter = val!),
                           ),
                         ],
                       ),
@@ -150,15 +185,17 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   Expanded(
                     child: RefreshIndicator(
                       onRefresh: () async {
-                        await _favorites.loadFavorites();
                         setState(() {});
                       },
-                      child: ListView(
-                        padding: const EdgeInsets.all(16),
-                        children: filtered.isEmpty
-                            ? [_buildEmpty(loc, textColor)]
-                            : _buildCards(context, filtered),
-                      ),
+                      child: filtered.isEmpty
+                          ? _buildEmpty(loc, textColor)
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                return _buildCard(context, filtered[index]);
+                              },
+                            ),
                     ),
                   ),
                 ],
@@ -174,79 +211,77 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     return Padding(
       padding: const EdgeInsets.only(top: 100),
       child: Center(
-        child: Text(loc.noFavoritesYet, style: TextStyle(color: color.withOpacity(0.7))),
+        child: Text(
+          loc.noFavoritesYet,
+          style: TextStyle(color: color.withOpacity(0.7)),
+        ),
       ),
     );
   }
 
-  List<Widget> _buildCards(BuildContext context, List<Map<String, dynamic>> filtered) {
-    return filtered.map((item) {
-      final savedAt = DateTime.tryParse(item['savedAt'] ?? '') ?? DateTime.now();
-      final subtitle = 'Saved on ${DateFormat.yMMMd().format(savedAt)}';
+  Widget _buildCard(
+    BuildContext context,
+    Map<String, dynamic> item,
+  ) {
+    final DateTime savedAt =
+        DateTime.tryParse(item['savedAt'] ?? '') ?? DateTime.now();
+    final String subtitle = 'Saved on ${DateFormat.yMMMd().format(savedAt)}';
 
-      if (item.containsKey('title')) {
-        final article = NewsArticle.fromMap(item);
-        return _glassSection(
-          context,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              NewsCard(
-                news: item,
-                isFavorite: true,
-                onFavoriteToggle: () async {
-                  await _favorites.toggleArticleMap(item);
-                  setState(() {});
-                },
-                searchQuery: '',
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.share),
-                    onPressed: () => Share.share('${article.title}\n${article.url}'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      } else if (item.containsKey('tags')) {
-        return _glassSection(
-          context,
-          child: MagazineCard(
-            magazine: item,
-            isFavorite: true,
-            onFavoriteToggle: () async {
-              await _favorites.toggleMagazine(item);
-              setState(() {});
-            },
-            highlight: false,
-          ),
-        );
-      } else {
-        return _glassSection(
-          context,
-          child: ListTile(
-            leading: const Icon(Icons.public),
-            title: Text(item['name'] ?? 'Unknown'),
-            subtitle: Text(subtitle),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () async {
-                await _favorites.toggleNewspaper(item);
-                setState(() {});
-              },
+    if (item.containsKey('title')) {
+      final NewsArticle article = NewsArticle.fromMap(item);
+      return _glassSection(
+        context,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            NewsCard(article: article, highlight: false),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: <Widget>[
+                IconButton(
+                  icon: const Icon(Icons.share),
+                  onPressed:
+                      () => Share.share('${article.title}\n${article.url}'),
+                ),
+              ],
             ),
+          ],
+        ),
+      );
+    } else if (item.containsKey('tags')) {
+      return _glassSection(
+        context,
+        child: MagazineCard(
+          magazine: item,
+          isFavorite: true,
+          onFavoriteToggle: () async {
+            await ref.read(favoritesProvider.notifier).toggleMagazine(item);
+          },
+          highlight: false,
+        ),
+      );
+    } else {
+      return _glassSection(
+        context,
+        child: ListTile(
+          leading: const Icon(Icons.public),
+          title: Text(item['name'] ?? 'Unknown'),
+          subtitle: Text(subtitle),
+          trailing: IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () async {
+              await ref
+                  .read(favoritesProvider.notifier)
+                  .toggleNewspaper(item);
+            },
           ),
-        );
-      }
-    }).toList();
+        ),
+      );
+    }
   }
 
   Widget _glassSection(BuildContext context, {required Widget child}) {
-    final glow = Theme.of(context).colorScheme.primary.withOpacity(0.4);
+    final Color glow = Theme.of(context).colorScheme.primary.withOpacity(0.4);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: ClipRRect(
@@ -256,10 +291,18 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color:
+                  Theme.of(context).cardTheme.color ??
+                  Colors.black.withOpacity(0.5),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: glow, width: 1),
-              boxShadow: [BoxShadow(color: glow, blurRadius: 8, offset: const Offset(0, 4))],
+              border: Border.all(color: glow),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: glow,
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: child,
           ),
@@ -277,7 +320,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [start.withOpacity(0.85), end.withOpacity(0.85)],
+              colors: <Color>[start.withOpacity(0.85), end.withOpacity(0.85)],
             ),
           ),
         ),
@@ -291,7 +334,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [start.withOpacity(0.85), end.withOpacity(0.85)],
+          colors: <Color>[start.withOpacity(0.85), end.withOpacity(0.85)],
         ),
       ),
     );

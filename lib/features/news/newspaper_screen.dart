@@ -1,68 +1,74 @@
-// lib/features/news/newspaper_screen.dart
-
-// ✅ UPDATE: Enhance NewsCard styling, bring cards closer together
-// NO other logic changes, only UI polish
-
-// CHANGES IN LISTVIEW BUILDER:
-// - Reduce spacing between cards (margin.bottom)
-// - Apply tighter padding around list
-// - Enhance card elevation and modern rounded style
-// - Slight color overlay for glass look
-
 import 'dart:convert';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
 import '/core/theme_provider.dart';
 import '/core/theme.dart';
-import '/core/utils/favorites_manager.dart';
-import '/l10n/app_localizations.dart';
-import '/widgets/app_drawer.dart';
-import '/features/common/appBar.dart';
-import 'widgets/news_card.dart';
+import '/core/services/favorites_providers.dart';
+import '../../widgets/app_drawer.dart';
+import '../../l10n/app_localizations.dart';
+import '../../features/common/app_bar.dart';
+import 'widgets/newspaper_card.dart';
+import '../../widgets/animated_theme_container.dart';
+import '../../presentation/providers/theme_providers.dart';
+import '../../presentation/providers/tab_providers.dart';
 
-class NewspaperScreen extends StatefulWidget {
-  const NewspaperScreen({Key? key}) : super(key: key);
+class NewspaperScreen extends ConsumerStatefulWidget {
+  const NewspaperScreen({super.key});
 
   @override
-  State<NewspaperScreen> createState() => _NewspaperScreenState();
+  ConsumerState<NewspaperScreen> createState() => _NewspaperScreenState();
 }
 
-class _NewspaperScreenState extends State<NewspaperScreen>
+class _NewspaperScreenState extends ConsumerState<NewspaperScreen>
     with SingleTickerProviderStateMixin {
-  final List<dynamic> _papers = [];
+  final List<dynamic> _papers = <dynamic>[];
   bool _isLoading = true;
 
   TabController? _tabController;
   late final ScrollController _scrollController;
   late final ScrollController _chipsController;
-  List<GlobalKey> _chipKeys = [];
+  List<GlobalKey> _chipKeys = <GlobalKey<State<StatefulWidget>>>[];
 
   String _langFilter = 'All';
-  final FavoritesManager _favorites = FavoritesManager.instance;
   DateTime? _lastBackPressed;
   bool _didInit = false;
+  bool _firstBuild = true; // Track first build for scroll reset
 
-  static const Color _gold = Color(0xFFFFD700);
+  // Removed static _gold
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
     _chipsController = ScrollController();
-    _favorites.loadFavorites();
     _loadPapers();
+
+    // Listen to tab changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // Tab listener managed by Riverpod - removed;
+      }
+    });
+  }
+
+  void _onTabChanged() {
+    if (!mounted) return;
+    final int currentTab = ref.watch(currentTabIndexProvider);
+    // This is tab 1 (Newspaper)
+    if (currentTab == 1 && _scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_tabController == null) {
-      final cats = _categories;
+      final List<String> cats = _categories;
       _tabController = TabController(length: cats.length, vsync: this)
         ..addListener(() {
           setState(() => _langFilter = 'All');
@@ -77,13 +83,23 @@ class _NewspaperScreenState extends State<NewspaperScreen>
         if (mounted) _centerChip(0);
       });
     }
+
+    // Reset scroll when returning to this main tab
+    if (!_firstBuild && _scrollController.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _scrollController.hasClients) {
+          _scrollController.jumpTo(0);
+        }
+      });
+    }
+    _firstBuild = false;
   }
 
   Future<void> _loadPapers() async {
     setState(() => _isLoading = true);
     try {
-      final raw = await rootBundle.loadString('assets/data.json');
-      final data = jsonDecode(raw) as Map<String, dynamic>;
+      final String raw = await rootBundle.loadString('assets/data.json');
+      final Map<String, dynamic> data = jsonDecode(raw) as Map<String, dynamic>;
       setState(() {
         _papers
           ..clear()
@@ -92,16 +108,19 @@ class _NewspaperScreenState extends State<NewspaperScreen>
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      final loc = AppLocalizations.of(context)!;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(loc.loadError.replaceFirst('{message}', '$e'))),
-      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load content: $e')));
     }
   }
 
   List<String> get _categories {
-    final loc = AppLocalizations.of(context)!;
-    return [
+    // Only access context safely if mounted check not needed for localizations
+    // or if we trust build context availability.
+    final AppLocalizations loc = AppLocalizations.of(context)!;
+
+    return <String>[
       loc.national,
       loc.international,
       loc.businessFinance,
@@ -113,10 +132,11 @@ class _NewspaperScreenState extends State<NewspaperScreen>
     ];
   }
 
-  List<dynamic> get _filteredPapers {
-    final loc = AppLocalizations.of(context)!;
-    final selCat = _categories[_tabController!.index];
-    final mapping = {
+  List<dynamic> _getFilteredPapers() {
+    final AppLocalizations loc = AppLocalizations.of(context)!;
+
+    final String selCat = _categories[_tabController!.index];
+    final Map<String, String> mapping = <String, String>{
       loc.businessFinance: 'business',
       loc.digitalTech: 'tech',
       loc.sportsNews: 'sports',
@@ -128,28 +148,31 @@ class _NewspaperScreenState extends State<NewspaperScreen>
     };
 
     if (selCat == loc.favorites) {
-      final favIds = _favorites.favoriteNewspapers
-          .map((n) => n['id'].toString())
-          .toSet();
+      // Use Riverpod for favorites
+      final favoriteNewspapers = ref.read(favoriteNewspapersProvider);
+      final Set<String> favIds =
+          favoriteNewspapers
+              .map((Map<String, dynamic> n) => n['id'].toString())
+              .toSet();
       return _papers.where((p) => favIds.contains(p['id'].toString())).toList();
     }
 
     return _papers.where((p) {
-      final region = (p['region'] ?? '').toString().toLowerCase();
-      final key = mapping[selCat];
+      final String region = (p['region'] ?? '').toString().toLowerCase();
+      final String? key = mapping[selCat];
       if (selCat == loc.national || selCat == loc.international) {
         if (region != key) return false;
         if (_langFilter == 'All') return true;
-        final lang = (p['language'] ?? '').toString().toLowerCase();
+        final String lang = (p['language'] ?? '').toString().toLowerCase();
         return (_langFilter == loc.bangla && lang == 'bn') ||
-               (_langFilter == loc.english && lang == 'en');
+            (_langFilter == loc.english && lang == 'en');
       }
       return key != null && region == key;
     }).toList();
   }
 
   Future<bool> _onWillPop() async {
-    final now = DateTime.now();
+    final DateTime now = DateTime.now();
     if (context.canPop()) {
       context.pop();
       return false;
@@ -164,7 +187,7 @@ class _NewspaperScreenState extends State<NewspaperScreen>
   }
 
   void _centerChip(int index) {
-    final key = _chipKeys[index];
+    final GlobalKey<State<StatefulWidget>> key = _chipKeys[index];
     if (key.currentContext != null) {
       Scrollable.ensureVisible(
         key.currentContext!,
@@ -175,67 +198,69 @@ class _NewspaperScreenState extends State<NewspaperScreen>
   }
 
   Widget _buildLanguageFilter(BuildContext context) {
-    final loc = AppLocalizations.of(context)!;
-    final prov = context.watch<ThemeProvider>();
-    final theme = Theme.of(context);
-    final baseColor = prov.glassColor;
-    final borderColor = prov.borderColor.withOpacity(0.3);
+    final AppLocalizations loc = AppLocalizations.of(context)!;
 
-    Widget buildChip(String label) {
-      final selected = _langFilter == label;
-      return InkWell(
-        borderRadius: BorderRadius.circular(30),
-        onTap: () => setState(() => _langFilter = label),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? _gold.withOpacity(0.2) : baseColor.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(
-              color: selected ? _gold : borderColor,
-              width: 1.2,
-            ),
-          ),
-          child: Text(
-            label,
-            style: theme.textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: selected
-                  ? _gold
-                  : theme.textTheme.bodyMedium?.color?.withOpacity(0.85),
-            ),
-          ),
-        ),
-      );
-    }
+    final themeMode = ref.watch(currentThemeModeProvider);
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        buildChip(loc.bangla),
-        const SizedBox(width: 12),
-        buildChip(loc.english),
-      ],
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+
+    final List<String> langs = <String>[loc.bangla, loc.english];
+
+    return Center(
+      child: Wrap(
+        spacing: 12,
+        children:
+            langs.map((String lang) {
+              final bool selected = _langFilter == lang;
+              return ChoiceChip(
+                label: Text(lang),
+                selected: selected,
+                onSelected: (_) => setState(() => _langFilter = lang),
+                backgroundColor: ref
+                    .watch(glassColorProvider)
+                    .withOpacity(0.05),
+                selectedColor: scheme.tertiary,
+                labelStyle: TextStyle(
+                  color:
+                      selected
+                          ? Colors.black
+                          : theme.textTheme.bodyMedium?.color,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.w600,
+                ),
+              );
+            }).toList(),
+      ),
     );
   }
 
   @override
   void dispose() {
-    _tabController?.dispose();
+    try {
+      // Tab listener managed by Riverpod - removed;
+    } catch (e) {
+      // Context might be unavailable
+    }
     _scrollController.dispose();
     _chipsController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context)!;
-    final prov = context.watch<ThemeProvider>();
-    final mode = prov.appThemeMode;
-    final colors = AppGradients.getGradientColors(mode);
-    final start = colors[0], end = colors[1];
-    final theme = Theme.of(context);
+    final AppThemeMode themeMode = ref.watch(currentThemeModeProvider);
+    final AppLocalizations loc = AppLocalizations.of(context)!;
+
+    // Use Riverpod for papers list
+    final List<dynamic> filteredPapers = _getFilteredPapers();
+
+    final AppThemeMode mode = themeMode;
+    // Use getBackgroundGradient to ensure correct Dark Mode colors (Black, not White)
+    final List<Color> colors = AppGradients.getBackgroundGradient(mode);
+    final Color start = colors[0], end = colors[1];
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
 
     return WillPopScope(
       onWillPop: _onWillPop,
@@ -245,45 +270,36 @@ class _NewspaperScreenState extends State<NewspaperScreen>
         drawer: const AppDrawer(),
         body: Stack(
           fit: StackFit.expand,
-          children: [
-            Container(
+          children: <Widget>[
+            // Background gradient
+            AnimatedThemeContainer(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    start.withOpacity(0.9),
-                    end.withOpacity(0.9),
-                  ],
+                  colors: <Color>[start.withOpacity(0.9), end.withOpacity(0.9)],
                 ),
               ),
             ),
+
+            // Main scroll view
             CustomScrollView(
-              slivers: [
+              controller:
+                  _scrollController, // Attach controller for manual reset
+              key: const PageStorageKey('newspaper_scroll'),
+              slivers: <Widget>[
+                // AppBar
                 SliverAppBar(
                   pinned: true,
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
+                  backgroundColor: theme.appBarTheme.backgroundColor,
+                  elevation: theme.appBarTheme.elevation,
                   centerTitle: true,
                   title: AppBarTitle(loc.newspapers),
-                  flexibleSpace: ClipRect(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              start.withOpacity(0.8),
-                              end.withOpacity(0.85),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  iconTheme: theme.appBarTheme.iconTheme,
+                  titleTextStyle: theme.appBarTheme.titleTextStyle,
                 ),
+
+                // Category chips
                 SliverToBoxAdapter(
                   child: SizedBox(
                     height: 48,
@@ -292,8 +308,8 @@ class _NewspaperScreenState extends State<NewspaperScreen>
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       itemCount: _categories.length,
-                      itemBuilder: (ctx, i) {
-                        final selected = i == _tabController!.index;
+                      itemBuilder: (BuildContext ctx, int i) {
+                        final bool selected = i == _tabController!.index;
                         return Padding(
                           key: _chipKeys[i],
                           padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -304,13 +320,17 @@ class _NewspaperScreenState extends State<NewspaperScreen>
                               _tabController!.animateTo(i);
                               _centerChip(i);
                             },
-                            backgroundColor: prov.glassColor.withOpacity(0.05),
-                            selectedColor: _gold,
+                            backgroundColor: ref
+                                .watch(glassColorProvider)
+                                .withOpacity(0.05),
+                            selectedColor: scheme.tertiary,
                             labelStyle: TextStyle(
-                              color: selected
-                                  ? Colors.black
-                                  : theme.textTheme.bodyMedium?.color,
-                              fontWeight: selected ? FontWeight.bold : FontWeight.w600,
+                              color:
+                                  selected
+                                      ? scheme.onPrimary
+                                      : scheme.onSurface,
+                              fontWeight:
+                                  selected ? FontWeight.bold : FontWeight.w600,
                             ),
                           ),
                         );
@@ -318,6 +338,8 @@ class _NewspaperScreenState extends State<NewspaperScreen>
                     ),
                   ),
                 ),
+
+                // Language filter for national/international
                 if (_categories[_tabController!.index] == loc.national ||
                     _categories[_tabController!.index] == loc.international)
                   SliverToBoxAdapter(
@@ -326,65 +348,72 @@ class _NewspaperScreenState extends State<NewspaperScreen>
                       child: Center(child: _buildLanguageFilter(context)),
                     ),
                   ),
-                SliverFillRemaining(
-                  child: _isLoading
-                      ? Center(
-                          child: CircularProgressIndicator(
-                            valueColor:
-                                AlwaysStoppedAnimation(theme.colorScheme.primary),
-                          ),
-                        )
-                      : _filteredPapers.isEmpty
-                          ? Center(
-                              child: Text(
-                                loc.noPapersFound,
-                                style: theme.textTheme.bodyLarge,
-                              ),
-                            )
-                          : RefreshIndicator(
-                              color: theme.colorScheme.primary,
-                              onRefresh: _loadPapers,
-                              child: ListView.builder(
-                                controller: _scrollController,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                itemCount: _filteredPapers.length,
-                                itemBuilder: (_, idx) {
-                                  final paper = _filteredPapers[idx];
-                                  final id = paper['id'].toString();
-                                  final isFav = _favorites.isFavoriteNewspaper(id);
 
-                                  return AnimatedContainer(
-                                    duration: const Duration(milliseconds: 300),
-                                    curve: Curves.easeInOut,
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16),
-                                      color: theme.cardColor.withOpacity(0.08),
-                                      border: Border.all(
-                                        color: theme.colorScheme.onSurface.withOpacity(0.35),
-                                        width: 1.4,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: theme.shadowColor.withOpacity(0.05),
-                                          blurRadius: 12,
-                                          offset: const Offset(0, 5),
-                                        ),
-                                      ],
-                                    ),
-                                    child: NewsCard(
-                                      news: paper,
-                                      isFavorite: isFav,
-                                      onFavoriteToggle: () {
-                                        _favorites.toggleNewspaper(paper);
-                                        setState(() {});
-                                      },
-                                      searchQuery: '',
-                                    ),
-                                  );
-                                },
+                // Article list
+                SliverFillRemaining(
+                  child:
+                      _isLoading
+                          ? Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation(
+                                scheme.primary,
                               ),
                             ),
+                          )
+                          : filteredPapers.isEmpty
+                          ? Center(
+                            child: Text(
+                              loc.noPapersFound,
+                              style: theme.textTheme.bodyLarge,
+                            ),
+                          )
+                          : RefreshIndicator(
+                            color: scheme.primary,
+                            onRefresh: _loadPapers,
+                            child: GridView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.only(
+                                left: 12,
+                                right: 12,
+                                top: 12,
+                                bottom: 80,
+                              ), // Bottom padding for nav bar
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 1, // Single card per row
+                                    childAspectRatio:
+                                        3.0, // Wide banner style (Magazine-like)
+                                    crossAxisSpacing: 4,
+                                    mainAxisSpacing: 4,
+                                  ),
+                              itemCount: filteredPapers.length,
+                              itemBuilder: (_, int idx) {
+                                final paper = filteredPapers[idx];
+                                final String id = paper['id'].toString();
+                                // Use Riverpod for favorites state
+                                final bool isFav = ref.watch(
+                                  favoritesProvider.select(
+                                    (state) => state.newspapers.any(
+                                      (n) => n['id'].toString() == id,
+                                    ),
+                                  ),
+                                );
+
+                                return RepaintBoundary(
+                                  child: NewspaperCard(
+                                    news: paper,
+                                    isFavorite: isFav,
+                                    onFavoriteToggle: () {
+                                      ref
+                                          .read(favoritesProvider.notifier)
+                                          .toggleNewspaper(paper);
+                                    },
+                                    searchQuery: '',
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                 ),
               ],
             ),

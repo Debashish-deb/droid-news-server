@@ -1,21 +1,21 @@
 // lib/features/profile/animated_background.dart
 
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' hide Provider;
+import '../../../presentation/providers/theme_providers.dart';
 import '../../../core/theme_provider.dart'; // Fixed relative path
 import '../../../core/theme.dart'; // for AppGradients
 
-class AnimatedBackground extends StatelessWidget {
+class AnimatedBackground extends ConsumerWidget {
   const AnimatedBackground({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final mode = Provider.of<ThemeProvider>(context).appThemeMode;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppThemeMode mode = ref.watch(currentThemeModeProvider);
 
     return Stack(
       fit: StackFit.expand,
-      children: [
+      children: <Widget>[
         _buildMetallicBase(mode),
         if (mode == AppThemeMode.dark || mode == AppThemeMode.bangladesh)
           Positioned.fill(child: _buildGlossOverlay(mode)),
@@ -25,26 +25,29 @@ class AnimatedBackground extends StatelessWidget {
   }
 
   Widget _buildMetallicBase(AppThemeMode mode) {
-  final gradientColors = AppGradients.getGradientColors(mode);
-  return Container(
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        colors: [
-          gradientColors[0].withOpacity(0.9),
-          gradientColors[1].withOpacity(0.9),
-        ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
+    // Use getBackgroundGradient for correct Dark Mode colors (Black)
+    final List<Color> gradientColors = AppGradients.getBackgroundGradient(mode);
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: <Color>[
+            gradientColors[0].withOpacity(0.9),
+            gradientColors[1].withOpacity(0.9),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
+
   Widget _buildGlossOverlay(AppThemeMode mode) {
-    final center = mode == AppThemeMode.dark
-        ? const Alignment(-0.5, -0.5)
-        : const Alignment(0.6, -0.6);
-    final radius = mode == AppThemeMode.dark ? 1.5 : 1.4;
-    final opacity = mode == AppThemeMode.dark ? 0.05 : 0.15;
+    final Alignment center =
+        mode == AppThemeMode.dark
+            ? const Alignment(-0.5, -0.5)
+            : const Alignment(0.6, -0.6);
+    final double radius = mode == AppThemeMode.dark ? 1.5 : 1.4;
+    final double opacity = mode == AppThemeMode.dark ? 0.05 : 0.15;
 
     return DecoratedBox(
       position: DecorationPosition.foreground,
@@ -52,11 +55,11 @@ class AnimatedBackground extends StatelessWidget {
         gradient: RadialGradient(
           center: center,
           radius: radius,
-          colors: [
+          colors: <Color>[
             Colors.white.withOpacity(opacity),
             Colors.transparent,
           ],
-          stops: const [0.0, 0.7],
+          stops: const <double>[0.0, 0.7],
         ),
       ),
     );

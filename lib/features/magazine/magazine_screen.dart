@@ -1,32 +1,30 @@
-// lib/features/magazine/magazine_screen.dart
-
-// 🛠 Reverted to 1-column list style with stylish container decoration
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '/core/theme_provider.dart';
-import '/core/theme.dart';
-import '/core/utils/favorites_manager.dart';
+import '../../core/theme_provider.dart';
+import '../../core/services/favorites_providers.dart';
+import '../../core/theme.dart';
 import '/l10n/app_localizations.dart';
 import '../../widgets/app_drawer.dart';
-import '../../features/common/appBar.dart';
+import '../../features/common/app_bar.dart';
 import 'widgets/magazine_card.dart';
+import '../../widgets/animated_theme_container.dart';
+import '../../presentation/providers/theme_providers.dart';
+import '../../presentation/providers/tab_providers.dart';
 
-class MagazineScreen extends StatefulWidget {
-  const MagazineScreen({Key? key}) : super(key: key);
+class MagazineScreen extends ConsumerStatefulWidget {
+  const MagazineScreen({super.key});
 
   @override
-  State<MagazineScreen> createState() => _MagazineScreenState();
+  ConsumerState<MagazineScreen> createState() => _MagazineScreenState();
 }
 
-class _MagazineScreenState extends State<MagazineScreen>
+class _MagazineScreenState extends ConsumerState<MagazineScreen>
     with SingleTickerProviderStateMixin {
-  final List<dynamic> magazines = [];
+  final List<dynamic> magazines = <dynamic>[];
   bool _isLoading = true;
 
   late final TabController _tabController;
@@ -35,9 +33,10 @@ class _MagazineScreenState extends State<MagazineScreen>
   late final List<GlobalKey> _chipKeys;
 
   DateTime? _lastBackPressed;
+  bool _firstBuild = true; // Track first build for scroll reset
 
   static const int _categoriesCount = 8;
-  static const Color _gold = Color(0xFFFFD700);
+  // Removed static _gold, using Theme.of(context).colorScheme.tertiary instead
 
   @override
   void initState() {
@@ -46,45 +45,79 @@ class _MagazineScreenState extends State<MagazineScreen>
     _chipsController = ScrollController();
     _tabController = TabController(length: _categoriesCount, vsync: this)
       ..addListener(() {
-        _centerChip(_tabController.index);
-        setState(() {});
+        if (!_tabController.indexIsChanging) {
+          // Tab changed
+          _centerChip(_tabController.index);
+          // Jump to top of content
+          if (_scrollController.hasClients) {
+            _scrollController.jumpTo(0);
+          }
+          setState(() {});
+        }
       });
     _chipKeys = List.generate(_categoriesCount, (_) => GlobalKey());
     _loadMagazines();
+
+    // Listen to main tab changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // Tab listener managed by Riverpod - removed;
+      }
+    });
   }
+
+  void _onMainTabChanged() {
+    if (!mounted) return;
+    final int currentTab = ref.watch(currentTabIndexProvider);
+    // This is tab 2 (Magazine)
+    if (currentTab == 2 && _scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+  }
+
+  // ────────────────────────────────────────────────
+  // Data loading & helpers
+  // ────────────────────────────────────────────────
 
   Future<void> _loadMagazines() async {
     setState(() => _isLoading = true);
     try {
-      final raw = await rootBundle.loadString('assets/data.json');
+      final String raw = await rootBundle.loadString('assets/data.json');
       final data = json.decode(raw);
       setState(() {
         magazines
           ..clear()
-          ..addAll(data['magazines'] ?? []);
+          ..addAll(data['magazines'] ?? <dynamic>[]);
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Load failed: $e')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Load failed: $e')));
     }
   }
 
   Future<bool> _onWillPop() async {
-    final now = DateTime.now();
+    final DateTime now = DateTime.now();
     if (_lastBackPressed == null ||
         now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
       _lastBackPressed = now;
-      Fluttertoast.showToast(msg: "Press back again to exit");
+      Fluttertoast.showToast(msg: 'Press back again to exit');
       return false;
     }
     return true;
   }
 
+  // ────────────────────────────────────────────────
+  // Categories & filtering
+  // ────────────────────────────────────────────────
+
   List<String> _categories(BuildContext context) {
-    final loc = AppLocalizations.of(context)!;
-    return [
+    final AppLocalizations loc = AppLocalizations.of(context)!;
+
+    return <String>[
       loc.catFashion,
       loc.catScience,
       loc.catFinance,
@@ -97,27 +130,29 @@ class _MagazineScreenState extends State<MagazineScreen>
   }
 
   List<dynamic> get _filteredMagazines {
-    final cats = _categories(context);
-    final keys = {
-      cats[0]: ['fashion', 'style', 'aesthetics'],
-      cats[1]: ['science', 'discovery', 'research'],
-      cats[2]: ['finance', 'economics', 'business'],
-      cats[3]: ['global', 'politics', 'world'],
-      cats[4]: ['technology', 'tech'],
-      cats[5]: ['arts', 'culture'],
-      cats[6]: ['lifestyle', 'luxury', 'travel'],
-      cats[7]: ['sports', 'performance'],
+    final List<String> cats = _categories(context);
+    final Map<String, List<String>> keys = <String, List<String>>{
+      cats[0]: <String>['fashion', 'style', 'aesthetics'],
+      cats[1]: <String>['science', 'discovery', 'research'],
+      cats[2]: <String>['finance', 'economics', 'business'],
+      cats[3]: <String>['global', 'politics', 'world'],
+      cats[4]: <String>['technology', 'tech'],
+      cats[5]: <String>['arts', 'culture'],
+      cats[6]: <String>['lifestyle', 'luxury', 'travel'],
+      cats[7]: <String>['sports', 'performance'],
     };
-    final sel = cats[_tabController.index];
-    final kws = keys[sel] ?? [];
+    final String sel = cats[_tabController.index];
+    final List<String> kws = keys[sel] ?? <String>[];
     return magazines.where((m) {
-      final tags = List<String>.from(m['tags'] ?? []);
-      return tags.any((t) => kws.any((kw) => t.toLowerCase().contains(kw)));
+      final List<String> tags = List<String>.from(m['tags'] ?? <dynamic>[]);
+      return tags.any(
+        (String t) => kws.any((String kw) => t.toLowerCase().contains(kw)),
+      );
     }).toList();
   }
 
   void _centerChip(int index) {
-    final key = _chipKeys[index];
+    final GlobalKey<State<StatefulWidget>> key = _chipKeys[index];
     if (key.currentContext != null) {
       Scrollable.ensureVisible(
         key.currentContext!,
@@ -127,51 +162,83 @@ class _MagazineScreenState extends State<MagazineScreen>
     }
   }
 
-  void _toggleFavorite(dynamic m) async {
-    await FavoritesManager.instance.toggleMagazine(m);
-    setState(() {});
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Reset scroll when returning to this main tab
+    if (!_firstBuild && _scrollController.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _scrollController.hasClients) {
+          _scrollController.jumpTo(0);
+        }
+      });
+    }
+    _firstBuild = false;
   }
 
   @override
   void dispose() {
+    try {
+      // Tab listener managed by Riverpod - removed;
+    } catch (e) {
+      // Context might be unavailable
+    }
     _scrollController.dispose();
     _chipsController.dispose();
     _tabController.dispose();
     super.dispose();
   }
 
+  // ────────────────────────────────────────────────
+  // UI
+  // ────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context)!;
-    final mode = context.watch<ThemeProvider>().appThemeMode;
-    final gradientColors = AppGradients.getGradientColors(mode);
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final categories = _categories(context);
+    final AppThemeMode themeMode = ref.watch(currentThemeModeProvider);
+    final AppLocalizations loc = AppLocalizations.of(context)!;
+
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final bool isDark = theme.brightness == Brightness.dark;
+
+    final AppThemeMode mode = themeMode;
+    // Use getBackgroundGradient for correct Dark Mode colors (Black)
+    final List<Color> colors = AppGradients.getBackgroundGradient(mode);
+    final Color start = colors[0], end = colors[1];
+    final List<String> categories = _categories(context);
 
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        backgroundColor: scheme.background,
+        backgroundColor: scheme.surface,
         drawer: const AppDrawer(),
         body: Stack(
           fit: StackFit.expand,
-          children: [
-            Container(
+          children: <Widget>[
+            // Backdrop gradient
+            AnimatedThemeContainer(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    gradientColors[0].withOpacity(0.85),
-                    gradientColors[1].withOpacity(0.85),
+                  colors: <Color>[
+                    colors[0].withOpacity(0.85),
+                    colors[1].withOpacity(0.85),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
               ),
             ),
+
+            // Main scroll view
             CustomScrollView(
-              slivers: [
+              controller:
+                  _scrollController, // Attach controller for manual reset
+              key: const PageStorageKey('magazine_scroll'),
+              slivers: <Widget>[
+                // ----- AppBar ------------------------------------------------
                 SliverAppBar(
                   pinned: true,
                   backgroundColor: theme.appBarTheme.backgroundColor,
@@ -181,6 +248,8 @@ class _MagazineScreenState extends State<MagazineScreen>
                   title: AppBarTitle(loc.magazines),
                   iconTheme: theme.appBarTheme.iconTheme,
                 ),
+
+                // ----- Category chips --------------------------------------
                 SliverToBoxAdapter(
                   child: SizedBox(
                     height: 48,
@@ -189,8 +258,8 @@ class _MagazineScreenState extends State<MagazineScreen>
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       itemCount: categories.length,
-                      itemBuilder: (ctx, i) {
-                        final sel = i == _tabController.index;
+                      itemBuilder: (BuildContext ctx, int i) {
+                        final bool sel = i == _tabController.index;
                         return Padding(
                           key: _chipKeys[i],
                           padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -200,12 +269,16 @@ class _MagazineScreenState extends State<MagazineScreen>
                             onSelected: (_) {
                               _tabController.animateTo(i);
                               _centerChip(i);
+                              if (_scrollController.hasClients) {
+                                _scrollController.jumpTo(0);
+                              }
                             },
                             backgroundColor: scheme.surface.withOpacity(0.5),
-                            selectedColor: _gold,
+                            selectedColor: scheme.tertiary,
                             labelStyle: TextStyle(
                               color: sel ? Colors.black : scheme.onSurface,
-                              fontWeight: sel ? FontWeight.bold : FontWeight.w600,
+                              fontWeight:
+                                  sel ? FontWeight.bold : FontWeight.w600,
                             ),
                           ),
                         );
@@ -213,64 +286,110 @@ class _MagazineScreenState extends State<MagazineScreen>
                     ),
                   ),
                 ),
-                SliverFillRemaining(
-                  child: _isLoading
-                      ? Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation(scheme.primary),
-                          ),
-                        )
-                      : _filteredMagazines.isEmpty
-                          ? Center(
-                              child: Text(
-                                loc.noMagazines,
-                                style: theme.textTheme.bodyLarge,
-                              ),
-                            )
-                          : RefreshIndicator(
-                              color: scheme.primary,
-                              onRefresh: _loadMagazines,
-                              child: ListView.builder(
-                                controller: _scrollController,
-                                padding: const EdgeInsets.all(16),
-                                itemCount: _filteredMagazines.length,
-                                itemBuilder: (_, idx) {
-                                  final m = _filteredMagazines[idx];
-                                  final id = m['id'].toString();
-                                  final isFav = FavoritesManager.instance.isFavoriteMagazine(id);
 
-                                  return AnimatedContainer(
-                                    duration: const Duration(milliseconds: 400),
+                // ----- Magazine cards --------------------------------------
+                SliverFillRemaining(
+                  child:
+                      _isLoading
+                          ? Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation(
+                                scheme.primary,
+                              ),
+                            ),
+                          )
+                          : _filteredMagazines.isEmpty
+                          ? Center(
+                            child: Text(
+                              loc.noMagazines,
+                              style: theme.textTheme.bodyLarge,
+                            ),
+                          )
+                          : RefreshIndicator(
+                            color: scheme.primary,
+                            onRefresh: _loadMagazines,
+                            child: ListView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.only(
+                                left: 16,
+                                right: 16,
+                                top: 16,
+                                bottom: 80,
+                              ), // Bottom padding for nav bar
+                              itemCount: _filteredMagazines.length,
+                              itemBuilder: (_, int idx) {
+                                final m = _filteredMagazines[idx];
+                                final String id = m['id'].toString();
+                                // Use Riverpod for favorites
+                                final bool isFav = ref.watch(
+                                  favoritesProvider.select(
+                                    (state) => state.magazines.any(
+                                      (mag) => mag['id'].toString() == id,
+                                    ),
+                                  ),
+                                );
+                                // Visual parameters tuned for better contrast
+                                final Color cardColor =
+                                    isDark
+                                        ? scheme.surface.withOpacity(0.14)
+                                        : theme.cardColor.withOpacity(0.04);
+
+                                final Color borderColor =
+                                    isDark
+                                        ? Colors.white.withOpacity(0.35)
+                                        : scheme.onSurface.withOpacity(0.35);
+
+                                final BoxShadow subtleHalo =
+                                    isDark
+                                        ? BoxShadow(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .tertiary
+                                              .withOpacity(0.06),
+                                          blurRadius: 12,
+                                          spreadRadius: 2,
+                                          offset: const Offset(0, 6),
+                                        )
+                                        : const BoxShadow(
+                                          color: Colors.transparent,
+                                        );
+
+                                final BoxShadow favouriteHalo = BoxShadow(
+                                  color: scheme.primary.withOpacity(0.45),
+                                  blurRadius: 26,
+                                  spreadRadius: 4,
+                                  offset: const Offset(0, 8),
+                                );
+
+                                return RepaintBoundary(
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
                                     curve: Curves.easeInOut,
-                                    margin: const EdgeInsets.only(bottom: 12),
+                                    margin: const EdgeInsets.only(bottom: 14),
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(20),
-                                      color: theme.cardColor.withOpacity(0.03),
+                                      color: cardColor,
                                       border: Border.all(
-                                        color: theme.colorScheme.onSurface.withOpacity(0.35),
-                                        width: 1.4,
+                                        color: borderColor,
+                                        width: 1.5,
                                       ),
-                                      boxShadow: isFav
-                                          ? [
-                                              BoxShadow(
-                                                color: theme.colorScheme.primary.withOpacity(0.25),
-                                                blurRadius: 14,
-                                                spreadRadius: 1,
-                                                offset: const Offset(0, 6),
-                                              ),
-                                            ]
-                                          : [],
+                                      boxShadow: <BoxShadow>[
+                                        isFav ? favouriteHalo : subtleHalo,
+                                      ],
                                     ),
                                     child: MagazineCard(
                                       magazine: m,
                                       isFavorite: isFav,
-                                      onFavoriteToggle: () => _toggleFavorite(m),
-                                      highlight: true,
+                                      onFavoriteToggle:
+                                          () => ref
+                                              .read(favoritesProvider.notifier)
+                                              .toggleMagazine(m),
                                     ),
-                                  );
-                                },
-                              ),
+                                  ),
+                                );
+                              },
                             ),
+                          ),
                 ),
               ],
             ),

@@ -1,59 +1,62 @@
 <!-- File: android/app/src/main/AndroidManifest.xml -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.bd.bdnewsreader">
+    xmlns:tools="http://schemas.android.com/tools" package="com.bd.bdnewsreader">
 
 
     <!-- Required Permissions -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="com.android.vending.BILLING" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="com.google.android.gms.permission.INTEGRITY_API" tools:node="merge" />
+    <!-- Background Audio Permissions -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/> -->    <!-- Deprecated in API 34+ -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
 
-    <application
-        android:label="BD News Reader"
-        android:icon="@mipmap/ic_launcher"
-        android:allowBackup="true"
-        android:hardwareAccelerated="true"
-        android:theme="@style/LaunchTheme"
-        android:enableOnBackInvokedCallback="true"
-        android:usesCleartextTraffic="true">
+    <application android:label="BD News Reader" android:icon="@mipmap/ic_launcher" android:allowBackup="true" android:hardwareAccelerated="true" android:theme="@style/LaunchTheme" android:enableOnBackInvokedCallback="true" android:usesCleartextTraffic="false">
+        <!-- ✅ SECURITY: Cleartext traffic disabled to prevent MITM attacks -->
+
+        <!-- ✅ Audio Service -->
+        <service android:name="com.ryanheise.audioservice.AudioService" android:foregroundServiceType="mediaPlayback" android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+
+        <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
 
         <!-- ✅ Firebase Crashlytics -->
-        <meta-data
-            android:name="firebase_crashlytics_collection_enabled"
-            android:value="true" />
+        <meta-data android:name="firebase_crashlytics_collection_enabled" android:value="true" />
 
         <!-- ✅ AdMob App ID -->
-        <meta-data
-            android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-5062172284742614~6873520756" />
+        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-5062172284742614~6873520756" />
 
         <!-- Flutter Main Activity -->
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:launchMode="singleTop"
-            android:theme="@style/LaunchTheme"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-            android:windowSoftInputMode="adjustResize">
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop" android:theme="@style/LaunchTheme" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" android:windowSoftInputMode="adjustResize">
 
-            <meta-data
-                android:name="io.flutter.embedding.android.NormalTheme"
-                android:resource="@style/NormalTheme" />
+            <meta-data android:name="io.flutter.embedding.android.NormalTheme" android:resource="@style/NormalTheme" />
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- ✅ Deep Links -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="bdnews.com" />
+                <data android:scheme="http" android:host="bdnews.com" />
+            </intent-filter>
         </activity>
 
         <!-- Required for Flutter engine -->
-        <meta-data
-            android:name="flutterEmbedding"
-            android:value="2" />
+        <meta-data android:name="flutterEmbedding" android:value="2" />
     </application>
 
     <!-- Optional: allow text processing via other apps -->

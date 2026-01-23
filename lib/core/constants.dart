@@ -1,45 +1,187 @@
+import 'dart:io';
+import 'dart:ui';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-// Goku Siyan Mode Activated!
-// Unleash the energy with these legendary constants for colors, sizes, and icons.
+/// =============================================================
+/// APP SURFACES & ELEVATION (iOS-style)
+/// =============================================================
 
-// AppColors: Our palette of super-powered hues.
-class AppColors {
-  // A dazzling light primary color, like the flash of a Kamehameha!
-  static const Color primaryLight = Color(0xFF007BFF);
-  // A deep, mysterious dark primary color, perfect for intense battles.
-  static const Color primaryDark = Color(0xFF121212);
-  // An accent color that sparks energy and power—unleash your inner spirit!
-  static const Color accent = Color(0xFF00C853);
-  // Error color that signals a fight must be won—fight through any challenge!
-  static const Color error = Color(0xFFD32F2F);
-  // A light background color to illuminate your UI like a Super Saiyan aura.
-  static const Color backgroundLight = Color(0xFFF5F5F5);
-  // A dark background color to ground your design with powerful depth.
-  static const Color backgroundDark = Color(0xFF181818);
+class AppSurfaces {
+  AppSurfaces._(); // Private constructor
+
+  static bool _isDark(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark;
+
+  /// Base surface (cards, sheets)
+  static Color surface(BuildContext context) {
+    return _isDark(context)
+        ? const Color(0xFF1C1C1E) // iOS secondary system background
+        : const Color(0xFFFFFFFF);
+  }
+
+  /// Elevated surfaces (dialogs, modals)
+  static Color elevated(BuildContext context, {int level = 1}) {
+    if (!_isDark(context)) return surface(context);
+
+    // iOS dark-mode elevation ladder
+    switch (level) {
+      case 2:
+        return const Color(0xFF2C2C2E);
+      case 3:
+        return const Color(0xFF3A3A3C);
+      case 4:
+        return const Color(0xFF48484A);
+      default:
+        return const Color(0xFF1C1C1E);
+    }
+  }
+
+  /// Hairline separator color
+  static Color divider(BuildContext context) {
+    return _isDark(context) ? const Color(0xFF38383A) : const Color(0xFFD1D1D6);
+  }
 }
 
-// AppSizes: The precise measurements that define your battle-ready layout.
-class AppSizes {
-  // Small padding for those quick, agile moves.
-  static const double paddingSmall = 8.0;
-  // Medium padding – balanced and steady like a well-trained fighter.
-  static const double paddingMedium = 16.0;
-  // Large padding to dominate the field, giving you room to shine.
-  static const double paddingLarge = 24.0;
+/// =============================================================
+/// iOS BLUR / GLASS CONSTANTS
+/// =============================================================
 
-  // Corner radius to soften edges—because even warriors need a bit of style.
-  static const double cornerRadius = 16.0;
+class AppGlass {
+  AppGlass._(); // Private constructor
+
+  /// Default iOS blur strength
+  static const double blurSigma = 20.0;
+
+  /// Background tint for glass surfaces
+  static Color background(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xAA1C1C1E) : const Color(0xCCFFFFFF);
+  }
+
+  /// Reusable glass container
+  static Widget glass({
+    required BuildContext context,
+    required Widget child,
+    BorderRadius? borderRadius,
+  }) {
+    return ClipRRect(
+      borderRadius: borderRadius ?? BorderRadius.circular(14),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+        child: Container(
+          decoration: BoxDecoration(
+            color: background(context),
+            border: Border.all(color: AppSurfaces.divider(context), width: 0.5),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
 }
 
-// AppIcons: The iconic symbols that drive your UI energy.
-class AppIcons {
-  // The app's emblem, as bold as a freshly forged legend.
-  static const IconData appIcon = Icons.newspaper;
-  // Settings icon to fine-tune your Super Saiyan power.
-  static const IconData settingsIcon = Icons.settings;
-  // Share icon to spread the energy far and wide.
-  static const IconData shareIcon = Icons.share;
-  // Favorite icon to mark your most epic moments.
-  static const IconData favoriteIcon = Icons.favorite;
+/// =============================================================
+/// CUPERTINO MOTION CURVES (NO MATERIAL BOUNCE)
+/// =============================================================
+
+class AppMotion {
+  AppMotion._(); // Private constructor
+
+  /// Standard iOS easing
+  static const Curve standard = Curves.easeOutCubic;
+
+  /// Used for page transitions & modals
+  static const Curve emphasized = Curves.easeInOutCubic;
+
+  /// Short, crisp animation
+  static const Duration fast = Duration(milliseconds: 180);
+
+  /// Default iOS motion duration
+  static const Duration normal = Duration(milliseconds: 260);
+}
+
+/// =============================================================
+/// PLATFORM-ADAPTIVE ICONS
+/// =============================================================
+
+class AdaptiveIcons {
+  AdaptiveIcons._(); // Private constructor
+
+  static IconData settings() =>
+      Platform.isIOS ? CupertinoIcons.settings : Icons.settings_outlined;
+
+  static IconData share() =>
+      Platform.isIOS ? CupertinoIcons.share : Icons.share_outlined;
+
+  static IconData favorite({bool filled = false}) {
+    if (Platform.isIOS) {
+      return filled ? CupertinoIcons.heart_fill : CupertinoIcons.heart;
+    }
+    return filled ? Icons.favorite : Icons.favorite_border;
+  }
+
+  static IconData back() =>
+      Platform.isIOS ? CupertinoIcons.back : Icons.arrow_back;
+}
+
+/// =============================================================
+/// MATERIAL ↔ CUPERTINO THEME BRIDGE
+/// =============================================================
+
+class AppThemeBridge {
+  AppThemeBridge._(); // Private constructor
+
+  /// Material Theme (used by Scaffold, lists, etc.)
+  static ThemeData materialTheme({
+    required Brightness brightness,
+    required Color primaryColor,
+  }) {
+    final isDark = brightness == Brightness.dark;
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: brightness,
+      primaryColor: primaryColor,
+
+      scaffoldBackgroundColor:
+          isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
+
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: primaryColor,
+        brightness: brightness,
+      ),
+
+      cardColor: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFFFFFFF),
+
+      dividerColor: isDark ? const Color(0xFF38383A) : const Color(0xFFD1D1D6),
+
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
+    );
+  }
+
+  /// Cupertino Theme (used by Cupertino widgets)
+  static CupertinoThemeData cupertinoTheme({
+    required Brightness brightness,
+    required Color primaryColor,
+  }) {
+    return CupertinoThemeData(
+      brightness: brightness,
+      primaryColor: primaryColor,
+      scaffoldBackgroundColor:
+          brightness == Brightness.dark
+              ? const Color(0xFF000000)
+              : const Color(0xFFF2F2F7),
+      barBackgroundColor:
+          brightness == Brightness.dark
+              ? const Color(0xFF1C1C1E)
+              : const Color(0xFFFFFFFF),
+    );
+  }
 }

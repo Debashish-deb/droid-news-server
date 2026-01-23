@@ -8,6 +8,11 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.JavaVersion
 
+// ✅ Declare plugin versions here (do not apply at root)
+plugins {
+    id("com.google.gms.google-services") version "4.4.2" apply false
+}
+
 // ─── Global repositories ───────────────────────────────────────────────────────
 allprojects {
     repositories {
@@ -16,7 +21,6 @@ allprojects {
     }
 }
 
-// ─── Redirect the root build output to <project>/../../build ────────────────────
 val newBuildDir: Directory = rootProject
     .layout
     .buildDirectory
@@ -26,12 +30,14 @@ rootProject.layout.buildDirectory.set(newBuildDir)
 
 // ─── Per‐module build dirs, JVM overrides, and namespace fallback ───────────────
 subprojects {
-    // 1) Move each module’s build into <newBuildDir>/<moduleName>
+    // 1) Move each module's build into <newBuildDir>/<moduleName>
     project.layout.buildDirectory.set(newBuildDir.dir(project.name))
 
-    // 2) Force Kotlin to compile with JVM target 11
-    tasks.withType<KotlinCompile>().configureEach {
-        kotlinOptions.jvmTarget = "11"
+    // 2) Force Kotlin to compile with JVM target 11 - use configureEach for better compatibility
+    tasks.configureEach {
+        if (this is KotlinCompile) {
+            kotlinOptions.jvmTarget = "11"
+        }
     }
 
     // 3) Force Java to compile with target/sourceCompatibility = Java 11

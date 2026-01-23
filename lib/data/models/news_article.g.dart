@@ -29,14 +29,14 @@ class NewsArticleAdapter extends TypeAdapter<NewsArticle> {
       isLive: fields[9] as bool,
       sourceOverride: fields[10] as String?,
       sourceLogo: fields[11] as String?,
-      fromCache: fields[12] as bool, // ✅ added fromCache
+      fromCache: fields[12] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, NewsArticle obj) {
     writer
-      ..writeByte(13) // ✅ total number of fields now
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.title)
       ..writeByte(1)
@@ -62,7 +62,7 @@ class NewsArticleAdapter extends TypeAdapter<NewsArticle> {
       ..writeByte(11)
       ..write(obj.sourceLogo)
       ..writeByte(12)
-      ..write(obj.fromCache); // ✅ write fromCache
+      ..write(obj.fromCache);
   }
 
   @override

@@ -18,4 +18,8 @@ class AppPaths {
   static const String newsDetail = '/news-detail';
   static const String webview = '/webview';
   static const String movieDetail = '/movies/:id';
+  static const String securityLockout = '/security-lockout';
+  static const String offline = '/offline';
+  static const String removeAds = '/remove-ads';
+  static const String subscriptionManagement = '/subscription';
 }

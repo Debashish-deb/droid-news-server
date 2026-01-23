@@ -1,129 +1,411 @@
-// File: lib/features/snake/snake_widget.dart
-
 import 'dart:async';
 import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:confetti/confetti.dart';
 
-class SnakeWidget extends StatelessWidget {
-  const SnakeWidget({Key? key}) : super(key: key);
+// ============================================================================
+// THEME SYSTEM
+// ============================================================================
+
+class SnakeTheme {
+  const SnakeTheme({
+    required this.name,
+    required this.backgroundColors,
+    required this.surfaceColor,
+    required this.accentColor,
+    required this.snakeColor,
+    required this.foodColor,
+    required this.gridColor,
+    this.textColor = Colors.white,
+  });
+
+  final String name;
+  final List<Color> backgroundColors;
+  final Color surfaceColor;
+  final Color accentColor;
+  final Color snakeColor;
+  final Color foodColor;
+  final Color gridColor;
+  final Color textColor;
+
+  static const SnakeTheme modernDark = SnakeTheme(
+    name: 'Modern Dark',
+    backgroundColors: [Color(0xFF121212), Color(0xFF1E1E1E)],
+    surfaceColor: Color(0xFF2C2C2C),
+    accentColor: Color(0xFFBB86FC),
+    snakeColor: Color(0xFF03DAC6),
+    foodColor: Color(0xFFCF6679),
+    gridColor: Colors.white10,
+  );
+
+  static const SnakeTheme arcade = SnakeTheme(
+    name: 'Arcade',
+    backgroundColors: [Color(0xFF222034), Color(0xFF222034)],
+    surfaceColor: Color(0xFF45283c),
+    accentColor: Color(0xFFdf7126),
+    snakeColor: Color(0xFF99e550),
+    foodColor: Color(0xFFac3232),
+    gridColor: Colors.white12,
+  );
+
+  static const SnakeTheme classic = SnakeTheme(
+    name: 'Classic',
+    backgroundColors: [Color(0xFF9bbc0f), Color(0xFF8bac0f)],
+    surfaceColor: Color(0xFF306230),
+    accentColor: Color(0xFF0f380f),
+    snakeColor: Color(0xFF0f380f),
+    foodColor: Color(0xFF0f380f),
+    gridColor: Color(0xFF0f380f),
+    textColor: Color(0xFF0f380f),
+  );
+
+  static SnakeTheme getTheme(String name) {
+    switch (name) {
+      case 'Arcade':
+        return arcade;
+      case 'Classic':
+        return classic;
+      default:
+        return modernDark;
+    }
+  }
+}
+
+// ============================================================================
+// UI COMPONENTS (Flat, Clean, Mobile-Style)
+// ============================================================================
+
+class GamePanel extends StatelessWidget {
+  const GamePanel({
+    required this.child,
+    super.key,
+    this.padding,
+    this.margin,
+    this.borderRadius,
+    this.color,
+    this.border,
+    this.theme,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+  final EdgeInsetsGeometry? margin;
+  final BorderRadius? borderRadius;
+  final Color? color;
+  final BoxBorder? border;
+  final SnakeTheme? theme;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: ElevatedButton.icon(
-        icon: const Icon(Icons.videogame_asset, size: 24),
-        label: const Text('Play Snake'),
-        style: ElevatedButton.styleFrom(
+    final effectiveColor = color ?? theme?.surfaceColor ?? Colors.grey[900]!;
+
+    return Container(
+      margin: margin,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: effectiveColor,
+        borderRadius: borderRadius ?? BorderRadius.circular(16),
+        border: border ?? Border.all(color: Colors.white.withOpacity(0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class GameButton extends StatefulWidget {
+  const GameButton({
+    required this.label,
+    required this.theme,
+    super.key,
+    this.onTap,
+    this.icon,
+    this.primary = false,
+  });
+
+  final String label;
+  final SnakeTheme theme;
+  final VoidCallback? onTap;
+  final IconData? icon;
+  final bool primary;
+
+  @override
+  State<GameButton> createState() => _GameButtonState();
+}
+
+class _GameButtonState extends State<GameButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 50),
+    );
+    _scaleAnim = Tween<double>(begin: 1.0, end: 0.95).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Color bgColor =
+        widget.primary ? widget.theme.accentColor : widget.theme.surfaceColor;
+    final Color contentColor =
+        widget.primary ? Colors.black : widget.theme.textColor;
+
+    return GestureDetector(
+      onTapDown: (_) {
+        _controller.forward();
+        HapticFeedback.lightImpact();
+      },
+      onTapUp: (_) {
+        _controller.reverse();
+        widget.onTap?.call();
+      },
+      onTapCancel: () => _controller.reverse(),
+      child: AnimatedBuilder(
+        animation: _scaleAnim,
+        builder:
+            (_, child) =>
+                Transform.scale(scale: _scaleAnim.value, child: child),
+        child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          foregroundColor: theme.colorScheme.onPrimary,
-          backgroundColor: theme.colorScheme.primary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          elevation: 8,
-          shadowColor: theme.colorScheme.primary.withOpacity(0.5),
-        ),
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const SnakeGame()),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.icon != null) ...[
+                Icon(widget.icon, color: contentColor, size: 20),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                widget.label.toUpperCase(),
+                style: TextStyle(
+                  color: contentColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  letterSpacing: 1.0,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
+// ============================================================================
+// MAIN SNAKE GAME
+// ============================================================================
+
+class SnakeWidget extends StatelessWidget {
+  const SnakeWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const SnakeGame();
+  }
+}
+
 class SnakeGame extends StatefulWidget {
-  const SnakeGame({Key? key}) : super(key: key);
+  const SnakeGame({super.key});
+
   @override
   State<SnakeGame> createState() => _SnakeGameState();
 }
 
-class _SnakeGameState extends State<SnakeGame> {
-  // ─── Configuration ───────────────────────────────────────────────
-  static const int rows = 20, cols = 20;
-  static const List<int> speeds = [300, 250, 200, 150, 100];
-  static const _highScoreKey = 'snake_high_score';
+class _SnakeGameState extends State<SnakeGame>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
+  // Constants
+  static const int rows = 30;
+  static const int cols = 20;
+  static const List<int> speeds = [200, 150, 100, 70, 50]; // Faster base speeds
 
-  // ─── Game State ──────────────────────────────────────────────────
-  late List<Point<int>> _snake;
-  late Point<int> _food;
-  Point<int> _direction = const Point(1, 0);
+  // State
+  List<Point<int>> _snake = [];
+  Point<int> _food = const Point(0, 0);
+  Point<int> _direction = const Point(0, -1);
+  Point<int> _nextDirection = const Point(0, -1);
 
-  late Timer _timer;
-  bool _running = true, _gameOver = false;
+  // Game Status
+  bool _isPlaying = false;
+  bool _isGameOver = false;
+  bool _isPaused = false;
+  int _score = 0;
+  int _highScore = 0;
 
-  int _level = 2; // default speed
-  int _score = 0, _highScore = 0;
-  bool _justBeatHigh = false;
+  // Options
+  int _speedLevel = 2;
+  String _themeName = 'Modern Dark';
+  SnakeTheme _theme = SnakeTheme.modernDark;
 
-  final _rng = Random();
+  Timer? _timer;
+  final Random _rng = Random();
+  final AudioPlayer _audio = AudioPlayer();
+  late ConfettiController _confetti;
 
   @override
   void initState() {
     super.initState();
-    _loadHighScore().then((_) => _startNewGame());
+    WidgetsBinding.instance.addObserver(this);
+    _confetti = ConfettiController(duration: const Duration(seconds: 2));
+    _loadHighScore();
+    _loadSettings();
+
+    // Set system UI to edge-to-edge for game feel without layout thrashing
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+    );
   }
 
   @override
   void dispose() {
-    _timer.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _timer?.cancel();
+    _audio.stop();
+    _audio.dispose();
+    _confetti.stop();
+    _confetti.dispose();
+    // Restore system UI to default
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused && _isPlaying) {
+      if (!_isPaused) _pauseGame();
+    }
+  }
+
+  // --- Logic ---
+
   Future<void> _loadHighScore() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() => _highScore = prefs.getInt(_highScoreKey) ?? 0);
+    setState(() => _highScore = prefs.getInt('snake_hs') ?? 0);
   }
 
-  Future<void> _saveHighScore() async {
+  Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_highScoreKey, _highScore);
+    setState(() {
+      _themeName = prefs.getString('snake_theme') ?? 'Modern Dark';
+      _theme = SnakeTheme.getTheme(_themeName);
+    });
   }
 
-  void _startNewGame() {
-    _snake = [
-      Point(cols ~/ 2, rows ~/ 2),
-      Point(cols ~/ 2 - 1, rows ~/ 2),
-    ];
-    _spawnFood();
-    _direction = const Point(1, 0);
-    _running = true;
-    _gameOver = false;
-    _score = 0;
-    _justBeatHigh = false;
+  void _startGame() {
+    setState(() {
+      // Start in middle
+      const midX = cols ~/ 2;
+      const midY = rows ~/ 2;
+      _snake = [
+        const Point(midX, midY),
+        const Point(midX, midY + 1),
+        const Point(midX, midY + 2),
+      ];
+      _direction = const Point(0, -1);
+      _nextDirection = const Point(0, -1);
+      _score = 0;
+      _isPlaying = true;
+      _isGameOver = false;
+      _isPaused = false;
+      _spawnFood();
+    });
+    _startTimer();
+  }
 
+  void _startTimer() {
+    _timer?.cancel();
     _timer = Timer.periodic(
-      Duration(milliseconds: speeds[_level]),
+      Duration(milliseconds: speeds[_speedLevel]),
       (_) => _tick(),
     );
-    setState(() {});
   }
 
-  void _spawnFood() {
-    Point<int> pos;
-    do {
-      pos = Point(_rng.nextInt(cols), _rng.nextInt(rows));
-    } while (_snake.contains(pos));
-    _food = pos;
+  void _pauseGame() {
+    _timer?.cancel();
+    setState(() => _isPaused = true);
+  }
+
+  void _resumeGame() {
+    setState(() => _isPaused = false);
+    _startTimer();
+  }
+
+  void _quitGame() {
+    _timer?.cancel();
+    Navigator.pop(context);
   }
 
   void _tick() {
-    if (!_running || _gameOver) return;
-
-    final head = _snake.first;
-    final newHead = Point(
-      (head.x + _direction.x + cols) % cols,
-      (head.y + _direction.y + rows) % rows,
-    );
-    if (_snake.skip(1).contains(newHead)) {
-      _endGame();
-      return;
-    }
-
     setState(() {
+      _direction = _nextDirection;
+      final head = _snake.first;
+
+      // Calculate new head
+      int newX = head.x + _direction.x;
+      int newY = head.y + _direction.y;
+
+      // Wall wrap logic (standard for mobile snake usually)
+      if (newX < 0) newX = cols - 1;
+      if (newX >= cols) newX = 0;
+      if (newY < 0) newY = rows - 1;
+      if (newY >= rows) newY = 0;
+
+      final newHead = Point(newX, newY);
+
+      // Self collision
+      if (_snake.contains(newHead)) {
+        _gameOver();
+        return;
+      }
+
+      // Move
       _snake.insert(0, newHead);
+
+      // Eat
       if (newHead == _food) {
         _score += 10;
+        HapticFeedback.mediumImpact();
+        // Play sound if available: _audio.play(AssetSource('sounds/eat.wav'));
         _spawnFood();
       } else {
         _snake.removeLast();
@@ -131,345 +413,512 @@ class _SnakeGameState extends State<SnakeGame> {
     });
   }
 
-  void _endGame() {
-    _running = false;
-    _gameOver = true;
-    _timer.cancel();
+  void _spawnFood() {
+    Point<int> p;
+    do {
+      p = Point(_rng.nextInt(cols), _rng.nextInt(rows));
+    } while (_snake.contains(p));
+    _food = p;
+  }
+
+  void _gameOver() async {
+    _timer?.cancel();
+    HapticFeedback.heavyImpact();
+
     if (_score > _highScore) {
       _highScore = _score;
-      _justBeatHigh = true;
-      _saveHighScore();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('snake_hs', _highScore);
+      _confetti.play();
     }
-    setState(() {});
+
+    setState(() => _isGameOver = true);
   }
 
-  void _togglePause() => setState(() => _running = !_running);
-
-  void _changeDir(Point<int> d) {
-    if (d.x + _direction.x == 0 && d.y + _direction.y == 0) return;
-    _direction = d;
-  }
-
-  void _changeSpeed(int lvl) {
-    _level = lvl.clamp(0, speeds.length - 1);
-    if (!_gameOver) {
-      _timer.cancel();
-      _timer = Timer.periodic(
-        Duration(milliseconds: speeds[_level]),
-        (_) => _tick(),
-      );
+  void _changeDir(Point<int> newDir) {
+    // Prevent 180 turn
+    if (newDir.x == -_direction.x && newDir.y == -_direction.y) return;
+    // Prevent multiple moves in one tick
+    if (_direction != _nextDirection) {
+      return; // Basic input debounce approximation
     }
-    setState(() {});
+    _nextDirection = newDir;
   }
 
-  Widget _buildLevelPicker() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(speeds.length, (i) {
-          return ListTile(
-            title: Text(
-              ['Slow', 'Mid', 'Fast', 'X-Fast', 'Ultra'][i],
-              style: const TextStyle(color: Colors.white),
-            ),
-            trailing: i == _level
-                ? const Icon(Icons.check, color: Colors.tealAccent)
-                : null,
-            onTap: () {
-              _changeSpeed(i);
-              Navigator.pop(context);
-            },
-          );
-        }),
+  // --- UI ---
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _theme.backgroundColors.first,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: _theme.backgroundColors,
+          ),
+        ),
+        child: SafeArea(
+          child: Stack(
+            children: [
+              Column(
+                children: [
+                  _buildHeader(),
+                  Expanded(
+                    child: Center(
+                      child: AspectRatio(
+                        aspectRatio: cols / rows,
+                        child: _buildGameBoard(),
+                      ),
+                    ),
+                  ),
+                  _buildControls(),
+                ],
+              ),
+              if (_isGameOver) _buildGameOverOverlay(),
+              if (!_isPlaying && !_isGameOver) _buildMainMenu(),
+              if (_isPaused && !_isGameOver) _buildPauseMenu(),
+
+              Align(
+                alignment: Alignment.topCenter,
+                child: ConfettiWidget(
+                  confettiController: _confetti,
+                  blastDirection: pi / 2,
+                  numberOfParticles: 20,
+                  colors: const [
+                    Colors.green,
+                    Colors.blue,
+                    Colors.pink,
+                    Colors.orange,
+                    Colors.purple,
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              IconButton(
+                icon: Icon(Icons.arrow_back, color: _theme.textColor),
+                onPressed: () => Navigator.pop(context),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'SCORE: $_score',
+                style: TextStyle(
+                  color: _theme.textColor,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 20,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              const Icon(Icons.emoji_events, color: Colors.amber, size: 20),
+              const SizedBox(width: 4),
+              Text(
+                '$_highScore',
+                style: TextStyle(
+                  color: _theme.textColor.withOpacity(0.7),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 16),
+              if (_isPlaying)
+                IconButton(
+                  icon: Icon(
+                    _isPaused ? Icons.play_arrow : Icons.pause,
+                    color: _theme.textColor,
+                  ),
+                  onPressed: _isPaused ? _resumeGame : _pauseGame,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-    return Scaffold(
-      backgroundColor: Colors.black, // OLED black
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 2,
-        title: Row(
-          children: [
-            const Text('Snake', style: TextStyle(color: Colors.white)),
-            const Spacer(),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text('Score: $_score',
-                    style: text.bodyLarge?.copyWith(color: Colors.tealAccent)),
-                Text('High: $_highScore',
-                    style: text.bodySmall?.copyWith(color: Colors.tealAccent)),
-              ],
+  Widget _buildGameBoard() {
+    return GamePanel(
+      theme: _theme,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(4),
+      child: LayoutBuilder(
+        builder: (ctx, constraints) {
+          final cellSize = constraints.maxWidth / cols;
+          return GestureDetector(
+            onVerticalDragUpdate: (details) {
+              if (details.delta.dy > 5) {
+                _changeDir(const Point(0, 1));
+              } else if (details.delta.dy < -5)
+                _changeDir(const Point(0, -1));
+            },
+            onHorizontalDragUpdate: (details) {
+              if (details.delta.dx > 5) {
+                _changeDir(const Point(1, 0));
+              } else if (details.delta.dx < -5)
+                _changeDir(const Point(-1, 0));
+            },
+            child: CustomPaint(
+              size: Size(constraints.maxWidth, constraints.maxHeight),
+              painter: BoardPainter(
+                snake: _snake,
+                food: _food,
+                cellSize: cellSize,
+                theme: _theme,
+              ),
             ),
-          ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildControls() {
+    final color = _theme.textColor.withOpacity(0.1);
+    final iconColor = _theme.textColor;
+
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildDpadBtn(
+            Icons.keyboard_arrow_up,
+            () => _changeDir(const Point(0, -1)),
+            color,
+            iconColor,
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildDpadBtn(
+                Icons.keyboard_arrow_left,
+                () => _changeDir(const Point(-1, 0)),
+                color,
+                iconColor,
+              ),
+              const SizedBox(width: 60),
+              _buildDpadBtn(
+                Icons.keyboard_arrow_right,
+                () => _changeDir(const Point(1, 0)),
+                color,
+                iconColor,
+              ),
+            ],
+          ),
+          _buildDpadBtn(
+            Icons.keyboard_arrow_down,
+            () => _changeDir(const Point(0, 1)),
+            color,
+            iconColor,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDpadBtn(IconData icon, VoidCallback onTap, Color bg, Color fg) {
+    return Material(
+      color: bg,
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: 64,
+          height: 64,
+          alignment: Alignment.center,
+          child: Icon(icon, color: fg, size: 32),
         ),
       ),
-      body: SafeArea(
-        child: LayoutBuilder(builder: (ctx, constraints) {
-          // Board is at most half screen height, with 16px padding
-          final maxSize = constraints.maxHeight * 0.5;
-          final boardSize = min(constraints.maxWidth - 32, maxSize);
+    );
+  }
 
-          return Stack(children: [
-            // Slider + Board column
-            Column(children: [
-              // Speed slider
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 12),
-                child: Row(children: [
-                  const Icon(Icons.speed, color: Colors.tealAccent),
-                  Expanded(
-                    child: SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: Colors.tealAccent,
-                        thumbColor: Colors.tealAccent,
-                        inactiveTrackColor: Colors.grey.shade800,
-                      ),
-                      child: Slider(
-                        min: 0,
-                        max: (speeds.length - 1).toDouble(),
-                        divisions: speeds.length - 1,
-                        value: _level.toDouble(),
-                        label: ['Slow', 'Mid', 'Fast', 'X-Fast', 'Ultra']
-                            [_level],
-                        onChanged: (v) => _changeSpeed(v.toInt()),
-                      ),
-                    ),
-                  ),
-                ]),
-              ),
+  // --- Overlays ---
 
-              // Centered board
-              Center(
-                child: Container(
-                  width: boardSize,
-                  height: boardSize,
-                  margin: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    border: Border.all(color: Colors.tealAccent, width: 2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: GestureDetector(
-                    onVerticalDragUpdate: (d) => _changeDir(
-                        Point(0, d.delta.dy.sign.toInt())),
-                    onHorizontalDragUpdate: (d) => _changeDir(
-                        Point(d.delta.dx.sign.toInt(), 0)),
-                    child: CustomPaint(
-                      painter: _SnakePainter(_snake, _food),
-                      size: Size(boardSize, boardSize),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Spacer under board
-              const SizedBox(height: 120),
-            ]),
-
-            // Centered D-pad
-            Positioned(
-              bottom: 100,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white12,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 6)],
-                  ),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    // Up
-                    GestureDetector(
-                      onTap: () => _changeDir(const Point(0, -1)),
-                      child: Container(
-                        width: 64,
-                        height: 64,
-                        alignment: Alignment.center,
-                        child: const Icon(Icons.arrow_drop_up,
-                            size: 40, color: Colors.tealAccent),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    // Left + + + Right
-                    Row(mainAxisSize: MainAxisSize.min, children: [
-                      GestureDetector(
-                        onTap: () => _changeDir(const Point(-1, 0)),
-                        child: Container(
-                          width: 64,
-                          height: 64,
-                          alignment: Alignment.center,
-                          child: const Icon(Icons.arrow_left,
-                              size: 36, color: Colors.tealAccent),
-                        ),
-                      ),
-                      Container(
-                        width: 48,
-                        height: 48,
-                        alignment: Alignment.center,
-                        child: const Text(
-                          '+',
-                          style: TextStyle(
-                              color: Colors.tealAccent,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => _changeDir(const Point(1, 0)),
-                        child: Container(
-                          width: 64,
-                          height: 64,
-                          alignment: Alignment.center,
-                          child: const Icon(Icons.arrow_right,
-                              size: 36, color: Colors.tealAccent),
-                        ),
-                      ),
-                    ]),
-                    const SizedBox(height: 8),
-                    // Down
-                    GestureDetector(
-                      onTap: () => _changeDir(const Point(0, 1)),
-                      child: Container(
-                        width: 64,
-                        height: 64,
-                        alignment: Alignment.center,
-                        child: const Icon(Icons.arrow_drop_down,
-                            size: 40, color: Colors.tealAccent),
-                      ),
-                    ),
-                  ]),
-                ),
-              ),
-            ),
-
-            // Bottom nav bar
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 16,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _NavButton(
-                    icon: Icons.home,
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  _NavButton(
-                    icon: _running ? Icons.pause : Icons.play_arrow,
-                    onPressed: _togglePause,
-                  ),
-                  _NavButton(
-                    icon: Icons.stop,
-                    onPressed: _startNewGame,
-                  ),
-                  _NavButton(
-                    icon: Icons.grid_view,
-                    onPressed: () => showModalBottomSheet(
-                      context: context,
-                      backgroundColor: Colors.black87,
-                      builder: (_) => _buildLevelPicker(),
-                    ),
+  Widget _buildMainMenu() {
+    return Container(
+      color: Colors.black87,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'SNAKE',
+              style: TextStyle(
+                fontSize: 56,
+                fontWeight: FontWeight.w900,
+                color: _theme.accentColor,
+                letterSpacing: 4,
+                shadows: [
+                  Shadow(
+                    color: _theme.accentColor.withOpacity(0.5),
+                    blurRadius: 20,
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 40),
+            GameButton(
+              label: 'NEW GAME',
+              theme: _theme,
+              primary: true,
+              onTap: _startGame,
+              icon: Icons.play_arrow_rounded,
+            ),
+            const SizedBox(height: 16),
+            GameButton(
+              label: 'THEME: ${_themeName.toUpperCase()}',
+              theme: _theme,
+              onTap: _cycleTheme,
+              icon: Icons.palette_outlined,
+            ),
+            const SizedBox(height: 16),
+            GameButton(
+              label: 'SPEED: ${_speedLabel()}',
+              theme: _theme,
+              onTap: _cycleSpeed,
+              icon: Icons.speed_rounded,
+            ),
+            const SizedBox(height: 16),
+            GameButton(
+              label: 'EXIT',
+              theme: _theme,
+              onTap: () => Navigator.of(context).pop(),
+              icon: Icons.exit_to_app_rounded,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-            // Game Over overlay
-            if (_gameOver)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.black54,
-                  child: Center(
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text(
-                        _justBeatHigh ? 'New High Score! 🎉' : 'Game Over',
-                        style: text.headlineMedium
-                            ?.copyWith(color: Colors.redAccent, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-                      Text('Score: $_score',
-                          style: text.titleLarge?.copyWith(color: Colors.white)),
-                      const SizedBox(height: 8),
-                      Text('High: $_highScore',
-                          style: text.titleMedium?.copyWith(color: Colors.white70)),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.tealAccent),
-                        onPressed: _startNewGame,
-                        child: const Text('Play Again', style: TextStyle(color: Colors.black)),
-                      ),
-                    ]),
-                  ),
+  Widget _buildGameOverOverlay() {
+    return Container(
+      color: Colors.black54,
+      child: Center(
+        child: GamePanel(
+          theme: _theme,
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'GAME OVER',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-          ]);
-        }),
+              const SizedBox(height: 16),
+              Text(
+                'Score: $_score',
+                style: TextStyle(color: _theme.textColor, fontSize: 24),
+              ),
+              const SizedBox(height: 32),
+              GameButton(
+                label: 'TRY AGAIN',
+                theme: _theme,
+                primary: true,
+                onTap: _startGame,
+                icon: Icons.replay,
+              ),
+              const SizedBox(height: 16),
+              GameButton(
+                label: 'EXIT',
+                theme: _theme,
+                onTap: _quitGame,
+                icon: Icons.exit_to_app,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
-}
 
-class _NavButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onPressed;
-  const _NavButton({required this.icon, required this.onPressed});
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white12,
-      shape: const CircleBorder(),
-      elevation: 4,
-      child: IconButton(
-        iconSize: 28,
-        icon: Icon(icon, color: Colors.tealAccent),
-        onPressed: onPressed,
+  Widget _buildPauseMenu() {
+    return Container(
+      color: Colors.black54,
+      child: Center(
+        child: GamePanel(
+          theme: _theme,
+          padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'PAUSED',
+                style: TextStyle(
+                  color: _theme.textColor,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                ),
+              ),
+              const SizedBox(height: 32),
+              GameButton(
+                label: 'RESUME',
+                theme: _theme,
+                primary: true,
+                onTap: _resumeGame,
+                icon: Icons.play_arrow,
+              ),
+              const SizedBox(height: 16),
+              GameButton(
+                label: 'QUIT',
+                theme: _theme,
+                onTap: _quitGame,
+                icon: Icons.close,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
+
+  // --- Helpers ---
+
+  void _cycleTheme() {
+    setState(() {
+      if (_themeName == 'Modern Dark') {
+        _themeName = 'Arcade';
+      } else if (_themeName == 'Arcade') {
+        _themeName = 'Classic';
+      } else {
+        _themeName = 'Modern Dark';
+      }
+      _theme = SnakeTheme.getTheme(_themeName);
+    });
+    SharedPreferences.getInstance().then(
+      (p) => p.setString('snake_theme', _themeName),
+    );
+  }
+
+  void _cycleSpeed() {
+    setState(() {
+      _speedLevel = (_speedLevel + 1) % speeds.length;
+    });
+  }
+
+  String _speedLabel() {
+    switch (_speedLevel) {
+      case 0:
+        return 'SLOW';
+      case 1:
+        return 'NORMAL';
+      case 2:
+        return 'FAST';
+      case 3:
+        return 'TURBO';
+      case 4:
+        return 'INSANE';
+      default:
+        return 'NORMAL';
+    }
+  }
 }
 
-class _SnakePainter extends CustomPainter {
+// ============================================================================
+// PAINTER
+// ============================================================================
+
+class BoardPainter extends CustomPainter {
+  BoardPainter({
+    required this.snake,
+    required this.food,
+    required this.cellSize,
+    required this.theme,
+  });
+
   final List<Point<int>> snake;
   final Point<int> food;
-  const _SnakePainter(this.snake, this.food);
+  final double cellSize;
+  final SnakeTheme theme;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final cell = size.width / _SnakeGameState.cols;
+    // Draw Grid (Optional, keep it subtle)
+    final gridPaint =
+        Paint()
+          ..color = theme.gridColor
+          ..strokeWidth = 1.0;
 
-    // Black background
-    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.black);
+    for (double i = 0; i <= size.width; i += cellSize) {
+      canvas.drawLine(Offset(i, 0), Offset(i, size.height), gridPaint);
+    }
+    for (double i = 0; i <= size.height; i += cellSize) {
+      canvas.drawLine(Offset(0, i), Offset(size.width, i), gridPaint);
+    }
 
-    // Food glow + core
-    final fc = Offset((food.x + .5) * cell, (food.y + .5) * cell);
-    final glow = Paint()
-      ..color = Colors.redAccent.withOpacity(0.4)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
-    canvas.drawCircle(fc, cell * .5, glow);
-    canvas.drawCircle(fc, cell * .3, Paint()..color = Colors.redAccent);
+    // Draw Food
+    final foodCenter = Offset(
+      (food.x + 0.5) * cellSize,
+      (food.y + 0.5) * cellSize,
+    );
+    final foodRadius = cellSize * 0.4;
 
-    // Snake gradient
-    final paint = Paint()
-      ..shader = LinearGradient(
-        colors: [Colors.greenAccent, Colors.tealAccent],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-    for (var p in snake) {
-      final r = Rect.fromLTWH(p.x * cell, p.y * cell, cell, cell).deflate(1);
-      canvas.drawRRect(RRect.fromRectAndRadius(r, Radius.circular(cell * .2)), paint);
+    // Food Glow
+    canvas.drawCircle(
+      foodCenter,
+      foodRadius * 1.5,
+      Paint()
+        ..color = theme.foodColor.withOpacity(0.3)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+    );
+
+    // Food Body
+    canvas.drawCircle(foodCenter, foodRadius, Paint()..color = theme.foodColor);
+
+    // Draw Snake
+    if (snake.isEmpty) return;
+
+    final snakePaint = Paint()..color = theme.snakeColor;
+    final headPaint =
+        Paint()..color = Color.lerp(theme.snakeColor, Colors.white, 0.4)!;
+
+    for (int i = 0; i < snake.length; i++) {
+      final p = snake[i];
+      final isHead = i == 0;
+
+      final rect = Rect.fromLTWH(
+        p.x * cellSize + 1,
+        p.y * cellSize + 1,
+        cellSize - 2,
+        cellSize - 2,
+      );
+
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(4)),
+        isHead ? headPaint : snakePaint,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(covariant _SnakePainter old) => true;
+  bool shouldRepaint(covariant BoardPainter oldDelegate) {
+    // Return true to ensure updates when snake moves
+    return true;
+  }
 }

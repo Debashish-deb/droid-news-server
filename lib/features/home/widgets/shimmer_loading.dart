@@ -19,9 +19,11 @@ class ShimmerLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = isDark ? Colors.grey.shade800 : Colors.grey.shade300;
-    final highlightColor = isDark ? Colors.grey.shade700 : Colors.grey.shade100;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color baseColor =
+        isDark ? Colors.grey.shade800 : Colors.grey.shade300;
+    final Color highlightColor =
+        isDark ? Colors.grey.shade700 : Colors.grey.shade100;
 
     return Card(
       elevation: 6,

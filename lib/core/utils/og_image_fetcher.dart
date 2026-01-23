@@ -14,21 +14,30 @@ Future<String?> fetchBestImageFromUrl(String url) async {
       final Document document = html_parser.parse(response.body);
 
       // Try Open Graph image first
-      final Element? ogImageMeta = document.querySelector('meta[property="og:image"]');
+      final Element? ogImageMeta = document.querySelector(
+        'meta[property="og:image"]',
+      );
       if (ogImageMeta != null && ogImageMeta.attributes['content'] != null) {
         return ogImageMeta.attributes['content'];
       }
 
       // Fallback: Try Twitter Card image
-      final Element? twitterImageMeta = document.querySelector('meta[name="twitter:image"]');
-      if (twitterImageMeta != null && twitterImageMeta.attributes['content'] != null) {
+      final Element? twitterImageMeta = document.querySelector(
+        'meta[name="twitter:image"]',
+      );
+      if (twitterImageMeta != null &&
+          twitterImageMeta.attributes['content'] != null) {
         return twitterImageMeta.attributes['content'];
       }
     }
 
     return null; // No image found
   } catch (e, stackTrace) {
-    logger.e('Error fetching image from URL: $url', error: e, stackTrace: stackTrace);
+    logger.e(
+      'Error fetching image from URL: $url',
+      error: e,
+      stackTrace: stackTrace,
+    );
     return null;
   }
 }

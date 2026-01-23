@@ -3,20 +3,21 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme_provider.dart';
 import '../../../features/profile/auth_service.dart';
-import '/l10n/app_localizations.dart';
+import '../../l10n/app_localizations.dart';
+import '../../presentation/providers/theme_providers.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _emailCtl = TextEditingController();
   final TextEditingController _passCtl = TextEditingController();
   String? _error;
@@ -31,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _login() async {
     setState(() => _loading = true);
-    final msg = await AuthService().login(
+    final String? msg = await AuthService().login(
       _emailCtl.text.trim(),
       _passCtl.text.trim(),
     );
@@ -46,11 +47,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loginWithGoogle() async {
     setState(() => _loading = true);
-    final result = await AuthService().signInWithGoogle();
+    final String? result = await AuthService().signInWithGoogle();
     setState(() => _loading = false);
     if (!mounted) return;
     if (result != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result)));
     } else {
       context.go('/home');
     }
@@ -58,16 +61,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context)!;
-    final mode = context.watch<ThemeProvider>().appThemeMode;
-    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white;
+    final AppLocalizations loc = AppLocalizations.of(context)!;
+
+    final AppThemeMode mode = ref.watch(currentThemeModeProvider);
+    final Color textColor =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.transparent,
       body: Stack(
         fit: StackFit.expand,
-        children: [
+        children: <Widget>[
           _buildBackground(mode),
           Container(color: _glassTint(mode)),
           SafeArea(
@@ -82,22 +87,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white30, width: 1),
+                      border: Border.all(color: Colors.white30),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+                      children: <Widget>[
                         Text(
                           loc.login,
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: textColor),
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
                         ),
                         const SizedBox(height: 24),
 
-                        if (_error != null) ...[
+                        if (_error != null) ...<Widget>[
                           Text(
                             _mapError(loc, _error!),
                             style: const TextStyle(color: Colors.redAccent),
@@ -129,20 +135,34 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: _loading
-                              ? const CircularProgressIndicator(color: Colors.white)
-                              : Text(
-                                  loc.login,
-                                  style: TextStyle(
-                                    color: textColor,
-                                    fontWeight: FontWeight.bold,
+                          child:
+                              _loading
+                                  ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                  : Text(
+                                    loc.login,
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
                         ),
                         const SizedBox(height: 12),
 
                         ElevatedButton.icon(
-                          icon: Image.asset('assets/google_logo.png', height: 24),
+                          icon: Image.asset(
+                            'assets/google_logo.png',
+                            height: 24,
+                            errorBuilder: (context, error, stackTrace) {
+                              // Fallback to icon if image fails to load
+                              return const Icon(
+                                Icons.login,
+                                size: 24,
+                                color: Colors.white,
+                              );
+                            },
+                          ),
                           label: Text(
                             loc.continueWithGoogle,
                             style: TextStyle(color: textColor),
@@ -196,7 +216,7 @@ class _LoginScreenState extends State<LoginScreen> {
         return Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF1C1F22), Color(0xFF121417)],
+              colors: <Color>[Color(0xFF1C1F22), Color(0xFF121417)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -206,13 +226,21 @@ class _LoginScreenState extends State<LoginScreen> {
         return Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFFB0B0B0), Color(0xFFD0D0D0)],
+              colors: <Color>[Color(0xFFB0B0B0), Color(0xFFD0D0D0)],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
-            boxShadow: [
-              BoxShadow(color: Colors.white70, offset: Offset(-4, -4), blurRadius: 6),
-              BoxShadow(color: Colors.black26, offset: Offset(4, 4), blurRadius: 6),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: Colors.white70,
+                offset: Offset(-4, -4),
+                blurRadius: 6,
+              ),
+              BoxShadow(
+                color: Colors.black26,
+                offset: Offset(4, 4),
+                blurRadius: 6,
+              ),
             ],
           ),
         );
@@ -221,12 +249,16 @@ class _LoginScreenState extends State<LoginScreen> {
         return Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF8FA49D), Color(0xFF6E7B75)],
+              colors: <Color>[Color(0xFF8FA49D), Color(0xFF6E7B75)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            boxShadow: [
-              BoxShadow(color: Colors.black38, offset: Offset(2, 2), blurRadius: 8),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: Colors.black38,
+                offset: Offset(2, 2),
+                blurRadius: 8,
+              ),
             ],
           ),
         );
@@ -248,8 +280,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _glassField(
     String label, {
     required TextEditingController controller,
-    bool obscure = false,
     required Color textColor,
+    bool obscure = false,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -265,7 +297,10 @@ class _LoginScreenState extends State<LoginScreen> {
           labelText: label,
           labelStyle: TextStyle(color: textColor.withOpacity(0.7)),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
       ),
     );

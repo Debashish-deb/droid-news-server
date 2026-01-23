@@ -1,414 +1,319 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-import 'package:intl/intl.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import '../../core/pinned_http_client.dart';
-import '../../core/theme_provider.dart';
+import '../../core/offline_handler.dart';
 import '../../core/theme.dart';
+import '../../presentation/providers/theme_providers.dart';
+import '../../presentation/providers/news_providers.dart';
+import '../../presentation/providers/subscription_providers.dart';
 import '../../data/models/news_article.dart';
 import '../../data/services/hive_service.dart';
-import '../../data/services/rss_service.dart';
+import '../../data/services/interstitial_ad_service.dart';
+import '../../data/services/rewarded_ad_service.dart';
 import '../../widgets/app_drawer.dart';
-import '../../features/common/appBar.dart';
+import '../../widgets/unlock_article_dialog.dart';
 import '../home/widgets/news_card.dart';
 import '../home/widgets/shimmer_loading.dart';
+import '../home/widgets/professional_header.dart';
+import '../home/widgets/breaking_news_ticker.dart';
 import '/l10n/app_localizations.dart';
+import '../../widgets/animated_theme_container.dart';
+import '../../presentation/providers/tab_providers.dart';
+import '../../presentation/providers/app_settings_providers.dart';
+import '../../presentation/providers/language_providers.dart';
+// BUILD_FIXES: Design tokens and error display
+import '../../core/theme/tokens.dart';
+import '../../core/widgets/error_display.dart';
 
-final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
-
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
-
+class HomeScreen extends ConsumerStatefulWidget {
+  const HomeScreen({super.key});
   @override
-  HomeScreenState createState() => HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, RouteAware {
-  late TabController _tabController;
-  late List<String> _categoryKeys;
-  late Map<String, String> _localizedLabels;
-  final Map<String, List<NewsArticle>> _articles = {};
-  final Map<String, bool> _loadingStatus = {};
-  final Map<String, int> _articleLimit = {};
-  final Map<String, ScrollController> _scrollControllers = {};
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  static const String _latestKey = 'latest';
 
-  Locale? _lastLocale;
-  DateTime? _lastBackPressed;
-  bool _isSlowConnection = false;
+  // Track article clicks for unlock prompts
+  int _articleClickCount = 0;
 
-  bool _weatherLoading = true;
-  String _weatherLocation = '';
-  double? _weatherTemp;
+  bool _isOffline = false;
+
+  // Scroll controller to reset position
+  final ScrollController _scrollController = ScrollController();
+  final bool _firstBuild = true;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
-    _checkNetworkSpeed();
-    _loadWeather();
+    _initConnectivity();
+
+    // Listen to language changes using Riverpod
+    ref.listenManual(currentLocaleProvider, (previous, next) {
+      if (previous != null && previous != next) {
+        debugPrint(
+          '🌐 Language changed from ${previous.languageCode} to ${next.languageCode} - reloading news',
+        );
+        _loadNews(force: true);
+      }
+    });
+
+    // Initial load
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      routeObserver.subscribe(this, ModalRoute.of(context)!);
-    });
-  }
-
-  Future<void> _checkNetworkSpeed() async {
-    final result = await Connectivity().checkConnectivity();
-    setState(() => _isSlowConnection = result != ConnectivityResult.wifi);
-  }
-
-  Future<void> _loadWeather() async {
-    try {
-      LocationPermission perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-        perm = await Geolocator.requestPermission();
-      }
-      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-        throw Exception('Location permission denied');
-      }
-
-      final Position pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low);
-      final apiKey = dotenv.env['WEATHER_API_KEY'] ?? '';
-      if (apiKey.isEmpty) throw StateError('WEATHER_API_KEY not set');
-
-      final uri = Uri.https('api.openweathermap.org', '/data/2.5/weather', {
-        'lat': pos.latitude.toString(),
-        'lon': pos.longitude.toString(),
-        'units': 'metric',
-        'appid': apiKey,
-      });
-
-      final client = await PinnedHttpClient.create('assets/certs/openweathermap.pem');
-      try {
-        final res = await client.get(uri).timeout(const Duration(seconds: 10));
-        final jsonBody = jsonDecode(res.body);
-        final name = jsonBody['name'];
-        final main = jsonBody['main'];
-        final tempRaw = main['temp'];
-        final temp = tempRaw is num ? tempRaw.toDouble() : double.tryParse(tempRaw);
-
-        if (!mounted) return;
-        setState(() {
-          _weatherLocation = name;
-          _weatherTemp = temp;
-          _weatherLoading = false;
+      if (mounted) {
+        HiveService.init(<String>[_latestKey]).then((_) {
+          _loadNews();
+          _setupAutoRefresh();
         });
-      } finally {
-        client.close();
       }
-    } on TimeoutException {
-      _handleWeatherError();
-    } catch (_) {
-      _handleWeatherError();
-    }
-  }
-
-  void _handleWeatherError() {
-    if (!mounted) return;
-    setState(() {
-      _weatherLoading = false;
-      _weatherTemp = null;
-      _weatherLocation = '';
     });
-    Fluttertoast.showToast(msg: 'Unable to load weather');
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final locale = Localizations.localeOf(context);
-    if (_lastLocale == locale && _articles.isNotEmpty) return;
-    _lastLocale = locale;
-
-    final loc = AppLocalizations.of(context)!;
-    _categoryKeys = RssService.categories;
-    _localizedLabels = {
-      'latest': loc.latest,
-      'national': loc.national,
-      'international': loc.international,
-      'lifestyle': loc.lifestyle,
-    };
-    _tabController = TabController(length: _categoryKeys.length, vsync: this)
-      ..addListener(() => setState(() {}));
-
-    for (final cat in _categoryKeys) {
-      _scrollControllers[cat] = ScrollController()
-        ..addListener(() => _onScroll(cat));
-    }
-
-    HiveService.init(_categoryKeys).then((_) => _loadOnlyExpiredFeeds());
-  }
-
-  void _onScroll(String cat) {
-    final ctrl = _scrollControllers[cat]!;
-    if (ctrl.position.pixels > ctrl.position.maxScrollExtent - 300 && !(_loadingStatus[cat] ?? false)) {
-      _loadMore(cat);
+  void _onTabChanged() {
+    if (!mounted) return;
+    final int currentTab = ref.watch(currentTabIndexProvider);
+    // This is tab 0 (Home)
+    if (currentTab == 0 && _scrollController.hasClients) {
+      _scrollController.jumpTo(0);
     }
   }
 
-  /// Updated: Loads feeds using NewsAPI or RSS as smart fallback
-  Future<void> _loadOnlyExpiredFeeds() async {
-    for (final key in _categoryKeys) {
-      final expired = HiveService.isExpired(key);
-      final hasData = HiveService.hasArticles(key);
-      if (!expired && hasData) {
-        _articles[key] = HiveService.getArticles(key);
-        _articleLimit[key] = _isSlowConnection ? 5 : 15;
-        _loadingStatus[key] = false;
-      } else {
-        _loadingStatus[key] = true;
-        await _smartLoadFeedForKey(key);
+  void _initConnectivity() async {
+    _isOffline = await OfflineHandler.isOffline();
+    OfflineHandler().onConnectivityChanged.listen((bool offline) {
+      if (mounted) setState(() => _isOffline = offline);
+      if (!offline) {
+        _loadNews(force: true);
       }
-    }
-    if (mounted) setState(() {});
+    });
   }
 
-  /// Tries NewsAPI (via RssService) unless network is slow, then prefers RSS directly. Always falls back to RSS if NewsAPI fails.
-  Future<void> _smartLoadFeedForKey(String key) async {
-    final locale = Localizations.localeOf(context);
-    List<NewsArticle> news = [];
-    try {
-      if (_isSlowConnection) {
-        news = await RssService.fetchNews(
-          category: key,
-          locale: locale,
-          context: context,
-          preferRss: true,
-        );
-      } else {
-        news = await RssService.fetchNews(
-          category: key,
-          locale: locale,
-          context: context,
-        );
+  Future<void> _loadNews({bool force = false}) async {
+    if (!mounted) return;
+    final Locale locale = ref.read(currentLocaleProvider);
+    debugPrint('📰 Loading news for locale: ${locale.languageCode}');
+    // Use Riverpod news provider
+    await ref
+        .read(newsProvider.notifier)
+        .loadNews(_latestKey, locale, force: force);
+  }
+
+  void _setupAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(minutes: 30), (timer) {
+      if (mounted) {
+        _loadNews();
       }
-    } catch (_) {
-      final rssList = RssService.rssFallbackForCategory(key);
-      news = await RssService.fetchNews(
-        category: key,
-        locale: locale,
-        context: context,
-        preferRss: true,
-      );
-    }
-    await HiveService.saveArticles(key, news);
-    _articles[key] = news;
-    _articleLimit[key] = _isSlowConnection ? 5 : 15;
-    _loadingStatus[key] = false;
-    if (mounted) setState(() {});
-  }
-
-  void _loadMore(String key) {
-    final current = _articleLimit[key] ?? 10;
-    final max = _articles[key]?.length ?? 0;
-    if (current < max) {
-      _articleLimit[key] = (current + 10).clamp(0, max);
-      if (mounted) setState(() {});
-    }
+    });
   }
 
   @override
   void dispose() {
-    routeObserver.unsubscribe(this);
-    _tabController.dispose();
-    for (final ctrl in _scrollControllers.values) {
-      ctrl.dispose();
-    }
+    _refreshTimer?.cancel();
+    // Tab listener managed by Riverpod
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context)!;
-    final prov = context.watch<ThemeProvider>();
-    final colors = AppGradients.getGradientColors(prov.appThemeMode);
-    final start = colors[0], end = colors[1];
-    final key = _categoryKeys[_tabController.index];
-    final isLoading = _loadingStatus[key] ?? true;
-    final visible = _articles[key]?.take(_articleLimit[key] ?? 0).toList() ?? [];
+    final AppLocalizations loc = AppLocalizations.of(context)!;
+    // Use Riverpod theme provider
+    final themeMode = ref.watch(currentThemeModeProvider);
+    // Use Riverpod news provider
+    final newsState = ref.watch(newsProvider);
+    final ThemeData theme = Theme.of(context);
+
+    // Use getBackgroundGradient for correct Dark Mode colors (Black)
+    final List<Color> colors = AppGradients.getBackgroundGradient(themeMode);
+    final Color start = colors[0];
+    final Color end = colors[1];
+
+    final List<NewsArticle> list = newsState.getArticles(_latestKey);
+    final bool isLoading = newsState.isLoading(_latestKey);
+    final String? error = newsState.getError(_latestKey);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.transparent,
       drawer: const AppDrawer(),
+
+      // APP BAR
+      // APP BAR extends behind for translucency, but we use Theme colors
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        elevation: theme.appBarTheme.elevation,
         centerTitle: true,
-        title: AppBarTitle(loc.bdNewsreader),
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [start.withOpacity(0.8), end.withOpacity(0.85)],
-                ),
+        title: Text(loc.bdNewsreader, style: theme.appBarTheme.titleTextStyle),
+        backgroundColor: theme.appBarTheme.backgroundColor,
+        iconTheme: theme.appBarTheme.iconTheme,
+        actionsIconTheme: theme.appBarTheme.actionsIconTheme,
+      ),
+
+      // BODY
+      body: Stack(
+        children: <Widget>[
+          // BACKGROUND
+          AnimatedThemeContainer(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: <Color>[start.withOpacity(0.65), end.withOpacity(0.78)],
               ),
             ),
           ),
-        ),
-      ),
-      body: Stack(children: [
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [start.withOpacity(0.6), end.withOpacity(0.7)],
-            ),
-          ),
-        ),
-        SafeArea(
-          child: Column(children: [
-            const SizedBox(height: 12),
-            _buildDateWeather(prov),
-            const SizedBox(height: 12),
-            _buildChips(prov),
-            const SizedBox(height: 8),
-            Expanded(
-              child: isLoading
-                  ? const ShimmerLoading()
-                  : visible.isEmpty
-                      ? Center(
-                          child: Text(
-                            loc.noArticlesFound,
-                            style: prov.floatingTextStyle(fontSize: 16),
+
+          SafeArea(
+            child: Column(
+              children: <Widget>[
+                // 🚨 BREAKING NEWS TICKER
+                if (list.isNotEmpty)
+                  BreakingNewsTicker(articles: list.take(5).toList()),
+
+                // MAIN CONTENT
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () => _loadNews(force: true),
+                    color: Theme.of(context).colorScheme.primary,
+                    backgroundColor: Theme.of(context).colorScheme.surface,
+                    strokeWidth: 3.0,
+                    // Main scrollable content
+                    child: CustomScrollView(
+                      controller:
+                          _scrollController, // Attach controller for manual reset
+                      key: const PageStorageKey('home_scroll'),
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: <Widget>[
+                        // OFFLINE BANNER
+                        if (_isOffline)
+                          SliverToBoxAdapter(
+                            child: AnimatedThemeContainer(
+                              color: Colors.red,
+                              padding: const EdgeInsets.all(AppSpacing.sm),
+                              child: Text(
+                                loc.offlineShowingCached,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
                           ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: _loadOnlyExpiredFeeds,
-                          color: end.withOpacity(0.8),
-                          child: ListView.builder(
-                            controller: _scrollControllers[key],
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            itemCount: visible.length + 1,
-                            itemBuilder: (_, i) {
-                              if (i >= visible.length) {
-                                return const SizedBox(height: 64);
-                              }
-                              final a = visible[i];
-                              final src = a.source.toLowerCase();
-                              final highlight = !(src.contains('prothom') || src.contains('daily star'));
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                child: NewsCard(
-                                  article: a,
-                                  onTap: () => context.push('/webview', extra: {'url': a.url, 'title': a.title}),
-                                  highlight: highlight,
-                                ),
-                              );
-                            },
+
+                        // ERROR BANNER
+                        if (error != null && !_isOffline)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                              child: ErrorDisplay(
+                                message: error!,
+                                icon: Icons.warning_amber,
+                                iconColor: Colors.orange.shade700,
+                              ),
+                            ),
                           ),
+
+                        const SliverToBoxAdapter(child: SizedBox(height: 10)),
+
+                        // PROFESSIONAL HEADER
+                        SliverToBoxAdapter(
+                          child: ProfessionalHeader(articleCount: list.length),
                         ),
-            ),
-          ]),
-        ),
-      ]),
-    );
-  }
 
-  Widget _buildDateWeather(ThemeProvider prov) {
-    final now = DateTime.now();
-    final time = DateFormat('hh:mm a').format(now);
-    final date = DateFormat('dd.MM.yyyy').format(now);
-    final weather = _weatherLoading
-        ? '...'
-        : (_weatherLocation.isNotEmpty && _weatherTemp != null
-            ? '$_weatherLocation, ${_weatherTemp!.round()}°C'
-            : 'Unknown');
+                        // FEED
+                        isLoading && list.isEmpty
+                            ? const SliverFillRemaining(child: ShimmerLoading())
+                            : list.isEmpty
+                            ? SliverFillRemaining(
+                               child: error != null
+                                  ? ErrorDisplay.loadFailed(
+                                      what: 'articles',
+                                      onRetry: () => _loadNews(force: true),
+                                    )
+                                  : ErrorDisplay.empty(what: 'articles'),
+                            )
+                            : SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (
+                                  BuildContext context,
+                                  int i,
+                                ) => RepaintBoundary(
+                                  child: NewsCard(
+                                    key: ValueKey(list[i].url), // Cache by URL
+                                    article: list[i],
+                                    onTap: () async {
+                                      final NewsArticle article = list[i];
+                                      final GoRouter router = GoRouter.of(
+                                        context,
+                                      );
+                                      // ignore: use_build_context_synchronously
+                                      final bool isPremium = ref.watch(
+                                        isPremiumProvider,
+                                      );
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Container(
-        decoration: prov.glassDecoration(borderRadius: BorderRadius.circular(32)),
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        child: Column(children: [
-          Row(children: [
-            Icon(Icons.battery_full, color: prov.floatingTextStyle().color),
-            const SizedBox(width: 8),
-            Text('75%', style: prov.floatingTextStyle(fontSize: 14)),
-            const Spacer(),
-            Text(time, style: prov.floatingTextStyle(fontSize: 24)),
-          ]),
-          const SizedBox(height: 12),
-          Row(children: [
-            Text(weather, style: prov.floatingTextStyle(fontSize: 18)),
-            const Spacer(),
-            Text(date, style: prov.floatingTextStyle(fontSize: 14)),
-          ]),
-        ]),
-      ),
-    );
-  }
+                                      if (!isPremium) {
+                                        _articleClickCount++;
+                                      }
 
-  Widget _buildChips(ThemeProvider prov) {
-    final isLight = Theme.of(context).brightness == Brightness.light;
+                                      await InterstitialAdService()
+                                          .onArticleViewed();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Container(
-        height: 48,
-        decoration: prov.glassDecoration(borderRadius: BorderRadius.circular(16)),
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          itemCount: _categoryKeys.length,
-          itemBuilder: (_, i) {
-            final label = _localizedLabels[_categoryKeys[i]] ?? _categoryKeys[i];
-            final selected = _tabController.index == i;
+                                      if (!isPremium &&
+                                          _articleClickCount % 2 == 0) {
+                                        if (!RewardedAdService()
+                                            .isArticleUnlocked(article.url)) {
+                                          if (!mounted) {
+                                            return; // ✅ Check before async dialog
+                                          }
+                                          final bool unlocked =
+                                              await showUnlockDialog(
+                                                context,
+                                                article.url,
+                                                article.title,
+                                              );
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: ChoiceChip(
-                label: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
-                    color: isLight ? Colors.black87 : (selected ? Colors.white : Colors.white70),
+                                          if (!mounted) {
+                                            return; // ✅ Check after async dialog
+                                          }
+                                          if (!unlocked) return;
+                                        }
+                                      }
+
+                                      if (!mounted) {
+                                        return; // ✅ Final check before navigation
+                                      }
+                                      router.push(
+                                        '/webview',
+                                        extra: <String, dynamic>{
+                                          'url': article.url,
+                                          'title': article.title,
+                                          'description': article.description,
+                                          'imageUrl': article.imageUrl,
+                                          'source': article.source,
+                                          'publishedAt':
+                                              article.publishedAt
+                                                  .toIso8601String(),
+                                          'dataSaver': ref.read(
+                                            dataSaverProvider,
+                                          ),
+                                        },
+                                      );
+                                    },
+                                  ),
+                                ),
+                                childCount: list.length,
+                              ),
+                            ),
+
+                        const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                      ],
+                    ),
                   ),
                 ),
-                selected: selected,
-                backgroundColor: prov.glassColor,
-                selectedColor: Colors.amber.withOpacity(0.8),
-                elevation: selected ? 4 : 0,
-                onSelected: (_) {
-                  _tabController.animateTo(i);
-                },
-              ),
-            );
-          },
-        ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
-  }
-
-  @override
-  void didPopNext() {
-    _tabController.animateTo(0);
-    _scrollControllers[_categoryKeys[0]]?.jumpTo(0);
-  }
-
-  Future<bool> _onWillPop() async {
-    final now = DateTime.now();
-    if (_lastBackPressed == null || now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
-      _lastBackPressed = now;
-      Fluttertoast.showToast(
-        msg: 'Press back again to exit',
-        toastLength: Toast.LENGTH_SHORT,
-      );
-      return false;
-    }
-    return true;
   }
 }

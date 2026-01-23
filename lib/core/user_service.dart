@@ -8,8 +8,10 @@ class UserService {
     required String name,
     required String avatarUrl,
   }) async {
-    final userDoc = _firestore.collection('users').doc(email);
-    await userDoc.set({
+    final DocumentReference<Map<String, dynamic>> userDoc = _firestore
+        .collection('users')
+        .doc(email);
+    await userDoc.set(<String, dynamic>{
       'name': name,
       'email': email,
       'avatar': avatarUrl,
@@ -18,7 +20,8 @@ class UserService {
   }
 
   Future<Map<String, dynamic>?> getUserProfile(String email) async {
-    final userDoc = await _firestore.collection('users').doc(email).get();
+    final DocumentSnapshot<Map<String, dynamic>> userDoc =
+        await _firestore.collection('users').doc(email).get();
     return userDoc.exists ? userDoc.data() : null;
   }
 }
