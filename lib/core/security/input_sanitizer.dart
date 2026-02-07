@@ -13,14 +13,10 @@ class InputSanitizer {
     if (input.isEmpty) return input;
 
     return input
-        // Remove script tags
         .replaceAll(RegExp(r'<script[^>]*>.*?</script>', caseSensitive: false), '')
-        // Remove onclick and other event handlers
         .replaceAll(RegExp(r'on\w+\s*=\s*"[^"]*"', caseSensitive: false), '')
         .replaceAll(RegExp(r"on\w+\s*=\s*'[^']*'", caseSensitive: false), '')
-        // Remove javascript: URLs
         .replaceAll(RegExp(r'javascript:', caseSensitive: false), '')
-        // Remove data: URLs
         .replaceAll(RegExp(r'data:', caseSensitive: false), '');
   }
 
@@ -43,18 +39,15 @@ class InputSanitizer {
 
     final trimmed = input.trim();
     
-    // Only allow http/https URLs
     if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
       return null;
     }
 
-    // Try parsing to validate
     final uri = Uri.tryParse(trimmed);
     if (uri == null || !uri.hasScheme || !uri.hasAuthority) {
       return null;
     }
 
-    // Block dangerous schemes
     if (uri.scheme == 'javascript' || uri.scheme == 'data') {
       return null;
     }
@@ -67,9 +60,7 @@ class InputSanitizer {
     if (input.isEmpty) return input;
 
     return input
-        // Remove control characters except newlines and tabs
         .replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'), '')
-        // Normalize whitespace
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
   }
@@ -80,7 +71,6 @@ class InputSanitizer {
 
     final trimmed = input.trim().toLowerCase();
     
-    // Basic email validation
     final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
     if (!emailRegex.hasMatch(trimmed)) {
       return null;
@@ -115,7 +105,6 @@ class InputSanitizer {
 
     final uri = Uri.parse(sanitized);
     
-    // Block localhost and internal IPs
     final host = uri.host.toLowerCase();
     if (host == 'localhost' || 
         host == '127.0.0.1' || 

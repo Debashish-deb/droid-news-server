@@ -62,27 +62,27 @@ class NetworkQualityManager {
   /// Get image cache width based on data saver mode
   int getImageCacheWidth({required bool dataSaver}) {
     if (dataSaver) {
-      return 400; // Reduced size for data saver
+      return 400;
     }
 
     switch (_currentQuality) {
       case NetworkQuality.excellent:
-        return 1024; // Reduced from 1200
+        return 1024; 
       case NetworkQuality.good:
-        return 800; // Reduced from 1000
+        return 800; 
       case NetworkQuality.fair:
-        return 600; // Reduced from 800
+        return 600; 
       case NetworkQuality.poor:
-        return 400; // Reduced from 600
+        return 400; 
       case NetworkQuality.offline:
-        return 200; // Reduced from 400
+        return 200;
     }
   }
 
   /// Should load images based on data saver mode
   bool shouldLoadImages({required bool dataSaver}) {
     if (dataSaver) {
-      return false; // Don't load images in data saver mode
+      return false; 
     }
     return _currentQuality != NetworkQuality.offline;
   }

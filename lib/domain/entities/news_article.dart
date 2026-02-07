@@ -1,68 +1,121 @@
 /// Domain entity representing a news article.
-///
-/// This is a pure business object with no dependencies on data sources,
-/// JSON serialization, or any infrastructure concerns.
 class NewsArticle {
-  const NewsArticle({
-    required this.id,
-    required this.title,
-    required this.content,
-    required this.publishedAt,
-    required this.source,
-    this.imageUrl,
-    this.category,
-    this.isBookmarked = false,
-    this.isRead = false,
-    this.tags = const [],
-  });
-  final String id;
-  final String title;
-  final String content;
-  final String? imageUrl;
-  final DateTime publishedAt;
-  final String source;
-  final String? category;
-  final bool isBookmarked;
-  final bool isRead;
-  final List<String> tags;
 
-  /// Creates a copy of this article with the given fields replaced.
+  const NewsArticle({
+    required this.title,
+    required this.url, required this.source, required this.publishedAt, this.description = '',
+    this.imageUrl,
+    this.language = 'en',
+    this.snippet = '',
+    this.fullContent = '',
+    this.author = '',
+    this.isLive = false,
+    this.sourceOverride,
+    this.sourceLogo,
+    this.fromCache = false,
+    this.category = 'general',
+    this.tags,
+  });
+
+  factory NewsArticle.fromMap(Map<String, dynamic> map) => NewsArticle(
+        title: map['title'] ?? '',
+        description: map['description'] ?? '',
+        url: map['url'] ?? '',
+        source: map['source'] ?? '',
+        imageUrl: map['imageUrl'],
+        language: map['language'] ?? 'en',
+        snippet: map['snippet'] ?? '',
+        fullContent: map['fullContent'] ?? '',
+        publishedAt: DateTime.tryParse(map['publishedAt'] ?? '') ?? DateTime.now(),
+        isLive: map['isLive'] ?? false,
+        sourceOverride: map['sourceOverride'],
+        sourceLogo: map['sourceLogo'],
+        fromCache: map['fromCache'] ?? false,
+        category: map['category'] ?? 'general',
+        tags: map['tags'] != null ? List<String>.from(map['tags']) : null,
+        author: map['author'] ?? '',
+      );
+  final String title;
+  final String description;
+  final String url;
+  final String source;
+  final String? imageUrl;
+  final String language;
+  final String snippet;
+  final String fullContent;
+  final DateTime publishedAt;
+  final String author;
+  final bool isLive;
+  final String? sourceOverride;
+  final String? sourceLogo;
+  final bool fromCache;
+  final String category;
+  final List<String>? tags;
+
   NewsArticle copyWith({
-    String? id,
     String? title,
-    String? content,
-    String? imageUrl,
-    DateTime? publishedAt,
+    String? description,
+    String? url,
     String? source,
+    String? imageUrl,
+    String? language,
+    String? snippet,
+    String? fullContent,
+    DateTime? publishedAt,
+    bool? isLive,
+    String? sourceOverride,
+    String? sourceLogo,
+    bool? fromCache,
     String? category,
-    bool? isBookmarked,
-    bool? isRead,
     List<String>? tags,
+    String? author,
   }) {
     return NewsArticle(
-      id: id ?? this.id,
       title: title ?? this.title,
-      content: content ?? this.content,
-      imageUrl: imageUrl ?? this.imageUrl,
-      publishedAt: publishedAt ?? this.publishedAt,
+      description: description ?? this.description,
+      url: url ?? this.url,
       source: source ?? this.source,
+      imageUrl: imageUrl ?? this.imageUrl,
+      language: language ?? this.language,
+      snippet: snippet ?? this.snippet,
+      fullContent: fullContent ?? this.fullContent,
+      publishedAt: publishedAt ?? this.publishedAt,
+      isLive: isLive ?? this.isLive,
+      sourceOverride: sourceOverride ?? this.sourceOverride,
+      sourceLogo: sourceLogo ?? this.sourceLogo,
+      fromCache: fromCache ?? this.fromCache,
       category: category ?? this.category,
-      isBookmarked: isBookmarked ?? this.isBookmarked,
-      isRead: isRead ?? this.isRead,
       tags: tags ?? this.tags,
+      author: author ?? this.author,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+        'title': title,
+        'description': description,
+        'url': url,
+        'source': source,
+        'imageUrl': imageUrl,
+        'language': language,
+        'snippet': snippet,
+        'fullContent': fullContent,
+        'publishedAt': publishedAt.toIso8601String(),
+        'isLive': isLive,
+        'sourceOverride': sourceOverride,
+        'sourceLogo': sourceLogo,
+        'fromCache': fromCache,
+        'category': category,
+        'tags': tags,
+        'author': author,
+      };
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is NewsArticle &&
           runtimeType == other.runtimeType &&
-          id == other.id;
+          url == other.url;
 
   @override
-  int get hashCode => id.hashCode;
-
-  @override
-  String toString() => 'NewsArticle(id: $id, title: $title)';
+  int get hashCode => url.hashCode;
 }

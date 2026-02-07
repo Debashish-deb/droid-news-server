@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../architecture/failure.dart';
-import '../analytics_service.dart';
+import '../../infrastructure/observability/analytics_service.dart';
 
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
@@ -12,14 +12,12 @@ class ErrorHandler {
 
   /// Convert exception to AppFailure
   static AppFailure handleException(dynamic error, [StackTrace? stackTrace]) {
-    // Log to analytics
     final String errorMessage = error.toString();
     AnalyticsService.logError(
       error: errorMessage,
       location: stackTrace?.toString().split('\n').first ?? 'unknown',
     );
 
-    // Report to Crashlytics
     if (!kDebugMode) {
       try {
         FirebaseCrashlytics.instance.recordError(error, stackTrace);
@@ -28,13 +26,11 @@ class ErrorHandler {
       }
     }
 
-    // Log to console in debug mode
     if (kDebugMode) {
       debugPrint('❌ Error: $error');
       if (stackTrace != null) debugPrint('Stack: $stackTrace');
     }
 
-    // Convert to AppFailure
     if (error is AppFailure) {
       return error;
     }

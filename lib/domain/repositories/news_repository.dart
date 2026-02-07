@@ -1,3 +1,4 @@
+import 'dart:ui';
 import '../../core/architecture/either.dart';
 import '../../core/architecture/failure.dart';
 import '../entities/news_article.dart';
@@ -21,6 +22,7 @@ abstract class NewsRepository {
     required int page,
     required int limit,
     String? category,
+    String? language,
   });
 
   /// Fetches a single article by ID.
@@ -74,6 +76,7 @@ abstract class NewsRepository {
     String category, {
     int page = 1,
     int limit = 20,
+    String? language,
   });
 
   /// Shares an article and tracks the share event.
@@ -81,4 +84,12 @@ abstract class NewsRepository {
   /// Returns [Right] with void on success,
   /// or [Left] with [AppFailure] on error.
   Future<Either<AppFailure, void>> shareArticle(String articleId);
+
+  /// Synchronizes news from external sources (RSS/Backend).
+  /// 
+  /// Parameters:
+  /// - [locale]: Locale to fetch news for
+  /// 
+  /// Returns [Right] with void on success, or [Left] on failure.
+  Future<Either<AppFailure, void>> syncNews({required Locale locale});
 }

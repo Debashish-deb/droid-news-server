@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 /// =============================================================
 
 class AppSurfaces {
-  AppSurfaces._(); // Private constructor
+  AppSurfaces._(); 
 
   static bool _isDark(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark;
@@ -17,7 +17,7 @@ class AppSurfaces {
   /// Base surface (cards, sheets)
   static Color surface(BuildContext context) {
     return _isDark(context)
-        ? const Color(0xFF1C1C1E) // iOS secondary system background
+        ? const Color(0xFF1C1C1E) 
         : const Color(0xFFFFFFFF);
   }
 
@@ -25,7 +25,6 @@ class AppSurfaces {
   static Color elevated(BuildContext context, {int level = 1}) {
     if (!_isDark(context)) return surface(context);
 
-    // iOS dark-mode elevation ladder
     switch (level) {
       case 2:
         return const Color(0xFF2C2C2E);
@@ -49,7 +48,7 @@ class AppSurfaces {
 /// =============================================================
 
 class AppGlass {
-  AppGlass._(); // Private constructor
+  AppGlass._(); 
 
   /// Default iOS blur strength
   static const double blurSigma = 20.0;
@@ -87,7 +86,7 @@ class AppGlass {
 /// =============================================================
 
 class AppMotion {
-  AppMotion._(); // Private constructor
+  AppMotion._(); 
 
   /// Standard iOS easing
   static const Curve standard = Curves.easeOutCubic;
@@ -103,11 +102,28 @@ class AppMotion {
 }
 
 /// =============================================================
+/// PERFORMANCE TUNING (BATTERY & LOW-END DEVICES)
+/// =============================================================
+class AppPerformance {
+  AppPerformance._();
+
+  /// Reduce animations and expensive visual effects by default.
+  static const bool reduceMotion = true;
+  static const bool reduceEffects = true;
+
+  /// Shorter animations to reduce jank and battery usage.
+  static const Duration animationDuration = Duration(milliseconds: 180);
+
+  /// Lower blur radius for glass effects when enabled.
+  static const double glassBlurSigma = 4.0;
+}
+
+/// =============================================================
 /// PLATFORM-ADAPTIVE ICONS
 /// =============================================================
 
 class AdaptiveIcons {
-  AdaptiveIcons._(); // Private constructor
+  AdaptiveIcons._(); 
 
   static IconData settings() =>
       Platform.isIOS ? CupertinoIcons.settings : Icons.settings_outlined;
@@ -131,7 +147,7 @@ class AdaptiveIcons {
 /// =============================================================
 
 class AppThemeBridge {
-  AppThemeBridge._(); // Private constructor
+  AppThemeBridge._(); 
 
   /// Material Theme (used by Scaffold, lists, etc.)
   static ThemeData materialTheme({

@@ -13,7 +13,6 @@ Future<String?> fetchBestImageFromUrl(String url) async {
     if (response.statusCode == 200) {
       final Document document = html_parser.parse(response.body);
 
-      // Try Open Graph image first
       final Element? ogImageMeta = document.querySelector(
         'meta[property="og:image"]',
       );
@@ -21,7 +20,6 @@ Future<String?> fetchBestImageFromUrl(String url) async {
         return ogImageMeta.attributes['content'];
       }
 
-      // Fallback: Try Twitter Card image
       final Element? twitterImageMeta = document.querySelector(
         'meta[name="twitter:image"]',
       );
@@ -31,7 +29,7 @@ Future<String?> fetchBestImageFromUrl(String url) async {
       }
     }
 
-    return null; // No image found
+    return null; 
   } catch (e, stackTrace) {
     logger.e(
       'Error fetching image from URL: $url',

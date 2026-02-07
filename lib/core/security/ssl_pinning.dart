@@ -21,11 +21,9 @@ class SSLPinning {
     try {
       _securityContext = SecurityContext.defaultContext;
 
-      // Load pinned certificates from assets
       final List<String> certPaths = <String>[
         'assets/certs/newsapi.pem',
         'assets/certs/openweathermap.pem',
-        // Add more trusted certificates here
       ];
 
       for (final String path in certPaths) {
@@ -50,13 +48,11 @@ class SSLPinning {
   static HttpClient getSecureHttpClient() {
     final HttpClient client = HttpClient(context: _securityContext);
 
-    // ✅ FIXED: Use proper CertificatePinner instead of kDebugMode
     client.badCertificateCallback = (
       X509Certificate cert,
       String host,
       int port,
     ) {
-      // Use production-grade certificate fingerprint verification
       return CertificatePinner.verifyFingerprint(cert);
     };
 

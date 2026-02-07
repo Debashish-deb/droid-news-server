@@ -14,7 +14,6 @@ class NetworkStatus {
         return false;
       }
 
-      // Double-check by trying to lookup a reliable host
       try {
         final result = await InternetAddress.lookup(
           'google.com',

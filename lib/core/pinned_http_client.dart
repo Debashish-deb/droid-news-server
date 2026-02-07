@@ -18,15 +18,12 @@ class PinnedHttpClient {
   ///
   /// [assetPath] is the path to a PEM file in your assets, e.g. 'assets/certs/newsapi.pem'.
   static Future<IOClient> create(String assetPath) async {
-    // Load the certificate bytes from assets
     final ByteData certData = await rootBundle.load(assetPath);
 
-    // Create a new SecurityContext that does NOT include the platform's default CAs
     final SecurityContext context =
         SecurityContext()
           ..setTrustedCertificatesBytes(certData.buffer.asUint8List());
 
-    // ✅ FIXED: Use CertificatePinner for fingerprint verification
     final HttpClient httpClient = HttpClient(context: context)
       ..badCertificateCallback = (X509Certificate cert, String host, int port) =>
           CertificatePinner.verifyFingerprint(cert);
@@ -42,8 +39,8 @@ class PinnedHttpClient {
 }
 
 class _HeaderHttpClient extends http.BaseClient {
-  final http.Client _inner;
   _HeaderHttpClient(this._inner);
+  final http.Client _inner;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) {

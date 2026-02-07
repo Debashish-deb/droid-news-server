@@ -8,35 +8,43 @@
 
 import 'package:flutter/material.dart';
 
-/// App-wide spacing scale
+// App-wide colors (Unified Design System)
+class AppColors {
+  AppColors._();
+
+  // Dark Theme Tokens (Deep Mocha)
+  static const Color darkBackground = Color(0xFF3B3636);
+  static const Color darkSurface = Color(0xFF454040);
+  static const Color darkSecondary = Color(0xFF555050);
+  static const Color darkTertiary = Color(0xFF6B6666);
+  
+  // Brand / Common Colors
+  static const Color gold = Color(0xFFFFD700);
+  static const Color iOSBlue = Color(0xFF007AFF);
+  static const Color iOSDarkBlue = Color(0xFF0A84FF);
+}
+
+// App-wide spacing scale
 ///
-/// Use these instead of hardcoded values for consistent spacing.
-/// Based on 4px grid system (mobile-optimized)
+// Use these instead of hardcoded values for consistent spacing.
+// Based on 4px grid system (mobile-optimized)
 class AppSpacing {
   AppSpacing._();
 
-  /// 4px - Minimal spacing (icon padding, tight gaps)
   static const double xs = 4.0;
 
-  /// 8px - Small spacing (button padding, list item gaps)
   static const double sm = 8.0;
 
-  /// 12px - Medium-small spacing (card internal padding)
   static const double md = 12.0;
 
-  /// 16px - Medium spacing (default padding, section gaps)
   static const double lg = 16.0;
 
-  /// 20px - Medium-large spacing (card padding, header spacing)
   static const double xl = 20.0;
 
-  /// 24px - Large spacing (screen padding, major sections)
   static const double xxl = 24.0;
 
-  /// 32px - Extra large spacing (hero sections, major dividers)
   static const double xxxl = 32.0;
 
-  /// Edge insets shortcuts for common patterns
   static const EdgeInsets allXs = EdgeInsets.all(xs);
   static const EdgeInsets allSm = EdgeInsets.all(sm);
   static const EdgeInsets allMd = EdgeInsets.all(md);
@@ -44,44 +52,35 @@ class AppSpacing {
   static const EdgeInsets allXl = EdgeInsets.all(xl);
   static const EdgeInsets allXxl = EdgeInsets.all(xxl);
 
-  /// Horizontal padding presets
   static const EdgeInsets horizontalSm = EdgeInsets.symmetric(horizontal: sm);
   static const EdgeInsets horizontalMd = EdgeInsets.symmetric(horizontal: md);
   static const EdgeInsets horizontalLg = EdgeInsets.symmetric(horizontal: lg);
   static const EdgeInsets horizontalXl = EdgeInsets.symmetric(horizontal: xl);
 
-  /// Vertical padding presets
   static const EdgeInsets verticalSm = EdgeInsets.symmetric(vertical: sm);
   static const EdgeInsets verticalMd = EdgeInsets.symmetric(vertical: md);
   static const EdgeInsets verticalLg = EdgeInsets.symmetric(vertical: lg);
   static const EdgeInsets verticalXl = EdgeInsets.symmetric(vertical: xl);
 }
 
-/// Border radius scale
+// Border radius scale
 ///
-/// Standardized radius values for cards, buttons, and containers.
+// Standardized radius values for cards, buttons, and containers.
 class AppRadius {
   AppRadius._();
 
-  /// 8px - Small radius (buttons, chips, small cards)
   static const double sm = 8.0;
 
-  /// 12px - Medium radius (standard cards, inputs)
   static const double md = 12.0;
 
-  /// 16px - Large radius (feature cards, dialogs)
   static const double lg = 16.0;
 
-  /// 20px - Extra large radius (hero cards, premium features)
   static const double xl = 20.0;
 
-  /// 24px - Maximum radius (special highlights)
   static const double xxl = 24.0;
 
-  /// Circular radius (for avatars, icon containers)
   static const double circular = 999.0;
 
-  /// BorderRadius shortcuts
   static BorderRadius get circularBorder => BorderRadius.circular(circular);
   static BorderRadius get smBorder => BorderRadius.circular(sm);
   static BorderRadius get mdBorder => BorderRadius.circular(md);
@@ -90,31 +89,26 @@ class AppRadius {
   static BorderRadius get xxlBorder => BorderRadius.circular(xxl);
 }
 
-/// Border width scale
+// Border width scale
 ///
-/// Standardized border thicknesses for consistency.
+// Standardized border thicknesses for consistency.
 class AppBorders {
   AppBorders._();
 
-  /// 0.5px - Hairline border (subtle dividers)
   static const double hairline = 0.5;
 
-  /// 1.0px - Thin border (default cards, inputs)
   static const double thin = 1.0;
 
-  /// 1.5px - Regular border (emphasized cards)
   static const double regular = 1.5;
 
-  /// 2.0px - Thick border (focus states, important elements)
   static const double thick = 2.0;
 
-  /// 3.0px - Extra thick (premium features, special highlights)
   static const double extraThick = 3.0;
 }
 
-/// Elevation scale for shadows
+// Elevation scale for shadows
 ///
-/// Standardized shadow depths for layering.
+// Standardized shadow depths for layering.
 class AppElevation {
   AppElevation._();
 
@@ -126,9 +120,9 @@ class AppElevation {
   static const double xxl = 16.0;
 }
 
-/// Icon sizes
+// Icon sizes
 ///
-/// Standardized icon dimensions.
+// Standardized icon dimensions.
 class AppIconSize {
   AppIconSize._();
 
@@ -140,9 +134,9 @@ class AppIconSize {
   static const double xxl = 48.0;
 }
 
-/// Common durations for animations
+// Common durations for animations
 ///
-/// Standardized animation timings.
+// Standardized animation timings.
 class AppDuration {
   AppDuration._();
 
@@ -153,9 +147,9 @@ class AppDuration {
   static const Duration verySlow = Duration(milliseconds: 500);
 }
 
-/// Typography scale (if needed beyond theme)
+// Typography scale (if needed beyond theme)
 ///
-/// Additional text size presets.
+// Additional text size presets.
 class AppTextSize {
   AppTextSize._();
 
@@ -169,9 +163,9 @@ class AppTextSize {
   static const double huge = 32.0;
 }
 
-/// Opacity values
+// Opacity values
 ///
-/// Standardized transparency levels.
+// Standardized transparency levels.
 class AppOpacity {
   AppOpacity._();
 
@@ -182,4 +176,35 @@ class AppOpacity {
   static const double medium = 0.3;
   static const double strong = 0.6;
   static const double opaque = 1.0;
+}
+
+// App-wide typography styles
+class AppTypography {
+  AppTypography._();
+
+  static const String fontFamily = 'Inter'; // Premium Android standard
+
+  static const TextStyle headline1 = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 24,
+    fontWeight: FontWeight.bold,
+  );
+
+  static const TextStyle headline2 = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 20,
+    fontWeight: FontWeight.bold,
+  );
+
+  static const TextStyle body1 = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 16,
+    fontWeight: FontWeight.normal,
+  );
+
+  static const TextStyle body2 = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 14,
+    fontWeight: FontWeight.normal,
+  );
 }

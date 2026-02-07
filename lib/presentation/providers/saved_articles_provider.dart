@@ -1,11 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/models/news_article.dart';
-import '../../core/services/saved_articles_service.dart';
+import "../../domain/entities/news_article.dart";
+import '../../infrastructure/persistence/saved_articles_service.dart';
+import '../../domain/entities/news_article.dart' show NewsArticle;
+
+import 'feature_providers.dart';
+
+import '../../bootstrap/di/injection_container.dart' as di show sl;
 
 /// Provider for saved articles state
 final savedArticlesProvider =
     StateNotifierProvider<SavedArticlesNotifier, SavedArticlesState>((ref) {
-      return SavedArticlesNotifier();
+      final service = ref.watch(savedArticlesServiceProvider);
+      return SavedArticlesNotifier(service: service);
     });
 
 /// State for saved articles
@@ -35,7 +41,7 @@ class SavedArticlesState {
 /// Notifier for saved articles
 class SavedArticlesNotifier extends StateNotifier<SavedArticlesState> {
   SavedArticlesNotifier({SavedArticlesService? service})
-    : _service = service ?? SavedArticlesService.instance,
+    : _service = service ?? di.sl<SavedArticlesService>(),
       super(SavedArticlesState()) {
     _init();
   }

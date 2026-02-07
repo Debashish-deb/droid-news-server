@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/premium_service.dart';
-import 'shared_providers.dart';
-import '../../domain/repositories/subscription_repository.dart';
-import '../../data/repositories/subscription_repository_impl.dart';
+import '../../core/premium_service.dart' as legacy_premium;
+import '../../domain/interfaces/subscription_repository.dart' show SubscriptionRepository;
+import '../../bootstrap/di/injection_container.dart' as di;
+import '../../core/providers.dart';
+import '../../domain/interfaces/subscription_repository.dart';
 
 // ============================================================================
 // Premium/Subscription State Management
@@ -43,10 +44,9 @@ class PremiumState {
 class PremiumNotifier extends StateNotifier<PremiumState> {
   PremiumNotifier(this._service) : super(const PremiumState()) {
     _loadStatus();
-    // Listen to changes in the underlying service
     _service.addListener(_onServiceChanged);
   }
-  final PremiumService _service;
+  final legacy_premium.PremiumService _service;
 
   void _loadStatus() {
     state = PremiumState(
@@ -78,15 +78,8 @@ class PremiumNotifier extends StateNotifier<PremiumState> {
 
 /// Global premium service instance (from main.dart)
 /// This is a temporary provider until we fully migrate PremiumService
-final legacyPremiumServiceProvider = Provider<PremiumService>((ref) {
-  // Access the global instance from main.dart
-  final prefs = ref.watch(sharedPreferencesProvider);
-
-  // Note: In a real migration, we'd refactor PremiumService entirely
-  // For now, we'll use the global instance from main.dart
-  throw UnimplementedError(
-    'Use the global premiumService from main.dart until full migration',
-  );
+final legacyPremiumServiceProvider = Provider.autoDispose<legacy_premium.PremiumService>((ref) {
+  return di.sl<legacy_premium.PremiumService>();
 });
 
 // ============================================================================
@@ -96,9 +89,7 @@ final legacyPremiumServiceProvider = Provider<PremiumService>((ref) {
 /// Premium state provider - bridges to legacy PremiumService until full migration
 /// This is a workaround: we watch SharedPreferences and rebuild when it changes
 final premiumStatusProvider = Provider<bool>((ref) {
-  // Force rebuild when preferences change
   final prefs = ref.watch(sharedPreferencesProvider);
-  // Read the local premium status from prefs
   return prefs.getBool('is_premium') ?? false;
 });
 
@@ -115,7 +106,6 @@ final tierNameProvider = Provider<String>((ref) {
 
 /// Provider family to check if a specific feature is available
 final hasFeatureProvider = Provider.family<bool, String>((ref, featureId) {
-  // All features available if premium
   final isPremium = ref.watch(isPremiumProvider);
   return isPremium;
 });
@@ -135,6 +125,5 @@ final hasFeatureProvider = Provider.family<bool, String>((ref, featureId) {
 
 /// Provider for SubscriptionRepository
 final subscriptionRepositoryProvider = Provider<SubscriptionRepository>((ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return SubscriptionRepositoryImpl(prefs: prefs);
+  return di.sl<SubscriptionRepository>();
 });

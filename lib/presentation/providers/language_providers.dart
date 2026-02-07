@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../core/unified_sync_manager.dart';
-import 'shared_providers.dart';
+import "../../application/sync/sync_orchestrator.dart";
+
+import '../../domain/repositories/settings_repository.dart' show SettingsRepository;
+import 'app_settings_providers.dart' show settingsRepositoryProvider;
 
 // ============================================================================
 // Language State Management
@@ -25,17 +26,19 @@ class LanguageState {
 
 /// Language Notifier - manages language state
 class LanguageNotifier extends StateNotifier<LanguageState> {
-  LanguageNotifier(this._prefs)
+  LanguageNotifier(this._repository)
     : super(const LanguageState(locale: Locale('en'))) {
-    _loadLanguage();
+    SyncOrchestrator().registerLanguageNotifier(this);
   }
-  final SharedPreferences _prefs;
-  static const String _kLanguageKey = 'language_code';
+  final SettingsRepository _repository;
+  
+  /// Public getter to avoid protected 'state' access warnings
+  LanguageState get current => state;
 
-  void _loadLanguage() {
-    final String? stored = _prefs.getString(_kLanguageKey);
-    final locale = stored != null ? Locale(stored) : const Locale('en');
-    state = LanguageState(locale: locale);
+  Future<void> initialize() async {
+    final result = await _repository.getLanguageCode();
+    final code = result.getOrElse('en');
+    state = LanguageState(locale: Locale(code));
   }
 
   Future<void> setLanguage(String languageCode) async {
@@ -43,10 +46,9 @@ class LanguageNotifier extends StateNotifier<LanguageState> {
 
     final newLocale = Locale(languageCode);
     state = LanguageState(locale: newLocale);
-    await _prefs.setString(_kLanguageKey, languageCode);
+    await _repository.setLanguageCode(languageCode);
 
-    // Sync to cloud
-    UnifiedSyncManager().pushSettings();
+    SyncOrchestrator().pushSettings();
   }
 
   Future<void> toggleLanguage() async {
@@ -55,15 +57,15 @@ class LanguageNotifier extends StateNotifier<LanguageState> {
   }
 
   Future<void> reload() async {
-    _loadLanguage();
+    await initialize();
   }
 }
 
 /// Provider for language state
 final languageProvider = StateNotifierProvider<LanguageNotifier, LanguageState>(
   (ref) {
-    final SharedPreferences prefs = ref.watch(sharedPreferencesProvider);
-    return LanguageNotifier(prefs);
+    final repo = ref.watch(settingsRepositoryProvider);
+    return LanguageNotifier(repo);
   },
 );
 

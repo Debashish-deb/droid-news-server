@@ -39,11 +39,11 @@ abstract class UseCase<Type, Params> {
 /// class GetCurrentUserUseCase implements UseCase<User, NoParams> {
 ///   @override
 ///   Future<Either<AppFailure, User>> execute(NoParams params) async {
-///     // Implementation
+///
 ///   }
 /// }
 ///
-/// // Usage:
+///
 /// final result = await getCurrentUserUseCase.execute(NoParams());
 /// ```
 class NoParams {

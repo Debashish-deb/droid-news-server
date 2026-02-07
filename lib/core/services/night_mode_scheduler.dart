@@ -79,10 +79,8 @@ class NightModeScheduler {
     final endMinutes = end.hour * 60 + end.minute;
 
     if (startMinutes <= endMinutes) {
-      // Normal range (e.g., 8 AM to 6 PM)
       return currentMinutes >= startMinutes && currentMinutes < endMinutes;
     } else {
-      // Overnight range (e.g., 8 PM to 6 AM)
       return currentMinutes >= startMinutes || currentMinutes < endMinutes;
     }
   }
@@ -110,7 +108,6 @@ class NightModeScheduler {
       targetTime.minute,
     );
 
-    // If target time has passed today, schedule for tomorrow
     if (next.isBefore(now)) {
       next = next.add(const Duration(days: 1));
     }
@@ -144,11 +141,11 @@ class NightModeSchedulerNotifier extends ChangeNotifier {
 
   /// Start periodic check for theme changes
   void _startPeriodicCheck() {
-    // Check every minute
-    _checkTimer = Timer.periodic(const Duration(minutes: 1), (_) async {
+    // Optimized from 1 minute to 5 minutes to reduce battery drain
+    // Night mode transitions are not time-critical enough to warrant frequent checks
+    _checkTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
       if (_isEnabled) {
         final shouldBeDark = await NightModeScheduler.shouldBeNightMode();
-        // Notify listeners to trigger theme change if needed
         notifyListeners();
       }
     });

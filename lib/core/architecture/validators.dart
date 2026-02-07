@@ -6,11 +6,8 @@ import 'failure.dart';
 /// All validators return [Either<ValidationFailure, T>] for consistent
 /// error handling.
 class Validators {
-  Validators._(); // Prevent instantiation
+  Validators._(); 
 
-  // =========================================================================
-  // String Validators
-  // =========================================================================
 
   /// Validates that a string is not empty.
   static Either<ValidationFailure, String> notEmpty(
@@ -127,9 +124,6 @@ class Validators {
     return Right(value);
   }
 
-  // =========================================================================
-  // Number Validators
-  // =========================================================================
 
   /// Validates that a number is positive.
   static Either<ValidationFailure, num> positive(
@@ -163,9 +157,6 @@ class Validators {
     return Right(value);
   }
 
-  // =========================================================================
-  // List Validators
-  // =========================================================================
 
   /// Validates that a list is not empty.
   static Either<ValidationFailure, List<T>> notEmptyList<T>(
@@ -208,9 +199,6 @@ class Validators {
     return Right(value);
   }
 
-  // =========================================================================
-  // Composite Validators
-  // =========================================================================
 
   /// Combines multiple validators and returns the first failure or success.
   ///
@@ -231,7 +219,6 @@ class Validators {
       }
     }
 
-    // If all validators pass, return the last result
     return validators.last();
   }
 
@@ -249,7 +236,7 @@ class Validators {
   /// });
   ///
   /// if (errors.isNotEmpty) {
-  ///   // Show all errors
+  ///
   /// }
   /// ```
   static Map<String, String> validateAll(
@@ -272,9 +259,6 @@ class Validators {
     return errors;
   }
 
-  // =========================================================================
-  // Custom Validators
-  // =========================================================================
 
   /// Creates a custom validator from a predicate function.
   ///

@@ -3,10 +3,6 @@ import 'package:flutter/foundation.dart';
 
 /// Result of root/jailbreak detection
 class RootStatus {
-  final bool isRooted;
-  final double confidence;
-  final int indicators;
-  final List<String> detectedIndicators;
   
   const RootStatus({
     required this.isRooted,
@@ -14,6 +10,10 @@ class RootStatus {
     required this.indicators,
     required this.detectedIndicators,
   });
+  final bool isRooted;
+  final double confidence;
+  final int indicators;
+  final List<String> detectedIndicators;
   
   @override
   String toString() => 'RootStatus(rooted: $isRooted, confidence: ${(confidence * 100).toStringAsFixed(1)}%, indicators: $indicators)';
@@ -28,7 +28,6 @@ class RootStatus {
 /// - Test key detection
 /// - Debuggable property checking
 class RootDetector {
-  // Known SU binary locations
   static const List<String> _suspiciousPaths = [
     '/system/bin/su',
     '/system/xbin/su',
@@ -44,7 +43,6 @@ class RootDetector {
     '/data/local/su',
   ];
   
-  // Known rooting apps
   static const List<String> _suspiciousPackages = [
     'com.topjohnwu.magisk',
     'com.koushikdutta.superuser',
@@ -91,7 +89,6 @@ class RootDetector {
     final indicators = results.where((check) => check).length;
     final confidence = indicators / results.length;
     
-    // Require 2+ indicators to reduce false positives
     final isRooted = indicators >= 2;
     
     if (isRooted) {
@@ -118,7 +115,6 @@ class RootDetector {
           return true;
         }
       } catch (e) {
-        // Permission denied is expected on non-rooted devices
         continue;
       }
     }

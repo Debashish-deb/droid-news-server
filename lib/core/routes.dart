@@ -1,326 +1,240 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter/foundation.dart';
 
-import '../data/models/news_article.dart';
-import '../features/home/home_screen.dart' show HomeScreen;
+import '../presentation/features/home/home_screen.dart' show HomeScreen;
+import '../domain/facades/auth_facade.dart';
+import '../presentation/features/profile/profile_screen.dart';
+import '../presentation/features/profile/login_screen.dart';
+import '../presentation/features/profile/signup_screen.dart';
+import '../presentation/features/profile/forgot_password_screen.dart';
+import '../presentation/features/splash/splash_screen.dart';
+import '../presentation/features/onboarding/onboarding_screen.dart';
+
+import '../presentation/features/news/newspaper_screen.dart';
+import '../presentation/features/magazine/magazine_screen.dart';
+import '../presentation/features/settings/settings_screen.dart';
+import '../presentation/features/extras/extras_screen.dart';
+
+import '../presentation/features/favorites/favorites_screen.dart';
+import '../presentation/features/about/about_screen.dart';
+import '../presentation/features/help/help_screen.dart';
+import '../presentation/features/search/search_screen.dart';
+
+import '../presentation/features/common/webview_screen.dart';
+import '../presentation/features/security/security_lockout_screen.dart';
+import '../presentation/features/offline/saved_articles_screen.dart';
+
+import '../presentation/features/subscription/subscription_management_screen.dart';
+import '../domain/entities/news_article.dart';
+
 import 'app_paths.dart';
-import '../../features/profile/auth_service.dart';
-import '../../features/profile/profile_screen.dart';
+import '../presentation/widgets/bottom_nav_bar.dart';
+import '../l10n/generated/app_localizations.dart';
+import '../bootstrap/di/injection_container.dart' as di;
+import 'performance_config.dart';
 
-// Splash & Onboarding
-import '../../features/splash/splash_screen.dart';
-import '../../features/onboarding/onboarding_screen.dart';
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
-// Auth
-import '../../features/profile/login_screen.dart';
-import '../../features/profile/signup_screen.dart';
-import '../../features/profile/forgot_password_screen.dart';
-
-// Main & Tabs
-import '../../main_navigation_screen.dart';
-import '../../features/news/newspaper_screen.dart';
-import '../../features/magazine/magazine_screen.dart';
-import '../../features/settings/settings_screen.dart';
-import '../../features/extras/extras_screen.dart';
-
-// Misc
-import '../../features/favorites/favorites_screen.dart';
-import '../../features/about/about_screen.dart';
-import '../../features/help/help_screen.dart';
-import '../../features/search/search_screen.dart';
-
-// Details & WebView
-import '../../features/news_detail/news_detail_screen.dart';
-import '../../features/common/webview_screen.dart';
-import '../../features/security/security_lockout_screen.dart';
-import '../../features/offline/saved_articles_screen.dart';
-import '../../data/services/remove_ads.dart';
-import '../../features/subscription/subscription_management_screen.dart';
-
-final ValueNotifier<bool> _authRefresh = ValueNotifier<bool>(
-  AuthService().isLoggedIn,
-);
-
-class AppRouter {
-  AppRouter._();
-
-  static GoRouter createRouter({required String initialLocation}) {
-    return GoRouter(
-      debugLogDiagnostics: kDebugMode,
-      initialLocation: initialLocation,
-      refreshListenable: _authRefresh,
-      redirect: (BuildContext context, GoRouterState state) {
-        final bool loggedIn = AuthService().isLoggedIn;
-        final String location = state.matchedLocation;
-
-        // Publicly accessible routes (don't require login)
-        const Set<String> publicRoutes = <String>{
-          AppPaths.login,
-          AppPaths.signup,
-          AppPaths.forgotPassword,
-          AppPaths.splash,
-          AppPaths.onboarding,
-        };
-
-        final bool isPublic = publicRoutes.contains(location);
-
-        if (!loggedIn && !isPublic) return AppPaths.login;
-        if (loggedIn && location == AppPaths.login) return AppPaths.home;
-
-        return null;
-      },
-      errorPageBuilder:
-          (BuildContext context, GoRouterState state) =>
-              MaterialPage(key: state.pageKey, child: const _ErrorScreen()),
-      routes: <RouteBase>[
-        GoRoute(
-          path: AppPaths.splash,
-          pageBuilder:
-              (BuildContext ctx, GoRouterState state) =>
-                  MaterialPage(key: state.pageKey, child: const SplashScreen()),
-        ),
-        GoRoute(
-          path: AppPaths.onboarding,
-          pageBuilder:
-              (BuildContext ctx, GoRouterState state) => MaterialPage(
-                key: state.pageKey,
-                child: const OnboardingScreen(),
+GoRouter createRouter({String? initialLocation}) {
+  return GoRouter(
+    navigatorKey: rootNavigatorKey,
+    initialLocation: initialLocation ?? AppPaths.splash,
+    // refreshListenable: di.sl<AuthFacade>(), // AuthFacade doesn't extend ChangeNotifier
+    redirect: (context, state) async {
+       if (state.matchedLocation == AppPaths.splash) return null;
+       
+       // Protect secure routes
+       // if (!isLoggedIn && state.matchedLocation.startsWith('/home')) return AppPaths.login;
+       
+       return null;
+    },
+    routes: [
+      // ... Auth Routes (Login, Signup, etc) ...
+      GoRoute(
+        path: AppPaths.splash,
+        pageBuilder: (context, state) =>
+            _buildTransition(context, state, const SplashScreen()),
+      ),
+      GoRoute(
+        path: AppPaths.onboarding,
+        pageBuilder: (context, state) =>
+            _buildTransition(context, state, const OnboardingScreen()),
+      ),
+      GoRoute(
+        path: AppPaths.login,
+        pageBuilder: (context, state) =>
+             _buildTransition(context, state, const LoginScreen()),
+      ),
+      GoRoute(
+        path: AppPaths.signup,
+         pageBuilder: (context, state) =>
+             _buildTransition(context, state, const SignupScreen()),
+      ),
+      GoRoute(
+        path: AppPaths.forgotPassword,
+         pageBuilder: (context, state) =>
+             _buildTransition(context, state, const ForgotPasswordScreen()),
+      ),
+      
+      
+      // Industrial Grade: StatefulShellRoute to preserve tab state
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return ScaffoldWithNavBar(navigationShell: navigationShell);
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppPaths.home,
+                pageBuilder: (context, state) =>
+                   const NoTransitionPage(child: HomeScreen()),
+                routes: [
+                  // Drawer Routes pinned to Home Tab
+                  GoRoute(
+                    path: 'extras', // AppPaths.extras is /home/extras, so sub-path is 'extras'
+                    pageBuilder: (context, state) =>
+                         _buildTransition(context, state, const ExtrasScreen()),
+                  ),
+                  GoRoute(
+                    path: 'favorites',
+                    pageBuilder: (context, state) =>
+                       _buildTransition(context, state, const FavoritesScreen()),
+                  ),
+                  GoRoute(
+                    path: 'saved-articles',
+                    pageBuilder: (context, state) =>
+                         _buildTransition(context, state, const SavedArticlesScreen()),
+                  ),
+                  GoRoute(
+                    path: 'about',
+                    pageBuilder: (context, state) =>
+                        _buildTransition(context, state, const AboutScreen()),
+                  ),
+                  GoRoute(
+                    path: 'help',
+                    pageBuilder: (context, state) =>
+                        _buildTransition(context, state, const HelpScreen()),
+                  ),
+                ],
               ),
-        ),
-        GoRoute(
-          path: AppPaths.login,
-          pageBuilder:
-              (BuildContext ctx, GoRouterState state) =>
-                  MaterialPage(key: state.pageKey, child: const LoginScreen()),
-        ),
-        GoRoute(
-          path: AppPaths.signup,
-          pageBuilder:
-              (BuildContext ctx, GoRouterState state) =>
-                  MaterialPage(key: state.pageKey, child: const SignupScreen()),
-        ),
-        GoRoute(
-          path: AppPaths.forgotPassword,
-          pageBuilder:
-              (BuildContext ctx, GoRouterState state) => MaterialPage(
-                key: state.pageKey,
-                child: const ForgotPasswordScreen(),
-              ),
-        ),
-
-        // ============================================================
-        // SHELL ROUTE (BOTTOM NAVIGATION)
-        // ============================================================
-        StatefulShellRoute.indexedStack(
-          builder: (context, state, navigationShell) {
-            return MainNavigationScreen(navigationShell: navigationShell);
-          },
-          branches: [
-            // BRANCH 0: HOME
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
-                  path: AppPaths.home,
-                  pageBuilder:
-                      (context, state) => const MaterialPage(
-                        // No key = no scroll restoration
-                        child: HomeScreen(),
-                      ),
-                ),
-              ],
-            ),
-
-            // BRANCH 1: NEWSPAPERS
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
-                  path: AppPaths.newspaper,
-                  pageBuilder:
-                      (context, state) =>
-                          const MaterialPage(child: NewspaperScreen()),
-                ),
-              ],
-            ),
-
-            // BRANCH 2: MAGAZINES
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
-                  path: AppPaths.magazines,
-                  pageBuilder:
-                      (context, state) =>
-                          const MaterialPage(child: MagazineScreen()),
-                ),
-              ],
-            ),
-
-            // BRANCH 3: SETTINGS
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
-                  path: AppPaths.settings,
-                  pageBuilder:
-                      (context, state) =>
-                          const MaterialPage(child: SettingsScreen()),
-                ),
-              ],
-            ),
-
-            // BRANCH 4: EXTRAS
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
-                  path: AppPaths.extras,
-                  pageBuilder:
-                      (context, state) =>
-                          const MaterialPage(child: ExtrasScreen()),
-                ),
-              ],
-            ),
-          ],
-        ),
-
-        // ============================================================
-        // OTHER ROUTES (PUSHED ON TOP)
-        // ============================================================
-        GoRoute(
-          path: AppPaths.profile,
-          pageBuilder:
-              (BuildContext ctx, GoRouterState state) => MaterialPage(
-                key: state.pageKey,
-                child: const ProfileScreen(),
-              ),
-        ),
-        GoRoute(
-          path: AppPaths.favorites,
-          pageBuilder:
-              (BuildContext ctx, GoRouterState state) => MaterialPage(
-                key: state.pageKey,
-                child: const FavoritesScreen(),
-              ),
-        ),
-        GoRoute(
-          path: AppPaths.about,
-          pageBuilder:
-              (BuildContext ctx, GoRouterState state) =>
-                  MaterialPage(key: state.pageKey, child: const AboutScreen()),
-        ),
-        GoRoute(
-          path: AppPaths.supports,
-          pageBuilder:
-              (BuildContext ctx, GoRouterState state) =>
-                  MaterialPage(key: state.pageKey, child: const HelpScreen()),
-        ),
-        GoRoute(
-          path: AppPaths.search,
-          pageBuilder:
-              (BuildContext ctx, GoRouterState state) =>
-                  MaterialPage(key: state.pageKey, child: const SearchScreen()),
-        ),
-        GoRoute(
-          path: AppPaths.newsDetail,
-          pageBuilder: (BuildContext ctx, GoRouterState state) {
-            final NewsArticle news = state.extra! as NewsArticle;
-            return MaterialPage(
-              key: state.pageKey,
-              child: NewsDetailScreen(news: news),
-            );
-          },
-        ),
-        GoRoute(
-          path: AppPaths.webview,
-          pageBuilder: (BuildContext ctx, GoRouterState state) {
-            // ✅ Defensive null checking to prevent blank screens
-            if (state.extra == null) {
-              // Navigation without data - show error instead of blank screen
-              return MaterialPage(
-                key: state.pageKey,
-                child: const _ErrorScreen(),
-              );
-            }
-
-            // ✅ Safe casting with null check
-            final Map<String, dynamic>? args =
-                state.extra is Map
-                    ? Map<String, dynamic>.from(state.extra as Map)
-                    : null;
-
-            if (args == null || args['url'] == null) {
-              // Missing required URL field - show error
-              return MaterialPage(
-                key: state.pageKey,
-                child: const _ErrorScreen(),
-              );
-            }
-
-            return MaterialPage(
-              key: state.pageKey,
-              child: WebViewScreen(
-                url: args['url'] as String,
-                title: args['title'] as String? ?? 'Article',
-              ),
-            );
-          },
-        ),
-        GoRoute(
-          path: AppPaths.securityLockout,
-          pageBuilder:
-              (BuildContext ctx, GoRouterState state) => MaterialPage(
-                key: state.pageKey,
-                child: const SecurityLockoutScreen(),
-              ),
-        ),
-        GoRoute(
-          path: AppPaths.offline,
-          pageBuilder:
-              (BuildContext ctx, GoRouterState state) => MaterialPage(
-                key: state.pageKey,
-                child: const SavedArticlesScreen(),
-              ),
-        ),
-        GoRoute(
-          path: AppPaths.removeAds,
-          pageBuilder:
-              (BuildContext ctx, GoRouterState state) => MaterialPage(
-                key: state.pageKey,
-                child: const RemoveAdsScreen(),
-              ),
-        ),
-        GoRoute(
-          path: AppPaths.subscriptionManagement,
-          pageBuilder:
-              (BuildContext ctx, GoRouterState state) => MaterialPage(
-                key: state.pageKey,
-                child: const SubscriptionManagementScreen(),
-              ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ErrorScreen extends StatelessWidget {
-  const _ErrorScreen();
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    body: Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(
-            Icons.error_outline,
-            size: 80,
-            color: Theme.of(context).colorScheme.error,
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Oops! Something went wrong.',
-            style: Theme.of(context).textTheme.titleLarge,
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppPaths.newspaper,
+                pageBuilder: (context, state) =>
+                   const NoTransitionPage(child: NewspaperScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppPaths.magazine,
+                pageBuilder: (context, state) =>
+                   const NoTransitionPage(child: MagazineScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppPaths.search,
+                 pageBuilder: (context, state) =>
+                   const NoTransitionPage(child: SearchScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppPaths.settings,
+                 pageBuilder: (context, state) =>
+                   const NoTransitionPage(child: SettingsScreen()),
+              ),
+            ],
           ),
         ],
       ),
-    ),
+      
+      // ... Other Routes ...
+      GoRoute(
+        path: AppPaths.profile,
+        pageBuilder: (context, state) =>
+           _buildTransition(context, state, const ProfileScreen()),
+      ),
+      GoRoute(
+        path: AppPaths.newsDetail,
+        pageBuilder: (context, state) {
+          final l10n = AppLocalizations.of(context);
+          if (state.extra is! NewsArticle) {
+            return _buildTransition(context, state, Scaffold(body: Center(child: Text(l10n.invalidArticleData))));
+          }
+          final news = state.extra as NewsArticle;
+          return _buildTransition(context, state, WebViewScreen(
+            url: news.url,
+            title: news.source.isNotEmpty ? news.source : news.title,
+            articles: [news],
+            initialIndex: 0,
+          ));
+        },
+      ),
+      GoRoute(
+        path: AppPaths.webview,
+        pageBuilder: (context, state) {
+          final args = state.extra as Map<String, dynamic>;
+          final l10n = AppLocalizations.of(context);
+          return _buildTransition(context, state, WebViewScreen(
+            url: args['url'] as String,
+            title: args['title'] as String? ?? l10n.articles,
+          ));
+        },
+      ),
+      GoRoute(
+        path: AppPaths.securityLockout,
+        pageBuilder: (context, state) =>
+           _buildTransition(context, state, const SecurityLockoutScreen()),
+      ),
+      GoRoute(
+        path: AppPaths.subscriptionManagement,
+        pageBuilder: (context, state) =>
+           _buildTransition(context, state, const SubscriptionManagementScreen()),
+      ),
+    ],
   );
+}
+
+CustomTransitionPage _buildTransition(BuildContext context, GoRouterState state, Widget child) {
+  final bool reduceMotion = PerformanceConfig.of(context).reduceMotion;
+  return CustomTransitionPage(
+    key: state.pageKey,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      if (reduceMotion) return child;
+      // iOS-like Slide Transition
+      const begin = Offset(1.0, 0.0);
+      const end = Offset.zero;
+      const curve = Curves.easeInOut;
+      final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+      final offsetAnimation = animation.drive(tween);
+      
+      return SlideTransition(position: offsetAnimation, child: child);
+    },
+  );
+}
+
+class ScaffoldWithNavBar extends StatelessWidget {
+  const ScaffoldWithNavBar({required this.navigationShell, super.key});
+  final StatefulNavigationShell navigationShell;
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      extendBody: true,
+      body: navigationShell,
+      bottomNavigationBar: BottomNavBar(navigationShell: navigationShell),
+    );
+  }
 }

@@ -3,6 +3,7 @@
 // COMPREHENSIVE APP SECURITY SERVICE
 // ========================================
 
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -10,14 +11,17 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
+import 'package:encrypt/encrypt.dart' as enc;
+import '../architecture/failure.dart';
+import '../../bootstrap/di/injection_container.dart' show sl;
+import '../telemetry/structured_logger.dart';
 
-/// Centralized security service for the app.
+// Centralized security service for the app.
 class SecurityService {
   factory SecurityService() => _instance;
   SecurityService._internal();
   static final SecurityService _instance = SecurityService._internal();
 
-  // Secure storage instance with extra protection
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
     aOptions: AndroidOptions(
       encryptedSharedPreferences: true,
@@ -34,49 +38,39 @@ class SecurityService {
 
   bool _isSecurityInitialized = false;
   bool _isDeviceSecure = true;
+  bool _isRooted = false;
 
-  // ========================================
-  // INITIALIZATION
-  // ========================================
   Future<void> initialize() async {
     if (_isSecurityInitialized) return;
 
-    // Run security checks
     await _performSecurityChecks();
 
     _isSecurityInitialized = true;
     if (kDebugMode) debugPrint('🔐 Security Service Initialized');
   }
 
-  // ========================================
-  // SECURITY CHECKS
-  // ========================================
   Future<void> _performSecurityChecks() async {
-    // 1. Check for rooted/jailbroken device
-    final bool isRooted = await _checkRootStatus();
-    if (isRooted) {
+    _isRooted = await _checkRootStatus();
+    if (_isRooted) {
       if (kDebugMode) {
         debugPrint('⚠️ WARNING: Device appears to be rooted/jailbroken');
       }
       _isDeviceSecure = false;
     }
 
-    // 2. Check for debugger attached (release mode only)
-    if (!kDebugMode && _isDebuggerAttached()) {
+    if (!kDebugMode && await _isDebuggerAttached()) {
       if (kDebugMode) {
         debugPrint('⚠️ WARNING: Debugger detected in release mode');
       }
       _isDeviceSecure = false;
     }
 
-    // 3. Check for hook frameworks
     if (await _checkForHooks()) {
       if (kDebugMode) debugPrint('⚠️ WARNING: Hooking framework detected');
       _isDeviceSecure = false;
     }
   }
 
-  /// Check if device is rooted (Android) or jailbroken (iOS)
   Future<bool> _checkRootStatus() async {
     if (Platform.isAndroid) {
       return await _checkAndroidRoot();
@@ -87,7 +81,6 @@ class SecurityService {
   }
 
   Future<bool> _checkAndroidRoot() async {
-    // Check for common root indicators
     final List<String> rootPaths = <String>[
       '/system/app/Superuser.apk',
       '/sbin/su',
@@ -108,17 +101,19 @@ class SecurityService {
       }
     }
 
-    // Check for root management apps
     try {
       final ProcessResult result = await Process.run('which', <String>['su']);
       if (result.exitCode == 0) return true;
-    } catch (_) {}
+    } catch (e, stack) {
+      try {
+        sl<StructuredLogger>().warning('Root check execution failed', e, stack); 
+      } catch (_) {} 
+    }
 
     return false;
   }
 
   Future<bool> _checkiOSJailbreak() async {
-    // Check for common jailbreak paths
     final List<String> jailbreakPaths = <String>[
       '/Applications/Cydia.app',
       '/Library/MobileSubstrate/MobileSubstrate.dylib',
@@ -135,30 +130,34 @@ class SecurityService {
       }
     }
 
-    // Try to write outside sandbox
     try {
       final File testFile = File('/private/jailbreak_test.txt');
       await testFile.writeAsString('test');
       await testFile.delete();
-      return true; // If we can write here, device is jailbroken
-    } catch (_) {
-      return false; // Expected failure on non-jailbroken devices
+      return true; 
+    } catch (e, stack) {
+      try {
+        sl<StructuredLogger>().warning('Jailbreak check exception', e, stack);
+      } catch (_) {}
+      return false;
     }
   }
 
-  bool _isDebuggerAttached() {
-    // Check if running with debugger in release mode
-    bool inDebugMode = false;
-    assert(() {
-      inDebugMode = true;
-      return true;
-    }());
-    return inDebugMode && !kDebugMode;
+  Future<bool> _isDebuggerAttached() async {
+    if (kDebugMode) {
+      return false; // Allow debugger in debug builds.
+    }
+
+    try {
+      final info = await developer.Service.getInfo();
+      return info.serverUri != null;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<bool> _checkForHooks() async {
     if (Platform.isAndroid) {
-      // Check for Frida, Xposed, etc.
       final List<String> hookIndicators = <String>[
         '/data/local/tmp/frida-server',
         '/data/data/de.robv.android.xposed.installer',
@@ -174,11 +173,7 @@ class SecurityService {
     return false;
   }
 
-  // ========================================
-  // SECURE STORAGE
-  // ========================================
 
-  /// Store sensitive data securely
   Future<void> secureWrite(String key, String value) async {
     try {
       await _secureStorage.write(key: key, value: value);
@@ -187,7 +182,6 @@ class SecurityService {
     }
   }
 
-  /// Read sensitive data securely
   Future<String?> secureRead(String key) async {
     try {
       return await _secureStorage.read(key: key);
@@ -197,7 +191,6 @@ class SecurityService {
     }
   }
 
-  /// Delete sensitive data
   Future<void> secureDelete(String key) async {
     try {
       await _secureStorage.delete(key: key);
@@ -206,7 +199,6 @@ class SecurityService {
     }
   }
 
-  /// Clear all secure storage
   Future<void> secureClearAll() async {
     try {
       await _secureStorage.deleteAll();
@@ -215,11 +207,7 @@ class SecurityService {
     }
   }
 
-  // ========================================
-  // BIOMETRIC AUTHENTICATION
-  // ========================================
 
-  /// Check if device supports biometrics
   Future<bool> canUseBiometrics() async {
     try {
       return await _localAuth.canCheckBiometrics;
@@ -228,7 +216,6 @@ class SecurityService {
     }
   }
 
-  /// Get available biometric types
   Future<List<BiometricType>> getAvailableBiometrics() async {
     try {
       return await _localAuth.getAvailableBiometrics();
@@ -237,7 +224,6 @@ class SecurityService {
     }
   }
 
-  /// Authenticate with biometrics
   Future<bool> authenticateWithBiometrics({
     String reason = 'Authenticate to access the app',
   }) async {
@@ -246,8 +232,6 @@ class SecurityService {
         localizedReason: reason,
         options: const AuthenticationOptions(
           stickyAuth: true,
-          biometricOnly: false, // Allow fallback to PIN/Pattern
-          useErrorDialogs: true,
         ),
       );
     } catch (e) {
@@ -256,18 +240,76 @@ class SecurityService {
     }
   }
 
-  // ========================================
-  // DATA ENCRYPTION
-  // ========================================
 
-  /// Hash a string using SHA-256
+  // ===================================
+  // AES-256 Encryption (The Vault)
+  // ===================================
+
+
+  
+  enc.Key? _masterKey;
+  final _ivParams = enc.IV.fromLength(16); // AES-GCM standard IV length
+
+  Future<void> _initEncryption() async {
+    // 1. Check for existing key
+    String? keyBase64 = await secureRead('vault_master_key');
+    
+    // 2. Generate if missing
+    if (keyBase64 == null) {
+      final key = enc.Key.fromSecureRandom(32); // 256-bit
+      keyBase64 = base64Encode(key.bytes);
+      await secureWrite('vault_master_key', keyBase64);
+      if (kDebugMode) debugPrint('🔐 Generated new Vault Master Key');
+    }
+    
+    // 3. Load Key
+    final keyBytes = base64Decode(keyBase64);
+    _masterKey = enc.Key(keyBytes);
+  }
+  
+  /// Encrypts raw string using AES-256-GCM
+  /// Returns: base64(IV + CipherText)
+  Future<String> encryptData(String plainText) async {
+    if (_masterKey == null) await _initEncryption();
+    
+    final iv = enc.IV.fromSecureRandom(16);
+    final encrypter = enc.Encrypter(enc.AES(_masterKey!, mode: enc.AESMode.gcm));
+    
+    final encrypted = encrypter.encrypt(plainText, iv: iv);
+    
+    // Pack IV and CipherText together
+    final combined = iv.bytes + encrypted.bytes;
+    return base64Encode(combined);
+  }
+  
+  /// Decrypts base64(IV + CipherText)
+  Future<String> decryptData(String encryptedBase64) async {
+    if (_masterKey == null) await _initEncryption();
+    
+    try {
+      final combined = base64Decode(encryptedBase64);
+      
+      // Extract IV (first 16 bytes)
+      final ivBytes = combined.sublist(0, 16);
+      final cipherBytes = combined.sublist(16);
+      
+      final iv = enc.IV(ivBytes);
+      final cipherText = enc.Encrypted(cipherBytes);
+      
+      final encrypter = enc.Encrypter(enc.AES(_masterKey!, mode: enc.AESMode.gcm));
+      return encrypter.decrypt(cipherText, iv: iv);
+    } catch (e) {
+      if (kDebugMode) debugPrint('🔐 Decryption failed: $e');
+      throw const SecurityFailure('Decryption failed: Corrupted data or invalid key');
+    }
+  }
+
   String hashString(String input) {
     final List<int> bytes = utf8.encode(input);
     final Digest digest = sha256.convert(bytes);
     return digest.toString();
   }
 
-  /// Generate HMAC for data integrity
   String generateHmac(String data, String secretKey) {
     final List<int> key = utf8.encode(secretKey);
     final List<int> bytes = utf8.encode(data);
@@ -276,26 +318,20 @@ class SecurityService {
     return digest.toString();
   }
 
-  /// Verify HMAC
   bool verifyHmac(String data, String expectedHmac, String secretKey) {
     final String computedHmac = generateHmac(data, secretKey);
     return computedHmac == expectedHmac;
   }
 
-  // ========================================
-  // SCREENSHOT PREVENTION (Platform Channels)
-  // ========================================
   static const MethodChannel _securityChannel = MethodChannel(
     'com.bdnews/security',
   );
 
-  /// Prevent screenshots (best effort - requires native implementation)
   Future<void> enableScreenshotPrevention() async {
     try {
       if (Platform.isAndroid) {
         await _securityChannel.invokeMethod<void>('enableSecureFlag');
       }
-      // iOS uses UITextField trick or ScreenCaptureKit detection
     } catch (e) {
       if (kDebugMode) debugPrint('🔐 Screenshot prevention not available: $e');
     }
@@ -311,12 +347,19 @@ class SecurityService {
     }
   }
 
-  // ========================================
-  // GETTERS
-  // ========================================
+
+  Future<bool> getIsDeviceSecure() async {
+    if (!_isSecurityInitialized) await initialize();
+    return _isDeviceSecure;
+  }
+
+  Future<bool> getIsRooted() async {
+    if (!_isSecurityInitialized) await initialize();
+    return _isRooted;
+  }
 
   bool get isDeviceSecure => _isDeviceSecure;
   bool get isSecure => _isDeviceSecure;
-  bool get isRooted => !_isDeviceSecure;
+  bool get isRooted => _isRooted;
   bool get isInitialized => _isSecurityInitialized;
 }

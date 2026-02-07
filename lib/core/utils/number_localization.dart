@@ -9,7 +9,6 @@ String localizeNumber(dynamic number, String languageCode) {
     return number.toString();
   }
 
-  // Convert to Bengali numerals
   const englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
   const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
 

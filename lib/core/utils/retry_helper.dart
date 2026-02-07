@@ -1,24 +1,57 @@
-// lib/core/utils/retry_helper.dart
-
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import '../architecture/either.dart';
+import '../architecture/failure.dart';
+import '../telemetry/structured_logger.dart';
 import 'package:http/http.dart' as http;
 
 /// Utility for retrying operations with exponential backoff
 class RetryHelper {
-  RetryHelper._(); // Private constructor prevents instantiation
+  RetryHelper._();
 
-  /// Execute an operation with retry logic
-  ///
-  /// [operation] - The async operation to execute
-  /// [maxRetries] - Maximum number of retry attempts (default: 3)
-  /// [shouldRetry] - Function to determine if an error is retryable (optional)
+  static final _logger = StructuredLogger();
+
+  /// Execute an operation with retry logic and return an Either.
+  static Future<Either<AppFailure, T>> retryEither<T>({
+    required Future<Either<AppFailure, T>> Function() operation,
+    int maxRetries = 3,
+    Duration delayDuration = const Duration(seconds: 1),
+    bool Function(AppFailure failure)? shouldRetry,
+  }) async {
+    int attempt = 0;
+
+    while (true) {
+      final result = await operation();
+      
+      switch (result) {
+        case Right():
+          return result;
+        
+        case Left(value: final failure):
+          attempt++;
+          final bool isRetryable = shouldRetry?.call(failure) ?? _isRetryableFailure(failure);
+
+          if (!isRetryable || attempt >= maxRetries) {
+            _logger.error('Operation failed after $attempt attempts', failure);
+            return result;
+          }
+
+          final Duration delay = Duration(
+            milliseconds: delayDuration.inMilliseconds * attempt,
+          ); // Simple linear backoff
+          _logger.warn('Retry attempt $attempt/$maxRetries after ${delay.inSeconds}s', {'failure': failure.toString()});
+
+          await Future<void>.delayed(delay);
+      }
+    }
+  }
+
+  /// Original retry for compatibility, but updated to use logger
   static Future<T> retry<T>({
     required Future<T> Function() operation,
     int maxRetries = 3,
+    Duration delayDuration = const Duration(seconds: 1),
     bool Function(dynamic error)? shouldRetry,
-    Duration? delayDuration,
   }) async {
     int attempt = 0;
 
@@ -28,47 +61,40 @@ class RetryHelper {
       } catch (e) {
         attempt++;
 
-        // Check if we should retry this error
         final bool isRetryable = shouldRetry?.call(e) ?? _isRetryableError(e);
 
         if (!isRetryable || attempt >= maxRetries) {
-          debugPrint('❌ Operation failed after $attempt attempts: $e');
+          _logger.error('Operation failed after $attempt attempts', e);
           rethrow;
         }
 
-        // Calculate exponential backoff delay
-        final Duration delay = Duration(seconds: _calculateDelay(attempt));
-
-        debugPrint(
-          '⚠️ Retry attempt $attempt/$maxRetries after ${delay.inSeconds}s: $e',
+        final Duration delay = Duration(
+          milliseconds: delayDuration.inMilliseconds * attempt,
         );
+        _logger.warn('Retry attempt $attempt/$maxRetries after ${delay.inSeconds}s', {'error': e.toString()});
 
-        // Wait before retrying
         await Future<void>.delayed(delay);
       }
     }
   }
 
-  /// Calculate exponential backoff delay
-  /// Returns: 1s, 2s, 4s for attempts 1, 2, 3
-  static int _calculateDelay(int attempt) {
-    return 1; // Fast: max 1 second delay // Max 8 seconds
+  static bool _isRetryableFailure(AppFailure failure) {
+    if (failure is NetworkFailure) return true;
+    if (failure is ServerFailure) return true;
+    return false;
   }
 
   /// Determine if an error is retryable
   static bool _isRetryableError(dynamic error) {
-    // Network errors - always retry
     if (error is SocketException) return true;
     if (error is TimeoutException) return true;
     if (error is http.ClientException) return true;
 
-    // HTTP errors - retry only on 5xx (server errors) and 429 (rate limit)
     if (error is http.Response) {
       final int statusCode = error.statusCode;
       return statusCode >= 500 || statusCode == 429;
     }
 
-    // Don't retry other errors (like parsing errors, 4xx client errors)
     return false;
   }
 }

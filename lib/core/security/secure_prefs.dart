@@ -7,11 +7,13 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:injectable/injectable.dart';
+
 /// Wrapper for secure storage of sensitive preferences
 /// Use this instead of SharedPreferences for tokens, API keys, etc.
+@lazySingleton
 class SecurePrefs {
-  SecurePrefs._();
-  static final SecurePrefs instance = SecurePrefs._();
+  SecurePrefs();
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(
@@ -22,9 +24,6 @@ class SecurePrefs {
     ),
   );
 
-  // ============================================
-  // KEYS - Define all secure keys here
-  // ============================================
   
   static const String _keyAuthToken = 'auth_token';
   static const String _keyRefreshToken = 'refresh_token';
@@ -32,9 +31,6 @@ class SecurePrefs {
   static const String _keyApiKey = 'api_key';
   static const String _keyUserPin = 'user_pin';
 
-  // ============================================
-  // AUTH TOKENS
-  // ============================================
 
   Future<void> setAuthToken(String token) async {
     await _write(_keyAuthToken, token);
@@ -52,9 +48,6 @@ class SecurePrefs {
     return _read(_keyRefreshToken);
   }
 
-  // ============================================
-  // DEVICE ID
-  // ============================================
 
   Future<void> setDeviceId(String id) async {
     await _write(_keyDeviceId, id);
@@ -64,9 +57,6 @@ class SecurePrefs {
     return _read(_keyDeviceId);
   }
 
-  // ============================================
-  // GENERIC READ/WRITE
-  // ============================================
 
   Future<void> _write(String key, String value) async {
     try {

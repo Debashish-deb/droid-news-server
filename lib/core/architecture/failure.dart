@@ -7,7 +7,10 @@
 /// - Type-safe error handling
 /// - Structured error recovery strategies
 sealed class AppFailure {
-  const AppFailure(this.message, [this.stackTrace]);
+  
+  /// Factory for Server Errors
+  factory AppFailure.serverError(String message) => ServerFailure(message);
+  const AppFailure([this.message = 'An error occurred.', this.stackTrace]);
   final String message;
   final StackTrace? stackTrace;
 
@@ -264,6 +267,17 @@ class StorageFailure extends AppFailure {
   String get userMessage => 'Failed to save data locally. Please try again.';
 }
 
+/// Failure specifically for Cache operations (e.g. Hive, SharedPreferences).
+class CacheFailure extends AppFailure {
+  const CacheFailure([
+    super.message = 'Cache operation failed.',
+    super.stackTrace,
+  ]);
+
+  @override
+  String get userMessage => 'Failed to access local cache. Please try again.';
+}
+
 /// Failure indicating data parsing or serialization failed.
 class ParseFailure extends AppFailure {
   const ParseFailure([
@@ -411,6 +425,20 @@ class UnknownFailure extends AppFailure {
   @override
   String get userMessage =>
       'Something went wrong. Please try again or contact support.';
+}
+
+/// Failure indicating a security violation or check failure.
+class SecurityFailure extends AppFailure {
+  const SecurityFailure([
+    super.message = 'Security check failed.',
+    super.stackTrace,
+  ]);
+
+  @override
+  String get userMessage => 'Security verification failed. Please ensure your device is secure.';
+  
+  @override
+  String get icon => '🛡️';
 }
 
 /// Failure indicating an operation was cancelled by the user or system.

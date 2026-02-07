@@ -1,17 +1,14 @@
 import 'package:intl/intl.dart';
 
 class DateTimeUtils {
-  /// Returns current date in format like: Monday, April 7, 2025
   static String getCurrentDate() {
     return DateFormat.yMMMMEEEEd().format(DateTime.now());
   }
 
-  /// Returns current time in format like: 5:30 PM
   static String getCurrentTime() {
     return DateFormat.jm().format(DateTime.now());
   }
 
-  /// Formats any DateTime object to a readable string.
   static String formatDateTime(
     DateTime dateTime, {
     String pattern = 'yMMMMEEEEd',
@@ -19,7 +16,6 @@ class DateTimeUtils {
     return DateFormat(pattern).format(dateTime);
   }
 
-  /// Returns a human-readable "time ago" or "in time" format.
   static String timeAgo(
     DateTime dateTime, {
     String minute = 'minute',
@@ -76,7 +72,6 @@ class DateTimeUtils {
 }
 
 class StringUtils {
-  /// Capitalizes the first letter of a string.
   static String capitalize(String text) {
     if (text.isEmpty) return text;
     return text[0].toUpperCase() + text.substring(1);

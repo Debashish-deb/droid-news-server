@@ -1,65 +1,57 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import '../../bootstrap/di/injection_container.dart' show sl;
+import '../telemetry/observability_service.dart';
 
 /// Global error handler for production apps
+/// Delegates to unified ObservabilityService
 class ErrorHandler {
-  static Future<void> initialize() async {
-    // Catch Flutter framework errors
-    FlutterError.onError = (FlutterErrorDetails details) {
-      FlutterError.presentError(details);
-      if (kReleaseMode) {
-        FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+  static ObservabilityService? get _obs {
+    try {
+      if (sl.isRegistered<ObservabilityService>()) {
+        return sl<ObservabilityService>();
       }
-    };
-
-    // Catch Dart errors outside Flutter framework
-    PlatformDispatcher.instance.onError = (error, stack) {
-      if (kReleaseMode) {
-        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-      }
-      return true;
-    };
+    } catch (e) {
+      debugPrint('⚠️ ObservabilityService not available: $e');
+    }
+    return null;
   }
+
+  static Future<void> initialize() async {}
 
   /// Log non-fatal errors
   static void logError(Object error, StackTrace? stackTrace, {String? reason}) {
-    if (kDebugMode) {
-      print('Error${reason != null ? " ($reason)" : ""}: $error');
-      if (stackTrace != null) print(stackTrace);
-    }
-
-    if (kReleaseMode) {
-      FirebaseCrashlytics.instance.recordError(
-        error,
-        stackTrace,
-        reason: reason,
-      );
+    final obs = _obs;
+    if (obs != null) {
+      obs.recordError(error, stackTrace, reason: reason);
+    } else {
+      // Fallback to debug print if service not available
+      debugPrint('❌ ERROR: $reason\n$error\n$stackTrace');
     }
   }
 
   /// Log custom information for debugging
   static void log(String message) {
-    if (kDebugMode) {
-      print('INFO: $message');
-    }
-
-    if (kReleaseMode) {
-      FirebaseCrashlytics.instance.log(message);
+    final obs = _obs;
+    if (obs != null) {
+      obs.logEvent('info_log', parameters: {'message': message});
+    } else {
+      debugPrint('ℹ️ $message');
     }
   }
 
   /// Set user identifier for crash reports
   static Future<void> setUserId(String userId) async {
-    if (kReleaseMode) {
-      await FirebaseCrashlytics.instance.setUserIdentifier(userId);
+    final obs = _obs;
+    if (obs != null) {
+      await obs.setUserId(userId);
     }
   }
 
   /// Set custom key-value pairs for debugging
   static Future<void> setCustomKey(String key, dynamic value) async {
-    if (kReleaseMode) {
-      await FirebaseCrashlytics.instance.setCustomKey(key, value);
+    final obs = _obs;
+    if (obs != null) {
+      obs.logEvent('custom_key', parameters: {'key': key, 'value': value.toString()});
     }
   }
 }

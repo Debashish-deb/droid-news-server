@@ -7,13 +7,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../core/sync_service.dart';
-import '../../core/unified_sync_manager.dart';
-import 'shared_providers.dart';
+import "../../application/sync/sync_orchestrator.dart";
+import '../../infrastructure/sync/sync_service.dart' show SyncService;
+import '../../core/providers.dart';
+import '../../domain/repositories/settings_repository.dart';
+import '../../infrastructure/repositories/settings_repository_impl.dart';
+import '../../domain/repositories/search_repository.dart';
+import '../../infrastructure/repositories/search_repository_impl.dart';
+import '../../domain/repositories/news_repository.dart';
+import '../../domain/repositories/favorites_repository.dart';
+import '../../bootstrap/di/injection_container.dart' show sl;
 
-// ============================================
-// APP SETTINGS STATE
-// ============================================
 
 @immutable
 class AppSettingsState {
@@ -29,17 +33,18 @@ class AppSettingsState {
   }
 }
 
-// ============================================
-// APP SETTINGS NOTIFIER
-// ============================================
 
 class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   AppSettingsNotifier(this._prefs, this._syncService)
     : super(const AppSettingsState()) {
     _loadFromPrefs();
+    SyncOrchestrator().registerAppSettingsNotifier(this);
   }
   final SharedPreferences _prefs;
   final SyncService _syncService;
+  
+  /// Public getter to avoid protected 'state' access warnings
+  AppSettingsState get current => state;
 
   void _loadFromPrefs() {
     final dataSaver = _prefs.getBool('data_saver') ?? false;
@@ -82,14 +87,14 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   void setDataSaver(bool value) {
     state = state.copyWith(dataSaver: value);
     _prefs.setBool('data_saver', value);
-    UnifiedSyncManager().pushSettings();
+    SyncOrchestrator().pushSettings();
   }
 
-  /// Set push notifications
+  
   void setPushNotif(bool value) {
     state = state.copyWith(pushNotif: value);
     _prefs.setBool('push_notif', value);
-    UnifiedSyncManager().pushSettings();
+    SyncOrchestrator().pushSettings();
   }
 
   /// Reload from preferences
@@ -98,16 +103,31 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   }
 }
 
-// ============================================
-// PROVIDERS
-// ============================================
 
 /// Main app settings provider
 final appSettingsProvider =
     StateNotifierProvider<AppSettingsNotifier, AppSettingsState>((ref) {
       final prefs = ref.watch(sharedPreferencesProvider);
-      return AppSettingsNotifier(prefs, SyncService());
+      return AppSettingsNotifier(prefs, sl<SyncService>());
     });
+
+/// Settings Repository provider
+final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return SettingsRepositoryImpl(prefs);
+});
+
+/// Search Repository provider
+final searchRepositoryProvider = Provider<SearchRepository>((ref) {
+  final newsRepo = sl<NewsRepository>();
+  final settingsRepo = ref.watch(settingsRepositoryProvider);
+  return SearchRepositoryImpl(newsRepo, settingsRepo);
+});
+
+/// Favorites Repository provider
+final favoritesRepositoryProvider = Provider<FavoritesRepository>((ref) {
+  return sl<FavoritesRepository>();
+});
 
 /// Convenience: data saver mode
 final dataSaverProvider = Provider<bool>((ref) {

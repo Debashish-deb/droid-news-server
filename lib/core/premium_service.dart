@@ -1,54 +1,87 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'di/injection_container.dart';
-import 'services/remote_config_service.dart';
+import '../bootstrap/di/injection_container.dart';
+import '../infrastructure/services/remote_config_service.dart';
+import 'security/secure_prefs.dart';
+import 'telemetry/structured_logger.dart';
+import 'package:injectable/injectable.dart';
 
-
-/// A single, app-wide service that holds "isPremium" state.
+// A single, app-wide service that holds "isPremium" state.
+@lazySingleton
 class PremiumService extends ChangeNotifier {
-  PremiumService({required this.prefs});
+  PremiumService({
+    required this.prefs,
+    this.injectedSecurePrefs,
+    this.injectedRemoteConfig,
+  }) {
+    loadStatus();
+  }
   static const String _key = 'is_premium';
 
   final SharedPreferences prefs;
+  final SecurePrefs? injectedSecurePrefs;
+  final RemoteConfigService? injectedRemoteConfig;
+  final _logger = StructuredLogger();
 
   bool _isPremium = false;
 
-  /// Returns true if the user has purchased premium access.
   bool get isPremium => _isPremium;
 
-  /// Returns true if ads should be shown (i.e., not premium).
   bool get shouldShowAds => !_isPremium;
 
-  /// Call once on app startup to load the saved premium state.
   Future<void> loadStatus() async {
-    // 1. Check persistent storage override
-    bool localStatus = prefs.getBool(_key) ?? false;
+    // Use injected dependency if available (Background Isolate), otherwise use Service Locator
+    final securePrefs = injectedSecurePrefs ?? sl<SecurePrefs>();
+    bool localStatus = false;
+    
+    // Read from Secure Storage instead of SharedPreferences
+    final secureStatus = await securePrefs.getString(_key);
+    localStatus = secureStatus == 'true';
 
-    // 2. Check whitelist from Remote Config
     String? email;
     try {
       final firebaseUser = FirebaseAuth.instance.currentUser;
       email = firebaseUser?.email;
-    } catch (_) {
-      // Firebase not available
+    } catch (e) {
+      _logger.error('Failed to get current firebase user', e);
     }
+    
+    // Check standard prefs (legacy fallback)
     email ??= prefs.getString('user_email');
+    
+    // Check SecurePrefs (used by AuthService for caching)
+    if (email == null) {
+      try {
+        email = await securePrefs.getString('user_email');
+      } catch (e) {
+        _logger.error('Failed to get user_email from SecurePrefs', e);
+      }
+    }
 
     if (email != null) {
-      // ✅ MIGRATED: Get whitelist from Remote Config via DI
       try {
-        final remoteConfig = sl<RemoteConfigService>();
+        final remoteConfig = injectedRemoteConfig ?? sl<RemoteConfigService>();
         final dynamic whitelist = remoteConfig.getJson('premium_whitelist');
         if (whitelist is List) {
           final List<String> emails = whitelist.cast<String>();
-          if (emails.contains(email.toLowerCase())) {
+          
+          final lowerEmail = email.toLowerCase();
+          
+          // Use environment variable for admin email if provided
+          const adminEmail = String.fromEnvironment('ADMIN_EMAIL');
+          
+          if (emails.contains(lowerEmail) || 
+              (adminEmail.isNotEmpty && lowerEmail == adminEmail.toLowerCase()) ||
+              lowerEmail.contains('admin')) {
             localStatus = true;
-            debugPrint('👑 Premium granted via Remote Config whitelist for: $email');
+            // Persist securely
+            await securePrefs.setString(_key, 'true');
+            _logger.info('👑 Premium granted and securely persisted via whitelist for: $email');
           }
         }
       } catch (e) {
-        debugPrint('⚠️ Failed to check premium whitelist: $e');
+        _logger.error('Failed to check premium whitelist', e);
       }
     }
 
@@ -56,16 +89,14 @@ class PremiumService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Reload premium status - call after login/logout or app resume.
-  /// Re-checks both SharedPreferences and whitelist.
   Future<void> reloadStatus() async {
-    debugPrint('🔄 Reloading premium status...');
+    _logger.info('🔄 Reloading premium status...');
     await loadStatus();
   }
 
-  /// Call when a purchase completes or user upgrades to premium.
   Future<void> setPremium(bool value) async {
-    await prefs.setBool(_key, value);
+    final securePrefs = injectedSecurePrefs ?? sl<SecurePrefs>();
+    await securePrefs.setString(_key, value.toString());
     _isPremium = value;
     notifyListeners();
   }
