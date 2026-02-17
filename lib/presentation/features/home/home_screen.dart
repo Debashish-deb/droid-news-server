@@ -10,13 +10,13 @@ import '../../providers/tab_providers.dart';
 import '../../providers/language_providers.dart';
 import '../../providers/theme_providers.dart';
 import '../../providers/app_settings_providers.dart';
+import '../../../core/di/providers.dart' show hiveServiceProvider;
 import '../../providers/network_providers.dart';
 import '../../../core/theme.dart';
 import '../../../core/design_tokens.dart';
 import '../../../core/performance_config.dart';
 import '../../../core/offline_handler.dart';
 import '../../../../domain/entities/news_article.dart';
-import '../../../../infrastructure/services/hive_service.dart';
 import '../../../../infrastructure/network/app_network_service.dart';
 import '../../../core/architecture/failure.dart' show AppFailure;
 import '../../widgets/app_drawer.dart';
@@ -25,13 +25,14 @@ import '../../widgets/animated_theme_container.dart';
 import 'widgets/news_card.dart';
 import 'widgets/shimmer_loading.dart';
 import 'widgets/professional_header.dart';
-import 'widgets/breaking_news_ticker.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../widgets/glass_icon_button.dart';
 import '../../widgets/premium_theme_icon.dart';
 import '../common/app_bar.dart';
 import '../../../../infrastructure/services/interstitial_ad_service.dart';
 import '../../widgets/unlock_article_dialog.dart';
+import '../../widgets/glass_container.dart';
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -43,11 +44,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   static const String _latestKey = 'latest';
 
+  static const List<String> categories = [
+    'national',
+    'international',
+    'sports',
+    'entertainment',
+  ];
 
+
+  AppLocalizations get loc => AppLocalizations.of(context);
   bool _isOffline = false;
   bool _showOfflineBanner = false;
   bool _isAppInForeground = true;
-  final ScrollController _scrollController = ScrollController();
+  late final Map<String, ScrollController> _scrollControllers;
+  late TabController _tabController;
   late AnimationController _scrollAnimationController;
   List<Particle> _backgroundParticles = [];
   Timer? _refreshTimer;
@@ -58,6 +68,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _tabController = TabController(length: categories.length, vsync: this);
+    _tabController.addListener(_handleTabChange);
     _initializeAnimations();
     _initConnectivity();
     _setupListeners();
@@ -77,6 +89,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _initializeAnimations() {
+    _scrollControllers = {
+      for (final c in categories)
+        c: ScrollController()..addListener(() => _handleScroll(c)),
+    };
     _scrollAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -125,31 +141,58 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     });
 
     ref.listenManual<int>(currentTabIndexProvider, (previous, next) {
-      if (next == 0 && _scrollController.hasClients) {
+      if (next == 0 && _currentScrollController().hasClients) {
         _scrollToTop();
       }
     });
 
-    _scrollController.addListener(_handleScroll);
+    ref.listenManual<String>(homeCategoryProvider, (previous, next) {
+      if (previous != next) {
+        final index = categories.indexOf(next);
+        if (index != -1) {
+          _tabController.animateTo(index);
+        }
+      }
+    });
   }
 
-  void _handleScroll() {
+  void _handleTabChange() {
+    if (!_tabController.indexIsChanging) {
+      final category = categories[_tabController.index];
+      ref.read(homeCategoryProvider.notifier).state = category;
+      _loadNews();
+    }
+  }
+
+  ScrollController _currentScrollController() {
+    final category = ref.read(homeCategoryProvider);
+    return _scrollControllers[category] ?? _scrollControllers[categories.first]!;
+  }
+
+  void _handleScroll(String category) {
     if (!mounted) return;
 
-    final scrollPosition = _scrollController.position;
+    // Only react for the currently selected tab.
+    if (category != ref.read(homeCategoryProvider)) return;
+
+    final controller = _scrollControllers[category];
+    if (controller == null || !controller.hasClients) return;
+
+    final scrollPosition = controller.position;
     final scrollOffset = scrollPosition.pixels;
     final maxScroll = scrollPosition.maxScrollExtent;
     final isNearBottom = scrollOffset > maxScroll * 0.7;
 
-    if (isNearBottom && !ref.read(newsProvider).isLoading(_latestKey)) {
-      _loadMoreNews();
+    if (isNearBottom && !ref.read(newsProvider).isLoading(category)) {
+      _loadMoreNews(category: category);
     }
   }
 
   void _scrollToTop() {
-    if (_scrollController.hasClients) {
+    final controller = _currentScrollController();
+    if (controller.hasClients) {
       _scrollAnimationController.forward(from: 0).then((_) {
-        _scrollController.animateTo(
+        controller.animateTo(
           0,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOutCubic,
@@ -180,33 +223,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Future<void> _initializeApp() async {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      HiveService.init(<String>[_latestKey]).catchError((e) {
+      ref.read(hiveServiceProvider).init(<String>[_latestKey]).catchError((e) {
         debugPrint('⚠️ Hive initialization failed: $e');
       });
 
       if (mounted) {
+        // Load initial news for the current category (defaults to national)
         _loadNews();
         _setupAutoRefresh();
       }
     });
   }
 
-  Future<void> _loadNews({bool force = false}) async {
+  Future<void> _loadNews({bool force = false, String? category}) async {
     if (!mounted) return;
     final Locale locale = ref.read(currentLocaleProvider);
-    debugPrint('📰 Loading news for locale: ${locale.languageCode}');
+    final targetCategory = category ?? ref.read(homeCategoryProvider);
     
     await ref
         .read(newsProvider.notifier)
-        .loadNews(_latestKey, locale, force: force);
+        .loadNews(targetCategory!, locale, force: force);
   }
 
-  Future<void> _loadMoreNews() async {
+  Future<void> _loadMoreNews({String? category}) async {
     if (!mounted) return;
     final Locale locale = ref.read(currentLocaleProvider);
-    await ref
-        .read(newsProvider.notifier)
-        .loadMoreNews(_latestKey, locale);
+    final targetCategory =
+        category ?? ref.read(homeCategoryProvider) ?? categories.first;
+    await ref.read(newsProvider.notifier).loadMoreNews(targetCategory, locale);
   }
 
   void _setupAutoRefresh() {
@@ -269,12 +313,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Widget _buildScrollToTopButton() {
     final selectionColor = ref.watch(navIconColorProvider);
-    
+    final controller = _currentScrollController();
+
     return AnimatedBuilder(
-      animation: _scrollController,
+      animation: controller,
       builder: (context, child) {
-        final showButton = _scrollController.hasClients &&
-            _scrollController.offset > 300;
+        final showButton = controller.hasClients && controller.offset > 300;
 
         return AnimatedOpacity(
           duration: const Duration(milliseconds: 300),
@@ -331,10 +375,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    for (final c in _scrollControllers.values) {
+      c.dispose();
+    }
     _refreshTimer?.cancel();
     _offlineBannerTimer?.cancel();
     _scrollAnimationController.dispose();
-    _scrollController.dispose();
+    _tabController.removeListener(_handleTabChange);
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -349,13 +397,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final Color start = colors[0];
     final Color end = colors[1];
 
-    final List<NewsArticle> allArticles = newsState.getArticles(_latestKey);
-    final List<NewsArticle> tickerArticles = allArticles.take(5).toList();
-    final List<NewsArticle> displayList = allArticles.skip(5).toList();
+    final category = ref.watch(homeCategoryProvider);
+    final List<NewsArticle> displayList = newsState.getArticles(category);
     
-    final bool isLoading = newsState.isLoading(_latestKey);
-    final String? error = newsState.getError(_latestKey);
-    final bool hasMore = newsState.hasMore(_latestKey);
+    final bool isLoading = newsState.isLoading(category);
+    final String? error = newsState.getError(category);
+    final bool hasMore = newsState.hasMore(category);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -371,8 +418,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    start.withOpacity(0.85),
-                    end.withOpacity(0.85),
+                    start.withOpacity(0.9),
+                    end.withOpacity(0.9),
                   ],
                 ),
               ),
@@ -385,29 +432,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           SafeArea(
             child: Column(
               children: <Widget>[
-                const SizedBox(height: 66), // Increased from 52 to clear 64px app bar
+                const SizedBox(height: 70), // Adjusted for cleaner app bar
 
-                // Breaking news ticker
-                if (tickerArticles.isNotEmpty)
-                  BreakingNewsTicker(articles: tickerArticles),
-                // Offline banner
+                // AI Category Tabs - Enhanced Styling
+                _buildCategoryTabs(context, loc),
+
+                const SizedBox(height: 8), // Added consistent spacing
+
+                // Offline banner - Enhanced
                 if (_showOfflineBanner)
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2), // Reduced from 4
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     child: GlassContainer(
-                      borderColor: Colors.orange,
+                      borderColor: Colors.orange.withOpacity(0.5),
+                      backgroundColor: Colors.orange.withOpacity(0.1),
                       child: Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         child: Row(
                           children: [
-                            const Icon(Icons.wifi_off_rounded, color: Colors.orange),
+                            Icon(Icons.wifi_off_rounded, color: Colors.orange.shade300, size: 20),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 loc.offlineShowingCached,
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _showOfflineBanner = false;
+                                });
+                              },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                AppLocalizations.of(context).ok,
+                                style: TextStyle(
+                                  color: Colors.orange.shade300,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -419,163 +489,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
 
                 Expanded(
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: (notification) {
-                      if (notification is ScrollUpdateNotification) {
-                        // Handle scroll updates if needed
-                      }
-                      return false;
-                    },
-                    child: RefreshIndicator.adaptive(
-                      onRefresh: () => _loadNews(force: true),
-                      color: theme.colorScheme.primary,
-                      backgroundColor: theme.colorScheme.surface,
-                      strokeWidth: 3.0,
-                      child: CustomScrollView(
-                        controller: _scrollController,
-                        key: const PageStorageKey('home_scroll'),
-                        physics: const AlwaysScrollableScrollPhysics(
-                          parent: BouncingScrollPhysics(),
-                        ),
-                        slivers: <Widget>[
-                          // Error banner
-                          if (error != null && !_isOffline)
-                            SliverToBoxAdapter(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.md,
-                                    vertical: 4,
-                                  ),
-                                child: GlassContainer(
-                                  borderColor: Colors.red,
-                                  child: ErrorDisplay(
-                                    error: AppFailure.serverError(error),
-                                    onRetry: _loadNews,
-                                  ),
-                                ),
-                              ),
-                            ),
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: categories.map((cat) {
+                      final List<NewsArticle> displayList = newsState.getArticles(cat);
+                      final bool isLoading = newsState.isLoading(cat);
+                      final String? error = newsState.getError(cat);
+                      final bool hasMore = newsState.hasMore(cat);
 
-                          const SliverToBoxAdapter(child: SizedBox(height: 4)), // Reduced to 4 (50% from 8)
-
-                          // Header
-                          SliverToBoxAdapter(
-                              child: ProfessionalHeader(articleCount: allArticles.length),
-                          ),
-
-                          const SliverToBoxAdapter(child: SizedBox(height: 4)), // Reduced to 4 (50% from 8)
-
-                          // Loading shimmer
-                          if (isLoading && allArticles.isEmpty)
-                            const SliverToBoxAdapter(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 16),
-                                child: ShimmerLoading(),
-                              ),
-                            )
-                          // Empty state
-                          else if (displayList.isEmpty && error == null)
-                            SliverFillRemaining(
-                              child: Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(32),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.article_rounded,
-                                        size: 64,
-                                        color: theme.colorScheme.onSurface.withOpacity(0.3),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        loc.noArticlesFound,
-                                        style: theme.textTheme.titleMedium?.copyWith(
-                                          color: theme.colorScheme.onSurface.withOpacity(0.5),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        loc.checkConnection,
-                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                          color: theme.colorScheme.onSurface.withOpacity(0.4),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 24),
-                                      ElevatedButton.icon(
-                                        onPressed: _loadNews,
-                                        icon: const Icon(Icons.refresh_rounded),
-                                        label: Text(loc.retry),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: theme.colorScheme.primary,
-                                          foregroundColor: theme.colorScheme.onPrimary,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 24,
-                                            vertical: 12,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            )
-                          // Articles list
-                          else
-                            SliverList(
-                              delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                                  if (index < displayList.length) {
-                                    return Padding(
-                                      padding: EdgeInsets.fromLTRB(
-                                        16,
-                                        index == 0 ? 0 : 2, // Gap reduced by 50% (from 4 to 2)
-                                        16,
-                                        index == displayList.length - 1 ? 8 : 2, // Bottom padding reduced from 12 to 8
-                                      ),
-                                      child: NewsCard(
-                                        key: ValueKey('${displayList[index].url}_$index'),
-                                        article: displayList[index],
-                                        onTap: () => _handleArticleTap(displayList[index]),
-                                      ),
-                                    );
-                                  } else if (hasMore) {
-                                    // Loading more indicator
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 24),
-                                      child: Center(
-                                        child: CircularProgressIndicator.adaptive(
-                                          valueColor: AlwaysStoppedAnimation(
-                                            theme.colorScheme.primary,
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  } else {
-                                    // End of list indicator
-                                    return Padding(
-                                      padding: const EdgeInsets.only(bottom: 48),
-                                      child: Center(
-                                        child: Text(
-                                          loc.endOfNews,
-                                          style: theme.textTheme.bodyMedium?.copyWith(
-                                            color: theme.colorScheme.onSurface.withOpacity(0.5),
-                                            fontStyle: FontStyle.italic,
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                                childCount: displayList.length + (hasMore ? 1 : 1),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
+                      return _buildCategoryContent(
+                        context,
+                        cat,
+                        displayList,
+                        isLoading,
+                        error,
+                        hasMore,
+                        loc,
+                        theme,
+                      );
+                    }).toList(),
                   ),
                 ),
               ],
@@ -589,7 +521,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             child: _buildScrollToTopButton(),
           ),
 
-          // Custom Glass AppBar
+          // Custom Glass AppBar - Enhanced
           Positioned(
             top: 0,
             left: 0,
@@ -620,13 +552,13 @@ Widget _buildCustomAppBar(
       theme.appBarTheme.backgroundColor ?? theme.colorScheme.surface;
   
   return SizedBox(
-    height: topPadding + 64,
+    height: topPadding + 60, // Slightly reduced height
     child: Stack(
       children: [
         // 1. Visual Background (Ignored for hit tests)
         IgnorePointer(
           child: Container(
-            height: topPadding + 64,
+            height: topPadding + 60,
             decoration: reduceEffects
                 ? BoxDecoration(
                     color: baseColor.withOpacity(0.94),
@@ -636,17 +568,19 @@ Widget _buildCustomAppBar(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        colors[0].withOpacity(0.9),
+                        colors[0].withOpacity(0.98),
+                        colors[0].withOpacity(0.85),
                         colors[0].withOpacity(0.6),
                         Colors.transparent,
                       ],
+                      stops: const [0.0, 0.4, 0.7, 1.0],
                     ),
                   ),
             child: reduceEffects
                 ? const SizedBox.shrink()
                 : ClipRect(
                     child: BackdropFilter(
-                      filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                      filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20), // Reduced blur for cleaner look
                       child: Container(color: Colors.transparent),
                     ),
                   ),
@@ -657,7 +591,7 @@ Widget _buildCustomAppBar(
         SafeArea(
           bottom: false,
           child: SizedBox(
-            height: 64,
+            height: 60,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
@@ -665,15 +599,22 @@ Widget _buildCustomAppBar(
                   GlassIconButton(
                     icon: Icons.menu_rounded,
                     onPressed: () {
-                      print('>>> HOME SCREEN: Drawer button pressed');
                       Scaffold.of(context).openDrawer();
                     },
                     isDark: theme.brightness == Brightness.dark,
                   ),
-                  const Expanded(
+                  Expanded(
                     child: IgnorePointer(
                       child: Center(
-                        child: AppBarTitle('BD NewsReader'),
+                        child: Text(
+                          loc.homeTitle,
+                          style: TextStyle(
+                            fontSize: 18, // Consistent sizing
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface.withOpacity(0.95),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -693,6 +634,282 @@ Widget _buildCustomAppBar(
       ],
     ),
   );
+}
+
+Widget _buildCategoryTabs(BuildContext context, AppLocalizations loc) {
+  final theme = Theme.of(context);
+  final locale = ref.watch(currentLocaleProvider);
+  final isBangla = locale.languageCode == 'bn';
+  
+  return Container(
+    margin: const EdgeInsets.symmetric(horizontal: 16),
+    height: 48, // Fixed height for consistency
+    decoration: BoxDecoration(
+      color: theme.colorScheme.onSurface.withOpacity(0.05),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(
+        color: theme.colorScheme.onSurface.withOpacity(0.08),
+        width: 1,
+      ),
+    ),
+    child: TabBar(
+      controller: _tabController,
+      indicator: BoxDecoration(
+        color: theme.colorScheme.primary.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.primary.withOpacity(0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.primary.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      indicatorSize: TabBarIndicatorSize.tab,
+      labelColor: theme.colorScheme.primary,
+      unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.6),
+      labelStyle: const TextStyle(
+        fontSize: 12, // Slightly smaller for elegance
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.3,
+      ),
+      unselectedLabelStyle: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.3,
+      ),
+      indicatorPadding: const EdgeInsets.all(4),
+      dividerColor: Colors.transparent, // Remove default divider
+      tabs: [
+        Tab(child: _buildTabContent(isBangla ? 'জাতীয়' : 'National', Icons.flag_rounded)),
+        Tab(child: _buildTabContent(isBangla ? 'আন্তর্জাতিক' : 'International', Icons.public_rounded)),
+        Tab(child: _buildTabContent(isBangla ? 'খেলা' : 'Sports', Icons.sports_soccer_rounded)),
+        Tab(child: _buildTabContent(isBangla ? 'বিনোদন' : 'Entertainment', Icons.movie_rounded)),
+      ],
+    ),
+  );
+}
+
+Widget _buildTabContent(String label, IconData icon) {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Icon(icon, size: 14),
+      const SizedBox(width: 6), // Slightly more spacing
+      Flexible(
+        child: Text(
+          label,
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
+      ),
+    ],
+  );
+}
+
+Widget _buildCategoryContent(
+  BuildContext context,
+  String category,
+  List<NewsArticle> displayList,
+  bool isLoading,
+  String? error,
+  bool hasMore,
+  AppLocalizations loc,
+  ThemeData theme,
+) {
+  return NotificationListener<ScrollNotification>(
+    onNotification: (notification) {
+      if (notification is ScrollUpdateNotification) {
+        // Handle scroll updates if needed
+      }
+      return false;
+    },
+    child: RefreshIndicator.adaptive(
+      onRefresh: () => _loadNews(force: true),
+      color: theme.colorScheme.primary,
+      backgroundColor: theme.colorScheme.surface,
+      strokeWidth: 3.0,
+      displacement: 60, // Add displacement for better visual
+      child: CustomScrollView(
+        controller: _scrollControllers[category],
+        key: PageStorageKey('home_scroll_$category'),
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        slivers: <Widget>[
+          // Error banner
+          if (error != null && !_isOffline)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: 8, // Increased spacing
+                ),
+                child: GlassContainer(
+                  borderColor: Colors.red.withOpacity(0.5),
+                  backgroundColor: Colors.red.withOpacity(0.1),
+                  child: ErrorDisplay(
+                    error: AppFailure.serverError(error),
+                    onRetry: _loadNews,
+                  ),
+                ),
+              ),
+            ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
+
+          // Header
+          SliverToBoxAdapter(
+            child: ProfessionalHeader(
+              articleCount: displayList.length,
+              category: category == 'national' ? null : category,
+            ),
+          ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
+
+          // Loading shimmer
+          if (isLoading && displayList.isEmpty)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: ShimmerLoading(),
+              ),
+            )
+          // Empty state
+          else if (displayList.isEmpty && error == null)
+            SliverFillRemaining(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _getCategoryIcon(category),
+                        size: 64,
+                        color: Colors.white.withOpacity(0.3),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _getEmptyMessage(category, loc),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: Colors.white.withOpacity(0.5),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: _loadNews,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: Text(loc.retry),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.primary.withOpacity(0.9),
+                          foregroundColor: theme.colorScheme.onPrimary,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0, // Flat design
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          // Articles list
+          else
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  if (index < displayList.length) {
+                    return Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        index == 0 ? 4 : 6, // Reduced vertical spacing between cards
+                        16,
+                        index == displayList.length - 1 ? 16 : 6,
+                      ),
+                      child: NewsCard(
+                        key: ValueKey('${category}_${displayList[index].url}_$index'),
+                        article: displayList[index],
+                        onTap: () => _handleArticleTap(displayList[index]),
+                      ),
+                    );
+                  } else if (hasMore) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator.adaptive(
+                            strokeWidth: 2.5, // Thinner for elegance
+                            valueColor: AlwaysStoppedAnimation(
+                              theme.colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  } else {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 48, top: 24),
+                      child: Center(
+                        child: Text(
+                          loc.endOfNews,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: Colors.white.withOpacity(0.4), // Lighter for subtlety
+                            fontStyle: FontStyle.italic,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                },
+                childCount: displayList.length + (hasMore ? 1 : (displayList.isEmpty ? 0 : 1)),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+IconData _getCategoryIcon(String category) {
+  switch (category) {
+    case 'national':
+      return Icons.flag_rounded;
+    case 'international':
+      return Icons.public_rounded;
+    case 'sports':
+      return Icons.sports_soccer_rounded;
+    case 'entertainment':
+      return Icons.movie_rounded;
+    default:
+      return Icons.article_rounded;
+  }
+}
+
+String _getEmptyMessage(String category, AppLocalizations loc) {
+  switch (category) {
+    case 'national':
+      return loc.noNationalNews;
+    case 'international':
+      return loc.noInternationalNews;
+    case 'sports':
+      return loc.noSportsNews;
+    case 'entertainment':
+      return loc.noEntertainmentNews;
+    default:
+      return loc.noArticlesFound;
+  }
 }
 }
 

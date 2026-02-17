@@ -6,10 +6,8 @@ import '../ml_service.dart';
 /// ML-powered article categorization service
 /// Uses TFLite model for intelligent categorization with keyword fallback
 class MLCategorizer {
-  MLCategorizer._();
-  static final MLCategorizer instance = MLCategorizer._();
-
-  final MLService _mlService = MLService();
+  MLCategorizer(this._mlService);
+  final MLService _mlService;
   bool _isInitialized = false;
   Map<String, dynamic>? _categories;
   final Map<String, String> _resultCache = {};

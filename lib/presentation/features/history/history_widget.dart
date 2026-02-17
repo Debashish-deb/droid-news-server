@@ -27,6 +27,7 @@ class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
   bool isLoading = true;
   Map<String, dynamic>? data;
   String? error;
+  AppLocalizations get loc => AppLocalizations.of(context);
   DateTime currentDate = DateTime.now();
 
   @override
@@ -94,7 +95,7 @@ class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text(
-          'HISTORY • $todayLabel'.toUpperCase(),
+          '${loc.historicalHistory} • $todayLabel'.toUpperCase(),
           style: TextStyle(
             fontFamily: AppTypography.fontFamily,
             fontWeight: FontWeight.w900,
@@ -186,7 +187,7 @@ class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
                                 ),
                                 const SizedBox(width: 12),
                                 Text(
-                                  'Historical Events'.toUpperCase(),
+                                  loc.historicalEvents.toUpperCase(),
                                   style: TextStyle(
                                     fontWeight: FontWeight.w900,
                                     fontSize: 14,
@@ -217,7 +218,7 @@ class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
                                 border: Border.all(color: navIconColor.withOpacity(0.3)),
                               ),
                               child: Text(
-                                '${events.length} events found'.toUpperCase(),
+                                loc.eventsFound(events.length).toUpperCase(),
                                 style: TextStyle(
                                   color: navIconColor,
                                   fontSize: 10,
@@ -234,7 +235,7 @@ class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
                             ? SliverFillRemaining(
                               child: Center(
                                 child: Text(
-                                  'No events found for this date.',
+                                  loc.noEventsFound,
                                   style: TextStyle(
                                     color: (isDark ? Colors.white : Colors.black87).withOpacity(0.5),
                                     fontFamily: AppTypography.fontFamily,
@@ -279,7 +280,7 @@ class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
     required Color navIconColor,
   }) {
     final year = event['year']?.toString() ?? '????';
-    final description = event['description']?.toString() ?? 'No description available';
+    final description = event['description']?.toString() ?? loc.noDescriptionAvailable;
     final isDark = themeMode == AppThemeMode.dark;
 
     return Padding(
@@ -347,18 +348,18 @@ class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Settings3DButton(
-                              icon: Icons.share_rounded,
-                              onTap: () => Share.share('ON THIS DAY IN $year: $description'),
+                               icon: Icons.share_rounded,
+                               onTap: () => Share.share(loc.onThisDayIn(year, description)),
                               width: 56,
                             ),
                             const SizedBox(width: 8),
                             Settings3DButton(
                               icon: Icons.copy_rounded,
                               onTap: () {
-                                Clipboard.setData(ClipboardData(text: 'On this day in $year: $description'));
+                                Clipboard.setData(ClipboardData(text: loc.onThisDayIn(year, description)));
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: const Text('COPIED TO CLIPBOARD'),
+                                    content: Text(loc.copiedToClipboardFlat),
                                     behavior: SnackBarBehavior.floating,
                                     backgroundColor: navIconColor,
                                   ),
@@ -415,7 +416,7 @@ class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
               Expanded(
                 child: GlassPillButton(
                   onPressed: _goToPreviousDay,
-                  label: 'PREV',
+                  label: loc.prev,
                   icon: Icons.navigate_before_rounded,
                   isDark: isDark,
                 ),
@@ -432,7 +433,7 @@ class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
               Expanded(
                 child: GlassPillButton(
                   onPressed: _goToNextDay,
-                  label: 'NEXT', 
+                  label: loc.nextCaps,
                   icon: Icons.navigate_next_rounded,
                   isDark: isDark,
                 ),

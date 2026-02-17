@@ -7,11 +7,10 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:injectable/injectable.dart';
 
 /// Wrapper for secure storage of sensitive preferences
 /// Use this instead of SharedPreferences for tokens, API keys, etc.
-@lazySingleton
+
 class SecurePrefs {
   SecurePrefs();
 
@@ -28,8 +27,10 @@ class SecurePrefs {
   static const String _keyAuthToken = 'auth_token';
   static const String _keyRefreshToken = 'refresh_token';
   static const String _keyDeviceId = 'device_id';
-  static const String _keyApiKey = 'api_key';
-  static const String _keyUserPin = 'user_pin';
+  
+  // Reserved for upcoming enterprise security features
+  static const String _keyApiKey = 'internal_api_key'; // ignore: unused_field
+  static const String _keyUserPin = 'user_app_pin';   // ignore: unused_field
 
 
   Future<void> setAuthToken(String token) async {

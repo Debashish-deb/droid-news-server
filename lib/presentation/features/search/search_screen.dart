@@ -35,6 +35,7 @@ class SearchScreen extends ConsumerStatefulWidget {
 }
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
+  AppLocalizations get loc => AppLocalizations.of(context);
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   Timer? _debounce;
@@ -129,16 +130,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final themeMode = ref.watch(currentThemeModeProvider);
 
+    final hPadding = MediaQuery.of(context).size.width * 0.05;
+
     return Scaffold(
-      extendBodyBehindAppBar: true, // Allow body to flow behind
+      extendBodyBehindAppBar: true, 
       appBar: AppBar(
         centerTitle: true,
         toolbarHeight: 64,
-        title: AppBarTitle(AppLocalizations.of(context).search),
+        title: AppBarTitle(loc.search),
         leading: Builder(
           builder: (context) => Center(
             child: GlassIconButton(
-              icon: Icons.menu_rounded, // Changed to Apps drawer button
+              icon: Icons.menu_rounded, 
               onPressed: () => Scaffold.of(context).openDrawer(),
               isDark: isDark,
             ),
@@ -154,11 +157,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
         ),
       ),
-      drawer: const AppDrawer(), // Added drawer to SearchScreen
+      drawer: const AppDrawer(), 
       body: Stack(
         fit: StackFit.expand,
         children: [
-           // Background Gradient
            Positioned.fill(
              child: AnimatedThemeContainer(
                decoration: BoxDecoration(
@@ -176,20 +178,23 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
            
            SafeArea(
              bottom: false,
-             child: Column(
-               children: [
-                 _buildGlassSearchBox(context, isDark),
-                 Expanded(
-                   child: _buildBody(
-                      context, 
-                      ref.watch(searchProvider), 
-                      ref.watch(searchIntelligenceProvider), 
-                      _searchController.text.isNotEmpty, 
-                      ref.watch(searchProvider).searchResults.isNotEmpty,
-                      Theme.of(context).brightness == Brightness.dark,
+             child: Padding(
+               padding: EdgeInsets.symmetric(horizontal: hPadding),
+               child: Column(
+                 children: [
+                   _buildGlassSearchBox(context, isDark),
+                   Expanded(
+                     child: _buildBody(
+                        context, 
+                        ref.watch(searchProvider), 
+                        ref.watch(searchIntelligenceProvider), 
+                        _searchController.text.isNotEmpty, 
+                        ref.watch(searchProvider).searchResults.isNotEmpty,
+                        isDark,
+                     ),
                    ),
-                 ),
-               ],
+                 ],
+               ),
              ),
            ),
         ],
@@ -203,8 +208,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final selectionColor = ref.watch(navIconColorProvider);
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-      height: 64, // Slightly taller for more presence
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      height: 64, 
       decoration: BoxDecoration(
         color: (isDark || isBangladesh) ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06),
         borderRadius: BorderRadius.circular(32), // More pill-like
@@ -308,170 +313,177 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           return _buildResultsView(searchState.searchResults);
        } 
 
-       // Suggestions Mode (Publishers + Google + Articles Mix)
-       return CustomScrollView(
-         slivers: [
-            // 1. Publisher Suggestions Grid (2 Columns)
+        // Suggestions Mode (Publishers + Google + Articles Mix)
+        return ListView(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          children: [
+            // 1. Publisher Suggestions Grid
             if (_publisherSuggestions.isNotEmpty) ...[
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  sliver: SliverToBoxAdapter(
-                    child: Text(
-                      'Publishers', // Localize ideally
-                      style: TextStyle(
-                        fontSize: 14, 
-                        fontWeight: FontWeight.bold, 
-                        color: isDark ? Colors.white60 : Colors.grey,
-                        letterSpacing: 1.0,
+              _glass(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _header(loc.publishersLabel, theme.colorScheme.primary),
+                    const SizedBox(height: 12),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 3.5,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
                       ),
+                      itemCount: _publisherSuggestions.length,
+                      itemBuilder: (context, index) {
+                        final entry = _publisherSuggestions[index];
+                        return _buildSuggestionTile(entry.key, entry.value, isDark, true);
+                      },
                     ),
-                  ),
+                  ],
                 ),
-                SliverPadding(
-                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                   sliver: SliverGrid(
-                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                       crossAxisCount: 2,
-                       childAspectRatio: 3.0, // Wide Pill
-                       crossAxisSpacing: 10,
-                       mainAxisSpacing: 10,
-                     ),
-                     delegate: SliverChildBuilderDelegate(
-                       (context, index) {
-                          final entry = _publisherSuggestions[index];
-                          return _buildSuggestionTile(entry.key, entry.value, isDark, true);
-                       },
-                       childCount: _publisherSuggestions.length,
-                     ),
-                   ),
-                ),
+              ),
+              const SizedBox(height: 16),
             ],
 
-            // 2. Google Search Option (Always visible when typing)
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverToBoxAdapter(
-                child: _buildGoogleSearchTile(_searchController.text, isDark),
+            // 2. Google Search Option
+            _glass(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                   _header(loc.searchOnGoogle(_searchController.text), theme.colorScheme.primary),
+                   const SizedBox(height: 12),
+                   _buildGoogleSearchTile(_searchController.text, isDark),
+                ],
               ),
             ),
             
-            // 3. Fallback or actual results
+            const SizedBox(height: 16),
+
+            // 3. Actual results
             if (hasResults)
-               SliverList(
-                 delegate: SliverChildBuilderDelegate(
-                   (context, index) => Padding(
-                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                     child: NewsCard(
-                       article: searchState.searchResults[index],
-                       onTap: () => _handleArticleTap(searchState.searchResults[index]),
-                     ),
-                   ),
-                   childCount: searchState.searchResults.length,
-                 ),
-               ),
-         ],
-       );
+              _glass(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _header(loc.resultsLabel, theme.colorScheme.primary),
+                    const SizedBox(height: 12),
+                    ...searchState.searchResults.map((article) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: NewsCard(
+                          article: article,
+                          onTap: () => _handleArticleTap(article),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 100),
+          ],
+        );
     }
 
     // Default View (Recent + Trending)
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
         if (searchState.recentSearches.isNotEmpty) ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                loc.recentSearches,
-                style: TextStyle(
-                  fontSize: 22, 
-                  fontWeight: FontWeight.w900, 
-                  color: (isDark || themeMode == AppThemeMode.bangladesh) ? Colors.white : Colors.black,
-                  letterSpacing: -0.5
+          _glass(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: _header(loc.recentSearches, theme.colorScheme.primary)),
+                    const SizedBox(width: 8),
+                    GlassIconButton(
+                      onPressed: () => ref.read(searchProvider.notifier).clearHistory(),
+                      icon: Icons.delete_sweep_rounded,
+                      isDark: isDark,
+                      size: 20,
+                      backgroundColor: Colors.red.withOpacity(0.1),
+                    ),
+                  ],
                 ),
-              ),
-              GlassPillButton(
-                onPressed: () {
-                   ref.read(searchProvider.notifier).clearHistory();
-                },
-                label: loc.clearAll, 
-                icon: Icons.delete_outline,
-                isDestructive: true,
-                isDark: isDark,
-              ),
-            ],
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: searchState.recentSearches.map((term) {
+                    return Bouncy3DChip(
+                      label: term,
+                      selected: false,
+                      baseColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
+                      onTap: () {
+                        _searchController.text = term;
+                        _onSearchSubmitted(term);
+                      },
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: searchState.recentSearches.map((term) {
-              return Bouncy3DChip(
-                label: term,
-                selected: false,
-                baseColor: Colors.grey.shade100,
-                onTap: () {
-                  _searchController.text = term;
-                  _onSearchSubmitted(term);
-                },
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
         ],
 
-        Text(
-          loc.aiTrendingTopics,
-          style: TextStyle(
-            fontSize: 22, 
-            fontWeight: FontWeight.w900, 
-            color: (isDark || themeMode == AppThemeMode.bangladesh) ? Colors.white : Colors.black,
-            letterSpacing: -0.5
+        _glass(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _header(loc.aiTrendingTopics, theme.colorScheme.primary),
+              const SizedBox(height: 12),
+              if (intelligenceState.isLoading)
+                const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
+              else if (intelligenceState.trendingTopics.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Text(loc.noMatchesFound, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)),
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: intelligenceState.trendingTopics.map((topic) {
+                    return Bouncy3DChip(
+                      label: '#$topic',
+                      selected: false,
+                      baseColor: theme.colorScheme.primary.withOpacity(0.1),
+                      textColor: theme.colorScheme.primary,
+                      onTap: () {
+                        _searchController.text = topic;
+                        _onSearchSubmitted(topic);
+                      },
+                    );
+                  }).toList(),
+                ),
+            ],
           ),
         ),
-        const SizedBox(height: 12),
-        if (intelligenceState.isLoading)
-           const Center(child: CircularProgressIndicator())
-        else if (intelligenceState.trendingTopics.isEmpty)
-           Text(loc.noMatchesFound, style: const TextStyle(color: Colors.grey))
-        else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: intelligenceState.trendingTopics.map((topic) {
-              return Bouncy3DChip(
-                label: '#$topic',
-                selected: false,
-                baseColor: theme.colorScheme.primary.withOpacity(0.1),
-                textColor: theme.colorScheme.primary, // Primary color text
-                onTap: () {
-                  _searchController.text = topic;
-                  _onSearchSubmitted(topic);
-                },
-              );
-            }).toList(),
-          ),
-          
-        const SizedBox(height: 24),
         
-        Text(
-          loc.aiRecommendations,
-          style: TextStyle(
-            fontSize: 22, 
-            fontWeight: FontWeight.w900, 
-            color: (isDark || themeMode == AppThemeMode.bangladesh) ? Colors.white : Colors.black,
-            letterSpacing: -0.5
+        const SizedBox(height: 16),
+        
+        _glass(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _header(loc.aiRecommendations, theme.colorScheme.primary),
+              const SizedBox(height: 12),
+              ...intelligenceState.personalizedRecommendations.map((article) {
+                 return Padding(
+                   padding: const EdgeInsets.only(bottom: 12),
+                   child: NewsCard(
+                     article: article,
+                     onTap: () => _handleArticleTap(article),
+                   ),
+                 );
+              }),
+            ],
           ),
         ),
-        const SizedBox(height: 12),
-        ...intelligenceState.personalizedRecommendations.map((article) {
-           return Padding(
-             padding: const EdgeInsets.only(bottom: 12),
-             child: NewsCard(
-               article: article,
-               onTap: () => _handleArticleTap(article),
-             ),
-           );
-        }),
+        const SizedBox(height: 100), // Bottom padding for navigation
       ],
     );
   }
@@ -528,7 +540,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: GlassPillButton(
         onPressed: () => _launchGoogleSearch(query),
-        label: 'Search "$query" on Google',
+        label: loc.searchOnGoogle(query),
         icon: Icons.public, // Google icon approximation
         isPrimary: true,
         isDark: isDark,
@@ -538,7 +550,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _buildResultsView(List<NewsArticle> results) {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(vertical: 16),
       itemCount: results.length,
       itemBuilder: (context, index) {
          return Padding(
@@ -549,6 +561,184 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
            ),
          );
       },
+    );
+  }
+
+  Widget _glass(Widget child) {
+    final themeMode = ref.watch(currentThemeModeProvider);
+    final bool isLight = themeMode == AppThemeMode.light;
+    final bool isBangladesh = themeMode == AppThemeMode.bangladesh;
+    final bool isDark = themeMode == AppThemeMode.dark;
+
+    final Color faceColor = isBangladesh 
+        ? const Color(0xFF00392C).withOpacity(0.35) 
+        : (isLight ? Colors.white.withOpacity(0.4) : Colors.white.withOpacity(0.06));
+
+    final Color highlightColor = isBangladesh 
+        ? const Color(0xFF006A4E).withOpacity(0.2) 
+        : (isLight ? Colors.grey.withOpacity(0.15) : Colors.white.withOpacity(0.1));
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            decoration: BoxDecoration(
+              color: faceColor,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: highlightColor.withOpacity(0.15), 
+                width: 1.5,
+              ),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: isDark || isBangladesh
+                    ? [
+                        Colors.white.withOpacity(0.2),
+                        Colors.white.withOpacity(0.05),
+                        Colors.white.withOpacity(0.01),
+                      ]
+                    : [
+                        Colors.white.withOpacity(0.95),
+                        Colors.white.withOpacity(0.7),
+                        Colors.white.withOpacity(0.5),
+                      ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark || isBangladesh ? 0.4 : 0.12),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: Colors.white.withOpacity(isDark || isBangladesh ? 0.03 : 0.15),
+                  blurRadius: 8,
+                  spreadRadius: -4,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 0,
+                  left: 20,
+                  right: 20,
+                  child: Container(
+                    height: 2,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withOpacity(0.0),
+                          Colors.white.withOpacity(isDark || isBangladesh ? 0.5 : 0.9),
+                          Colors.white.withOpacity(isDark || isBangladesh ? 0.5 : 0.9),
+                          Colors.white.withOpacity(0.0),
+                        ],
+                        stops: const [0.0, 0.2, 0.8, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  top: 20,
+                  bottom: 20,
+                  child: Container(
+                    width: 1,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withOpacity(0.0),
+                          Colors.white.withOpacity(isDark || isBangladesh ? 0.2 : 0.4),
+                          Colors.white.withOpacity(0.0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      child,
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _header(String title, Color color) {
+    final themeMode = ref.watch(currentThemeModeProvider);
+    final Color accentColor;
+    if (themeMode == AppThemeMode.bangladesh) {
+      accentColor = Colors.redAccent;
+    } else if (themeMode == AppThemeMode.light) {
+      accentColor = Colors.blueAccent;
+    } else {
+      accentColor = const Color(0xFFFFC107);
+    }
+
+    final theme = Theme.of(context);
+    final headerBgColor = theme.scaffoldBackgroundColor;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            height: 1.5,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withOpacity(0.0),
+                  accentColor.withOpacity(0.5),
+                  accentColor.withOpacity(0.5),
+                  Colors.white.withOpacity(0.0),
+                ],
+                stops: const [0.0, 0.3, 0.7, 1.0],
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+              color: headerBgColor.withOpacity(0.9), 
+              child: Text(
+                title.toUpperCase(),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: accentColor,
+                  letterSpacing: 2.0,
+                  fontFamily: AppTypography.fontFamily,
+                  shadows: [
+                    Shadow(
+                      color: accentColor.withOpacity(0.4),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

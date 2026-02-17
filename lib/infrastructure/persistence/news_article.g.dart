@@ -18,14 +18,14 @@ class NewsArticleModelAdapter extends TypeAdapter<NewsArticleModel> {
     };
     return NewsArticleModel(
       title: fields[0] as String,
-      description: fields[1] as String,
       url: fields[2] as String,
       source: fields[3] as String,
+      publishedAt: fields[8] as DateTime,
+      description: fields[1] as String,
       imageUrl: fields[4] as String?,
       language: fields[5] as String,
       snippet: fields[6] as String,
       fullContent: fields[7] as String,
-      publishedAt: fields[8] as DateTime,
       isLive: fields[9] as bool,
       sourceOverride: fields[10] as String?,
       sourceLogo: fields[11] as String?,

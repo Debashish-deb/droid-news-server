@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui' show ImageFilter;
 
+import '../../../core/di/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -10,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import '../../../core/app_icons.dart';
+import '../../../core/app_icons.dart' show AppIcons;
 import '../../../core/design_tokens.dart';
 import '../../../core/app_paths.dart';
 import '../../../core/enums/theme_mode.dart';
@@ -19,17 +20,13 @@ import '../../../core/utils/number_localization.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../providers/app_settings_providers.dart';
 import '../../providers/language_providers.dart' show currentLocaleProvider, languageCodeProvider, languageProvider;
-import '../../providers/premium_providers.dart' show isPremiumProvider, premiumNotifierProvider;
-import '../../providers/tab_providers.dart' show currentTabIndexProvider;
-import '../../providers/theme_providers.dart' show borderColorProvider, currentThemeModeProvider, isDarkModeProvider, navIconColorProvider, themeProvider;
+import '../../providers/premium_providers.dart' show isPremiumProvider, isPremiumStateProvider;
+import '../../providers/theme_providers.dart' show currentThemeModeProvider, themeProvider;
 import '../../widgets/animated_theme_container.dart' show AnimatedThemeContainer;
 import '../../widgets/app_drawer.dart' show AppDrawer;
 import '../../widgets/banner_ad_widget.dart' show BannerAdWidget;
 import '../common/app_bar.dart' show AppBarTitle;
-import 'privacy_data_screen.dart';
 import 'widgets/settings_3d_widgets.dart';
-import '../../widgets/glass_pill_button.dart';
-import '../../widgets/glass_icon_button.dart';
 import 'package:go_router/go_router.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -64,13 +61,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
   }
 
-  void _onTabChanged() {
-    if (!mounted) return;
-    final int currentTab = ref.watch(currentTabIndexProvider);
-    if (currentTab == 3 && _scrollController.hasClients) {
-      _scrollController.jumpTo(0);
-    }
-  }
 
   @override
   void dispose() {
@@ -132,8 +122,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void _handlePurchases(List<PurchaseDetails> purchases) {
     for (final PurchaseDetails purchase in purchases) {
       if (purchase.status == PurchaseStatus.purchased) {
-        ref.read(premiumNotifierProvider).setPremium(true);
-        _snack('Thank you for your purchase! Ads have been removed.');
+        ref.read(premiumRepositoryProvider).setPremium(true);
+        _snack(loc.thankYouPurchase);
       }
 
       if (purchase.pendingCompletePurchase) {
@@ -159,26 +149,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Future<void> _rateApp() async {
-    const String iosAppId =
-        '0000000000'; 
-    const String androidPkg = 'com.bd.bdnewsreader';
 
-    final Uri url;
-    if (Theme.of(context).platform == TargetPlatform.iOS) {
-      url = Uri.parse(
-        'https://apps.apple.com/app/id$iosAppId?action=write-review',
-      );
-    } else {
-      url = Uri.parse(
-        'https://play.google.com/store/apps/details?id=$androidPkg',
-      );
-    }
-
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    }
-  }
 
  Future<void> _clearCache() async {
     setState(() => _isClearingCache = true);
@@ -205,26 +176,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!mounted) return;
 
       setState(() => _isClearingCache = false);
-      _snack('${loc.clearCacheSuccess} ($clearedCount caches cleared)');
+      _snack('${loc.clearCacheSuccess} ${loc.cacheClearedCount(clearedCount)}');
     } catch (e) {
       debugPrint('❌ Cache clear error: $e');
       if (!mounted) return;
 
       setState(() => _isClearingCache = false);
-      _snack('Error clearing cache: $e');
+      _snack(loc.errorClearingCache(e.toString()));
     }
   }
 
- Future<void> _contactSupport() async {
-    final String email = loc.contactEmail;
-    final Uri mail = Uri.parse('mailto:$email');
-
-    if (await canLaunchUrl(mail)) {
-      await launchUrl(mail, mode: LaunchMode.externalApplication);
-    }
-  }
-
- void _snack(String msg) {
+  void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
@@ -246,7 +208,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         : (isLight ? Colors.grey.withOpacity(0.15) : Colors.white.withOpacity(0.1));
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 5), // Increased from 2 for better separation
+      margin: const EdgeInsets.symmetric(vertical: 3),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24), // Sharper, more premium
         child: BackdropFilter(
@@ -331,7 +293,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(10), // Increased from 8
+                  padding: const EdgeInsets.all(6),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -348,6 +310,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+
   Widget _header(String title, Color color) {
     final themeMode = ref.watch(currentThemeModeProvider);
     final Color accentColor;
@@ -358,10 +321,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     } else {
       accentColor = const Color(0xFFFFC107);
     }
-    
+
+    final theme = Theme.of(context);
+    final headerBgColor = theme.scaffoldBackgroundColor;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -381,19 +347,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
           ),
-          // Header Text with Background Shield
+          // Header Text with Theme-Matched Background
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            color: Colors.transparent, // Let the panel color show through
+            color: Colors.transparent,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-              color: Colors.black.withOpacity(0.6), // Dark background for the text
+              color: headerBgColor.withOpacity(0.9), // Match theme background color
               child: Text(
                 title.toUpperCase(),
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 12, 
-                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                   color: accentColor,
                   letterSpacing: 2.0,
                   fontFamily: AppTypography.fontFamily,
@@ -412,240 +378,214 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final Color txt = theme.textTheme.bodyLarge?.color ?? Colors.white;
+    final theme = Theme.of(context);
+    final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
+    final settings = ref.watch(appSettingsProvider);
+    final currentThemeMode = ref.watch(currentThemeModeProvider);
 
-    final bool isPremium = ref.watch(isPremiumProvider);
-    final appSettings = ref.watch(appSettingsProvider);
-    final AppThemeMode mode = ref.watch(currentThemeModeProvider);
-    final List<Color> colors = AppGradients.getBackgroundGradient(mode);
-    final Color start = colors[0], end = colors[1];
+    final colors = AppGradients.getBackgroundGradient(currentThemeMode);
+    final scheme = theme.colorScheme;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
       drawer: const AppDrawer(),
-
       appBar: AppBar(
         title: AppBarTitle(loc.settings),
+        centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
-        toolbarHeight: 64,
-        leading: Builder(
-          builder: (context) => Center(
-            child: GlassIconButton(
-              icon: Icons.menu_rounded,
-              onPressed: () => Scaffold.of(context).openDrawer(),
-              isDark: Theme.of(context).brightness == Brightness.dark,
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              color: scheme.surface.withOpacity(0.7),
             ),
           ),
         ),
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12), // More blur
-            child: Container(color: Colors.transparent),
-          ),
-        ),
       ),
-
       body: Stack(
         children: [
-          // Background
           Positioned.fill(
             child: AnimatedThemeContainer(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: <Color>[
-                    colors[0].withOpacity(0.85),
-                    colors[1].withOpacity(0.85),
+                  colors: [
+                    colors[0].withOpacity(0.9),
+                    colors[1].withOpacity(0.9),
                   ],
                 ),
               ),
             ),
           ),
-
           SafeArea(
             child: SingleChildScrollView(
               controller: _scrollController,
-              padding: const EdgeInsets.symmetric(
-                vertical: 8, // Increased from 4
+              physics: const BouncingScrollPhysics(),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: MediaQuery.of(context).size.width * 0.05,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+               if (!isPremium) _glass(const BannerAdWidget()),
+
+              _glass(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _header(loc.theme, theme.colorScheme.primary),
+                    _ThemeSelector(
+                      current: currentThemeMode,
+                      onChanged: (m) => ref.read(themeProvider.notifier).setTheme(m),
+                      loc: loc,
+                      onGoPremium: _buyRemoveAds,
+                    ),
+                  ],
+                ),
               ),
-              child: Column(
-                children: <Widget>[
-                  if (!isPremium) _glass(const BannerAdWidget()),
 
-                  // Theme Section
-                  _glass(
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        _header(loc.theme, txt),
-                        _ThemeSelector(
-                          current: ref.watch(currentThemeModeProvider),
-                          onChanged: (AppThemeMode mode) => 
-                              ref.read(themeProvider.notifier).setTheme(mode),
-                          loc: loc,
-                          onGoPremium: _buyRemoveAds,
-                        ),
+              _glass(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _header(loc.language, theme.colorScheme.primary),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _lang('en', 'English'),
+                        _lang('bn', 'বাংলা'),
                       ],
                     ),
-                  ),
+                  ],
+                ),
+              ),
 
-                  // Language Section
-                  _glass(
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        _header(loc.language, txt),
-                        Row(
-                          children: [
-                            Expanded(child: _lang('en', 'English')),
-                            const SizedBox(width: 10),
-                            Expanded(child: _lang('bn', 'বাংলা')),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Ad-Free Experience Section
-                  _glass(
-                    Column(
-                      children: <Widget>[
-                        _header(loc.adFree, txt),
-                        if (isPremium)
-                          Settings3DButton(
-                            onTap: () {},
-                            label: 'ADS REMOVED', // Matching reference image
-                            icon: Icons.verified_user_rounded,
-                            isSelected: true,
-                            width: double.infinity,
-                          )
-                        else
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (_removeAdsProduct != null)
-                                Expanded(
-                                  child: GlassPillButton(
-                                    onPressed: _buyRemoveAds,
-                                    icon: Icons.credit_card_rounded,
-                                    label: _removeAdsProduct!.price,
-                                    isPrimary: true,
-                                    isDark: theme.brightness == Brightness.dark,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              if (_removeAdsProduct != null) const SizedBox(width: 10),
-                              Expanded(
-                                child: GlassPillButton(
-                                  onPressed: _launchPaypal,
-                                  icon: Icons.favorite_rounded,
-                                  label: loc.btnDonate,
-                                  isDestructive: true,
-                                  isDark: theme.brightness == Brightness.dark,
-                                  fontSize: 14,
-                                ),
+              _glass(
+                Column(
+                  children: [
+                    _header(loc.adFree, theme.colorScheme.primary),
+                    if (isPremium)
+                      Settings3DButton(
+                        onTap: () {},
+                        label: loc.adsRemoved,
+                        icon: Icons.verified_user_rounded,
+                        isSelected: true,
+                        width: double.infinity,
+                      )
+                    else
+                      Row(
+                        children: [
+                          if (_removeAdsProduct != null)
+                            Expanded(
+                              child: FilledButton.tonal(
+                                onPressed: _buyRemoveAds,
+                                child: Text(_removeAdsProduct!.price),
                               ),
-                            ],
+                            ),
+                          if (_removeAdsProduct != null) const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _launchPaypal,
+                              child: Text(loc.btnDonate),
+                            ),
                           ),
-                      ],
-                    ),
-                  ),
-
-                  _glass(
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        _header(loc.misc, txt),
-                        const SizedBox(height: 8),
-                        GridView.count(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 4, // Reduced from 6
-                          crossAxisSpacing: 8,
-                          childAspectRatio: 3.6, // Increased from 3.2
-                          children: [
-                            Settings3DButton(
-                              onTap: () => ref.read(appSettingsProvider.notifier).setDataSaver(!appSettings.dataSaver),
-                              icon: AppIcons.download,
-                              label: loc.dataSaver,
-                              isSelected: appSettings.dataSaver,
-                              fontSize: 12,
-                            ),
-                            Settings3DButton(
-                              onTap: () => ref.read(appSettingsProvider.notifier).setPushNotif(!appSettings.pushNotif),
-                              icon: AppIcons.notification,
-                              label: loc.btnNotifications,
-                              isSelected: appSettings.pushNotif,
-                              fontSize: 12,
-                            ),
-                            Settings3DButton(
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const PrivacyDataScreen()),
-                              ),
-                              icon: Icons.security_rounded,
-                              label: loc.btnPrivacy,
-                              fontSize: 12,
-                            ),
-                            Settings3DButton(
-                              onTap: _isClearingCache ? () {} : _clearCache,
-                              icon: _isClearingCache ? Icons.refresh_rounded : AppIcons.delete,
-                              label: _isClearingCache ? loc.clearingCache : loc.btnCache,
-                              fontSize: 12,
-                              isSelected: _isClearingCache,
-                            ),
-                            Settings3DButton(
-                              onTap: _rateApp,
-                              icon: AppIcons.star_filled,
-                              label: loc.btnRate,
-                              fontSize: 12,
-                            ),
-                            Settings3DButton(
-                              onTap: _contactSupport,
-                              icon: AppIcons.help,
-                              label: loc.btnSupport,
-                              fontSize: 12,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 8), // Increased from 4
-
-                  _glass(
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          '${loc.versionPrefix} ${localizeNumber(_version, ref.watch(languageCodeProvider))}',
-                          style: TextStyle(
-                            color: (mode == AppThemeMode.dark || mode == AppThemeMode.bangladesh) ? Colors.white : txt.withOpacity(0.8),
-                            fontStyle: FontStyle.italic,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 14,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
+                        ],
                       ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+
+              _glass(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _header(loc.misc, theme.colorScheme.primary),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Settings3DButton(
+                            onTap: () => ref.read(appSettingsProvider.notifier).setDataSaver(!settings.dataSaver),
+                            label: loc.dataSaver,
+                            icon: AppIcons.download,
+                            isSelected: settings.dataSaver,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Settings3DButton(
+                            onTap: () => ref.read(appSettingsProvider.notifier).setPushNotif(!settings.pushNotif),
+                            label: loc.btnNotifications,
+                            icon: AppIcons.notification,
+                            isSelected: settings.pushNotif,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              _glass(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _header(loc.btnPrivacy, theme.colorScheme.primary),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Settings3DButton(
+                            onTap: () => context.push('/privacy'),
+                            label: loc.btnPrivacy,
+                            icon: Icons.security_rounded,
+                            isSelected: false,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Settings3DButton(
+                            onTap: _isClearingCache ? () {} : () => _clearCache(),
+                            label: loc.btnCache,
+                            icon: AppIcons.delete,
+                            isSelected: false,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+              Center(
+                child: Opacity(
+                  opacity: 0.5,
+                  child: Text(
+                    '${loc.versionPrefix} ${localizeNumber(_version, ref.watch(languageCodeProvider))}',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
           ),
-        ],
+        ),
       ),
-    );
-  }
+    ),
+  ],
+),
+);
+}
 
   Widget _lang(String code, String label, {double? width}) {
     final currentLocale = ref.watch(currentLocaleProvider);
@@ -656,8 +596,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       label: label,
       isSelected: selected,
       icon: code == 'en' ? Icons.language_rounded : AppIcons.flag,
-      width: width ?? 172,
-      fontSize: 15, // Larger font for language buttons
+      width: width ?? 140, // More compact for horizontal row
+      fontSize: 13,
     );
   }
 }
@@ -678,16 +618,31 @@ class _ThemeSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: <Widget>[
-        Expanded(child: _item(context, AppThemeMode.light, 'Light', AppIcons.lightMode)),
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        Expanded(
+          child: _item(
+            context,
+            AppThemeMode.light,
+            loc.themeLightLabel,
+            AppIcons.lightMode,
+          ),
+        ),
         const SizedBox(width: 8),
-        Expanded(child: _item(context, AppThemeMode.dark, 'Dark', AppIcons.darkMode)),
+        Expanded(
+          child: _item(
+            context,
+            AppThemeMode.dark,
+            loc.themeDarkLabel,
+            AppIcons.darkMode,
+          ),
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: _item(
             context,
             AppThemeMode.bangladesh,
-            'Desh', // Corrected from Dusk
+            loc.themeDeshLabel,
             AppIcons.flag,
             isPremium: true,
           ),
@@ -712,7 +667,7 @@ class _ThemeSelector extends StatelessWidget {
           onTap: () {
             if (isPremium) {
                 final container = ProviderScope.containerOf(context);
-                final bool userIsPremium = container.read(isPremiumProvider);
+                final bool userIsPremium = container.read(isPremiumStateProvider);
                 if (!userIsPremium) {
                   _showPremiumLockDialog(context, label);
                   return;
@@ -762,122 +717,33 @@ class _ThemeSelector extends StatelessWidget {
     );
   }
 
+
   void _showPremiumLockDialog(BuildContext context, String themeName) {
+    final theme = Theme.of(context);
+    
     showDialog(
       context: context,
-      builder:
-          (BuildContext context) => Dialog(
-            backgroundColor: Theme.of(context).cardTheme.color?.withOpacity(0.95),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-            elevation: 20,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.amber.withOpacity(0.1),
-                    Colors.transparent,
-                  ],
-                ),
-                border: Border.all(
-                  color: Colors.amber.withOpacity(0.3),
-                  width: 1.5,
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.amber, width: 2),
-                      ),
-                      child: const Icon(
-                        Icons.stars_rounded, 
-                        size: 32, 
-                        color: Colors.amber
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      loc.premiumFeature,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      loc.premiumFeatureDesc(themeName),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            loc.close,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white54,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            onGoPremium?.call();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.amber,
-                            foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 8,
-                            shadowColor: Colors.amber.withOpacity(0.5),
-                          ),
-                          child: Text(
-                            loc.goPremium,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
+      builder: (context) => AlertDialog(
+        icon: Icon(Icons.stars_rounded, color: theme.colorScheme.primary, size: 48),
+        title: Text(loc.premiumFeature),
+        content: Text(
+          loc.premiumFeatureDesc(themeName),
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(loc.close),
           ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              onGoPremium?.call();
+            },
+            child: Text(loc.goPremium),
+          ),
+        ],
+      ),
     );
   }
 }

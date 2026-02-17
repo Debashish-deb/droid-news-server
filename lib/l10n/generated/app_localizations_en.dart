@@ -108,10 +108,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get national => 'National';
 
   @override
-  String get trending => 'Trending';
+  String get international => 'International';
 
   @override
   String get business => 'Business';
+
+  @override
+  String get economics => 'Economics';
 
   @override
   String get technology => 'Technology';
@@ -121,6 +124,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get entertainment => 'Entertainment';
+
+  @override
+  String get science => 'Science & Discovery';
+
+  @override
+  String get worldAffairs => 'World Affairs';
+
+  @override
+  String get lifestyle => 'Lifestyle & Luxury';
+
+  @override
+  String get arts => 'Arts & Humanities';
+
+  @override
+  String get fashion => 'Fashion & Aesthetics';
+
+  @override
+  String get education => 'Education';
+
+  @override
+  String get regional => 'Regional';
+
+  @override
+  String get politics => 'Politics';
 
   @override
   String get noImage => 'No Image';
@@ -244,22 +271,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get favorites => 'Favorites';
 
   @override
-  String get fashion => 'Fashion & Aesthetics';
-
-  @override
-  String get science => 'Science & Discovery';
-
-  @override
   String get finance => 'Economics & Finance';
 
   @override
   String get global => 'Global Affairs';
-
-  @override
-  String get arts => 'Arts & Humanities';
-
-  @override
-  String get lifestyle => 'Lifestyle & Luxury';
 
   @override
   String get noWebsite => 'No website available for this magazine';
@@ -303,24 +318,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noPapersFound => 'No papers found';
 
   @override
-  String get international => 'International';
-
-  @override
-  String get businessFinance => 'Business & Finance';
-
-  @override
-  String get digitalTech => 'Digital & Technology';
-
-  @override
-  String get sportsNews => 'Sports News';
-
-  @override
-  String get entertainmentArts => 'Entertainment & Arts';
-
-  @override
-  String get worldPolitics => 'World & Politics';
-
-  @override
   String get blog => 'Blog';
 
   @override
@@ -357,10 +354,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bdNewsreader => 'BD News Reader';
 
   @override
-  String get noArticlesFound => 'No Articles Found';
+  String get homeTitle => 'BD NewsReader';
 
   @override
-  String get catFashion => 'Fashion';
+  String get noArticlesFound => 'No Articles Found';
 
   @override
   String get noMagazines => 'No Magazines';
@@ -450,34 +447,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get close => 'Close';
 
   @override
-  String get catScience => 'Science';
-
-  @override
-  String get catFinance => 'Finance';
-
-  @override
-  String get catAffairs => 'World Affairs';
-
-  @override
-  String get catTech => 'Tech';
-
-  @override
-  String get catArts => 'Arts';
-
-  @override
-  String get catLifestyle => 'Lifestyle';
-
-  @override
-  String get catSports => 'Sports';
-
-  @override
   String get loadFailed => 'Load failed';
 
   @override
   String get pressBackToExit => 'Press back again to exit';
-
-  @override
-  String get education => 'Education';
 
   @override
   String get replaceFirst => 'Replace First';
@@ -842,15 +815,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Devices that are inactive for 30 days will be automatically removed.';
 
   @override
-  String get regional => 'Regional';
-
-  @override
-  String get politics => 'Politics';
-
-  @override
-  String get economics => 'Economics';
-
-  @override
   String get all => 'All';
 
   @override
@@ -1054,6 +1018,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noSavedArticles => 'No saved articles';
+
+  @override
+  String get copiedToClipboardFlat => 'Copied to clipboard';
 
   @override
   String get editLayout => 'Edit Layout';
@@ -1260,4 +1227,189 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fillAllFields => 'Please fill all fields';
+
+  @override
+  String get navigatingToPremium => 'Navigating to Premium Plans...';
+
+  @override
+  String get upgradeDroidPlus => 'Upgrade to Droid+';
+
+  @override
+  String get historicalEvents => 'Historical Events';
+
+  @override
+  String get historicalHistory => 'HISTORY';
+
+  @override
+  String get noEventsFound => 'No events found for this date.';
+
+  @override
+  String get noDescriptionAvailable => 'No description available';
+
+  @override
+  String onThisDayIn(String year, String description) {
+    return 'On this day in $year: $description';
+  }
+
+  @override
+  String get prev => 'PREV';
+
+  @override
+  String get nextCaps => 'NEXT';
+
+  @override
+  String get nowReading => 'Now Reading';
+
+  @override
+  String get playbackSpeed => 'Playback Speed';
+
+  @override
+  String chunkCount(int current, int total) {
+    return '$current / $total chunks';
+  }
+
+  @override
+  String get audioPremiumFeature => '✨ Audio Listen is a Premium feature.';
+
+  @override
+  String get restartApp => 'Restart App';
+
+  @override
+  String get sessionEnded => 'Session Ended';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String shareFailed(String error) {
+    return 'Share failed: $error';
+  }
+
+  @override
+  String get premiumMemberBadge => 'PREMIUM MEMBER';
+
+  @override
+  String get thankYouPurchase =>
+      'Thank you for your purchase! Ads have been removed.';
+
+  @override
+  String get publishersLabel => 'Publishers';
+
+  @override
+  String searchOnGoogle(String query) {
+    return 'Search \"$query\" on Google';
+  }
+
+  @override
+  String get onboardingWelcome => 'Welcome to BD News';
+
+  @override
+  String get appDescription =>
+      'Your trusted source for latest news, live updates, and personalized feeds.';
+
+  @override
+  String get continueBtn => 'Continue';
+
+  @override
+  String get premiumArticleHint => 'This is a premium article';
+
+  @override
+  String get adLoading => 'Ad is loading, please wait...';
+
+  @override
+  String get userNamePlaceholder => 'User Name';
+
+  @override
+  String get exclusiveContent => 'Exclusive Content';
+
+  @override
+  String get droidPlusDescription =>
+      'Join Droid+ to access premium analysis, expert insights, and ad-free experience.';
+
+  @override
+  String get deleteOfflineArticleHint =>
+      'This will remove the downloaded article and free up storage.';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get clearAllLabel => 'Clear All';
+
+  @override
+  String articlesCountLabel(Object count) {
+    return '$count articles';
+  }
+
+  @override
+  String eventsFound(Object count) {
+    return '$count events found';
+  }
+
+  @override
+  String get articleLabel => 'Article';
+
+  @override
+  String speedX(double speed) {
+    return '${speed}x';
+  }
+
+  @override
+  String stopReadingArticle(String title) {
+    return 'Stop reading article: $title';
+  }
+
+  @override
+  String listenToArticle(String title) {
+    return 'Listen to article with text-to-speech: $title';
+  }
+
+  @override
+  String get tapToStop => 'Tap to stop playback';
+
+  @override
+  String get tapToStart => 'Tap to start reading article aloud';
+
+  @override
+  String cacheClearedCount(int count) {
+    return '($count caches cleared)';
+  }
+
+  @override
+  String errorClearingCache(Object error) {
+    return 'Error clearing cache: $error';
+  }
+
+  @override
+  String get sessionEndedDesc =>
+      'Your session on this device has been ended.\n\nThis may have happened because:\n• You logged out from another device\n• Your account exceeded device limits\n• Security precaution\n\nPlease login again to continue.';
+
+  @override
+  String get errorOops => 'Oops! Something went wrong';
+
+  @override
+  String get errorUnexpected =>
+      'We encountered an unexpected error. Please try restarting the app.';
+
+  @override
+  String get debugInfo => 'Debug Info:';
+
+  @override
+  String get classicFeedLabel =>
+      'Classic Feed (Feature Flag OFF)\nEnable \"news_threading\" to see Smart UI';
+
+  @override
+  String get resultsLabel => 'Results';
+
+  @override
+  String get noNationalNews => 'No national news found';
+
+  @override
+  String get noInternationalNews => 'No international news found';
+
+  @override
+  String get noSportsNews => 'No sports news found';
+
+  @override
+  String get noEntertainmentNews => 'No entertainment news found';
 }

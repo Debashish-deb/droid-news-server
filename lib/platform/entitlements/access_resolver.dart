@@ -1,7 +1,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'entitlement_model.dart';
-import '../../core/premium_service.dart';
+import '../../domain/repositories/premium_repository.dart';
 
 abstract class AccessResolver {
   /// Checks if the current user has access to a specific feature
@@ -17,10 +17,10 @@ abstract class AccessResolver {
 class AccessResolverImpl implements AccessResolver {
   
   // In a real enterprise app, we would have a local db cache of the Entitlement Graph.
-  // For Phase 1, we bridge the existing PremiumService to this new interface.
+  // For Phase 1, we bridge the existing PremiumRepository to this new interface.
   
-  AccessResolverImpl(this._premiumService);
-  final PremiumService _premiumService;
+  AccessResolverImpl(this._premiumRepository);
+  final PremiumRepository _premiumRepository;
 
   @override
   Future<bool> hasAccess(String featureId) async {
@@ -30,8 +30,8 @@ class AccessResolverImpl implements AccessResolver {
 
   @override
   Future<Set<String>> getActiveFeatures() async {
-    // 1. Fetch source of truth (Subscription Repository / PremiumService)
-    final bool isPremium = _premiumService.isPremium;
+    // 1. Fetch source of truth (Subscription Repository / PremiumRepository)
+    final bool isPremium = _premiumRepository.isPremium;
     
     // 2. Resolve 'Product Tier' to 'Feature Set' (The Entitlement Graph)
     if (isPremium) {

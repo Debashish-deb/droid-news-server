@@ -290,17 +290,23 @@ abstract class AppLocalizations {
   /// **'National'**
   String get national;
 
-  /// No description provided for @trending.
+  /// No description provided for @international.
   ///
   /// In en, this message translates to:
-  /// **'Trending'**
-  String get trending;
+  /// **'International'**
+  String get international;
 
   /// No description provided for @business.
   ///
   /// In en, this message translates to:
   /// **'Business'**
   String get business;
+
+  /// No description provided for @economics.
+  ///
+  /// In en, this message translates to:
+  /// **'Economics'**
+  String get economics;
 
   /// No description provided for @technology.
   ///
@@ -319,6 +325,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Entertainment'**
   String get entertainment;
+
+  /// No description provided for @science.
+  ///
+  /// In en, this message translates to:
+  /// **'Science & Discovery'**
+  String get science;
+
+  /// No description provided for @worldAffairs.
+  ///
+  /// In en, this message translates to:
+  /// **'World Affairs'**
+  String get worldAffairs;
+
+  /// No description provided for @lifestyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lifestyle & Luxury'**
+  String get lifestyle;
+
+  /// No description provided for @arts.
+  ///
+  /// In en, this message translates to:
+  /// **'Arts & Humanities'**
+  String get arts;
+
+  /// No description provided for @fashion.
+  ///
+  /// In en, this message translates to:
+  /// **'Fashion & Aesthetics'**
+  String get fashion;
+
+  /// No description provided for @education.
+  ///
+  /// In en, this message translates to:
+  /// **'Education'**
+  String get education;
+
+  /// No description provided for @regional.
+  ///
+  /// In en, this message translates to:
+  /// **'Regional'**
+  String get regional;
+
+  /// No description provided for @politics.
+  ///
+  /// In en, this message translates to:
+  /// **'Politics'**
+  String get politics;
 
   /// No description provided for @noImage.
   ///
@@ -554,18 +608,6 @@ abstract class AppLocalizations {
   /// **'Favorites'**
   String get favorites;
 
-  /// No description provided for @fashion.
-  ///
-  /// In en, this message translates to:
-  /// **'Fashion & Aesthetics'**
-  String get fashion;
-
-  /// No description provided for @science.
-  ///
-  /// In en, this message translates to:
-  /// **'Science & Discovery'**
-  String get science;
-
   /// No description provided for @finance.
   ///
   /// In en, this message translates to:
@@ -577,18 +619,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Global Affairs'**
   String get global;
-
-  /// No description provided for @arts.
-  ///
-  /// In en, this message translates to:
-  /// **'Arts & Humanities'**
-  String get arts;
-
-  /// No description provided for @lifestyle.
-  ///
-  /// In en, this message translates to:
-  /// **'Lifestyle & Luxury'**
-  String get lifestyle;
 
   /// No description provided for @noWebsite.
   ///
@@ -668,42 +698,6 @@ abstract class AppLocalizations {
   /// **'No papers found'**
   String get noPapersFound;
 
-  /// No description provided for @international.
-  ///
-  /// In en, this message translates to:
-  /// **'International'**
-  String get international;
-
-  /// No description provided for @businessFinance.
-  ///
-  /// In en, this message translates to:
-  /// **'Business & Finance'**
-  String get businessFinance;
-
-  /// No description provided for @digitalTech.
-  ///
-  /// In en, this message translates to:
-  /// **'Digital & Technology'**
-  String get digitalTech;
-
-  /// No description provided for @sportsNews.
-  ///
-  /// In en, this message translates to:
-  /// **'Sports News'**
-  String get sportsNews;
-
-  /// No description provided for @entertainmentArts.
-  ///
-  /// In en, this message translates to:
-  /// **'Entertainment & Arts'**
-  String get entertainmentArts;
-
-  /// No description provided for @worldPolitics.
-  ///
-  /// In en, this message translates to:
-  /// **'World & Politics'**
-  String get worldPolitics;
-
   /// No description provided for @blog.
   ///
   /// In en, this message translates to:
@@ -776,17 +770,17 @@ abstract class AppLocalizations {
   /// **'BD News Reader'**
   String get bdNewsreader;
 
+  /// No description provided for @homeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'BD NewsReader'**
+  String get homeTitle;
+
   /// No description provided for @noArticlesFound.
   ///
   /// In en, this message translates to:
   /// **'No Articles Found'**
   String get noArticlesFound;
-
-  /// No description provided for @catFashion.
-  ///
-  /// In en, this message translates to:
-  /// **'Fashion'**
-  String get catFashion;
 
   /// No description provided for @noMagazines.
   ///
@@ -962,48 +956,6 @@ abstract class AppLocalizations {
   /// **'Close'**
   String get close;
 
-  /// No description provided for @catScience.
-  ///
-  /// In en, this message translates to:
-  /// **'Science'**
-  String get catScience;
-
-  /// No description provided for @catFinance.
-  ///
-  /// In en, this message translates to:
-  /// **'Finance'**
-  String get catFinance;
-
-  /// No description provided for @catAffairs.
-  ///
-  /// In en, this message translates to:
-  /// **'World Affairs'**
-  String get catAffairs;
-
-  /// No description provided for @catTech.
-  ///
-  /// In en, this message translates to:
-  /// **'Tech'**
-  String get catTech;
-
-  /// No description provided for @catArts.
-  ///
-  /// In en, this message translates to:
-  /// **'Arts'**
-  String get catArts;
-
-  /// No description provided for @catLifestyle.
-  ///
-  /// In en, this message translates to:
-  /// **'Lifestyle'**
-  String get catLifestyle;
-
-  /// No description provided for @catSports.
-  ///
-  /// In en, this message translates to:
-  /// **'Sports'**
-  String get catSports;
-
   /// No description provided for @loadFailed.
   ///
   /// In en, this message translates to:
@@ -1015,12 +967,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Press back again to exit'**
   String get pressBackToExit;
-
-  /// No description provided for @education.
-  ///
-  /// In en, this message translates to:
-  /// **'Education'**
-  String get education;
 
   /// No description provided for @replaceFirst.
   ///
@@ -1676,24 +1622,6 @@ abstract class AppLocalizations {
   /// **'Devices that are inactive for 30 days will be automatically removed.'**
   String get deviceAutoLogoutInfo;
 
-  /// No description provided for @regional.
-  ///
-  /// In en, this message translates to:
-  /// **'Regional'**
-  String get regional;
-
-  /// No description provided for @politics.
-  ///
-  /// In en, this message translates to:
-  /// **'Politics'**
-  String get politics;
-
-  /// No description provided for @economics.
-  ///
-  /// In en, this message translates to:
-  /// **'Economics'**
-  String get economics;
-
   /// No description provided for @all.
   ///
   /// In en, this message translates to:
@@ -2089,6 +2017,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No saved articles'**
   String get noSavedArticles;
+
+  /// No description provided for @copiedToClipboardFlat.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to clipboard'**
+  String get copiedToClipboardFlat;
 
   /// No description provided for @editLayout.
   ///
@@ -2497,6 +2431,318 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please fill all fields'**
   String get fillAllFields;
+
+  /// No description provided for @navigatingToPremium.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigating to Premium Plans...'**
+  String get navigatingToPremium;
+
+  /// No description provided for @upgradeDroidPlus.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to Droid+'**
+  String get upgradeDroidPlus;
+
+  /// No description provided for @historicalEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Historical Events'**
+  String get historicalEvents;
+
+  /// No description provided for @historicalHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'HISTORY'**
+  String get historicalHistory;
+
+  /// No description provided for @noEventsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No events found for this date.'**
+  String get noEventsFound;
+
+  /// No description provided for @noDescriptionAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No description available'**
+  String get noDescriptionAvailable;
+
+  /// No description provided for @onThisDayIn.
+  ///
+  /// In en, this message translates to:
+  /// **'On this day in {year}: {description}'**
+  String onThisDayIn(String year, String description);
+
+  /// No description provided for @prev.
+  ///
+  /// In en, this message translates to:
+  /// **'PREV'**
+  String get prev;
+
+  /// No description provided for @nextCaps.
+  ///
+  /// In en, this message translates to:
+  /// **'NEXT'**
+  String get nextCaps;
+
+  /// No description provided for @nowReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Now Reading'**
+  String get nowReading;
+
+  /// No description provided for @playbackSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback Speed'**
+  String get playbackSpeed;
+
+  /// No description provided for @chunkCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{current} / {total} chunks'**
+  String chunkCount(int current, int total);
+
+  /// No description provided for @audioPremiumFeature.
+  ///
+  /// In en, this message translates to:
+  /// **'✨ Audio Listen is a Premium feature.'**
+  String get audioPremiumFeature;
+
+  /// No description provided for @restartApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart App'**
+  String get restartApp;
+
+  /// No description provided for @sessionEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'Session Ended'**
+  String get sessionEnded;
+
+  /// No description provided for @ok.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get ok;
+
+  /// No description provided for @shareFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Share failed: {error}'**
+  String shareFailed(String error);
+
+  /// No description provided for @premiumMemberBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'PREMIUM MEMBER'**
+  String get premiumMemberBadge;
+
+  /// No description provided for @thankYouPurchase.
+  ///
+  /// In en, this message translates to:
+  /// **'Thank you for your purchase! Ads have been removed.'**
+  String get thankYouPurchase;
+
+  /// No description provided for @publishersLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Publishers'**
+  String get publishersLabel;
+
+  /// No description provided for @searchOnGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search \"{query}\" on Google'**
+  String searchOnGoogle(String query);
+
+  /// No description provided for @onboardingWelcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to BD News'**
+  String get onboardingWelcome;
+
+  /// No description provided for @appDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Your trusted source for latest news, live updates, and personalized feeds.'**
+  String get appDescription;
+
+  /// No description provided for @continueBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueBtn;
+
+  /// No description provided for @premiumArticleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a premium article'**
+  String get premiumArticleHint;
+
+  /// No description provided for @adLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Ad is loading, please wait...'**
+  String get adLoading;
+
+  /// No description provided for @userNamePlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'User Name'**
+  String get userNamePlaceholder;
+
+  /// No description provided for @exclusiveContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Exclusive Content'**
+  String get exclusiveContent;
+
+  /// No description provided for @droidPlusDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Join Droid+ to access premium analysis, expert insights, and ad-free experience.'**
+  String get droidPlusDescription;
+
+  /// No description provided for @deleteOfflineArticleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This will remove the downloaded article and free up storage.'**
+  String get deleteOfflineArticleHint;
+
+  /// No description provided for @delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
+
+  /// No description provided for @clearAllLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All'**
+  String get clearAllLabel;
+
+  /// No description provided for @articlesCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} articles'**
+  String articlesCountLabel(Object count);
+
+  /// No description provided for @eventsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} events found'**
+  String eventsFound(Object count);
+
+  /// No description provided for @articleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Article'**
+  String get articleLabel;
+
+  /// No description provided for @speedX.
+  ///
+  /// In en, this message translates to:
+  /// **'{speed}x'**
+  String speedX(double speed);
+
+  /// No description provided for @stopReadingArticle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop reading article: {title}'**
+  String stopReadingArticle(String title);
+
+  /// No description provided for @listenToArticle.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen to article with text-to-speech: {title}'**
+  String listenToArticle(String title);
+
+  /// No description provided for @tapToStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to stop playback'**
+  String get tapToStop;
+
+  /// No description provided for @tapToStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to start reading article aloud'**
+  String get tapToStart;
+
+  /// No description provided for @cacheClearedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'({count} caches cleared)'**
+  String cacheClearedCount(int count);
+
+  /// No description provided for @errorClearingCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Error clearing cache: {error}'**
+  String errorClearingCache(Object error);
+
+  /// No description provided for @sessionEndedDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Your session on this device has been ended.\n\nThis may have happened because:\n• You logged out from another device\n• Your account exceeded device limits\n• Security precaution\n\nPlease login again to continue.'**
+  String get sessionEndedDesc;
+
+  /// No description provided for @errorOops.
+  ///
+  /// In en, this message translates to:
+  /// **'Oops! Something went wrong'**
+  String get errorOops;
+
+  /// No description provided for @errorUnexpected.
+  ///
+  /// In en, this message translates to:
+  /// **'We encountered an unexpected error. Please try restarting the app.'**
+  String get errorUnexpected;
+
+  /// No description provided for @debugInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Debug Info:'**
+  String get debugInfo;
+
+  /// No description provided for @classicFeedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Classic Feed (Feature Flag OFF)\nEnable \"news_threading\" to see Smart UI'**
+  String get classicFeedLabel;
+
+  /// No description provided for @resultsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Results'**
+  String get resultsLabel;
+
+  /// No description provided for @noNationalNews.
+  ///
+  /// In en, this message translates to:
+  /// **'No national news found'**
+  String get noNationalNews;
+
+  /// No description provided for @noInternationalNews.
+  ///
+  /// In en, this message translates to:
+  /// **'No international news found'**
+  String get noInternationalNews;
+
+  /// No description provided for @noSportsNews.
+  ///
+  /// In en, this message translates to:
+  /// **'No sports news found'**
+  String get noSportsNews;
+
+  /// No description provided for @noEntertainmentNews.
+  ///
+  /// In en, this message translates to:
+  /// **'No entertainment news found'**
+  String get noEntertainmentNews;
 }
 
 class _AppLocalizationsDelegate

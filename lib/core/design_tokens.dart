@@ -1,10 +1,4 @@
-// lib/core/design_tokens.dart
-// ========================================
-// DESIGN SYSTEM - SPACING, BORDERS, RADIUS
-// ========================================
-//
-// This file defines the core design tokens for the app.
-// Use these constants throughout the app for consistency.
+
 
 import 'package:flutter/material.dart';
 
@@ -20,8 +14,8 @@ class AppColors {
   
   // Brand / Common Colors
   static const Color gold = Color(0xFFFFD700);
-  static const Color iOSBlue = Color(0xFF007AFF);
-  static const Color iOSDarkBlue = Color(0xFF0A84FF);
+  static const Color brandBlueLight = Color(0xFF007AFF);
+  static const Color brandBlueDark = Color(0xFF0A84FF);
 }
 
 // App-wide spacing scale
@@ -73,11 +67,11 @@ class AppRadius {
 
   static const double md = 12.0;
 
-  static const double lg = 16.0;
+  static const double lg = 16.0;   // Cards
+  
+  static const double xl = 28.0;   // Large containers/Dialogs (M3 standard)
 
-  static const double xl = 20.0;
-
-  static const double xxl = 24.0;
+  static const double xxl = 32.0;
 
   static const double circular = 999.0;
 
@@ -113,11 +107,18 @@ class AppElevation {
   AppElevation._();
 
   static const double none = 0.0;
-  static const double sm = 2.0;
-  static const double md = 4.0;
-  static const double lg = 8.0;
-  static const double xl = 12.0;
-  static const double xxl = 16.0;
+  static const double level1 = 1.0; // Tonal surface 1
+  static const double level2 = 3.0; // Tonal surface 2
+  static const double level3 = 6.0; // Tonal surface 3
+  static const double level4 = 8.0; // Tonal surface 4
+  static const double level5 = 12.0; // Tonal surface 5
+  
+  // Legacy mappings for compatibility
+  static const double sm = level1;
+  static const double md = level2;
+  static const double lg = level3;
+  static const double xl = level4;
+  static const double xxl = level5;
 }
 
 // Icon sizes

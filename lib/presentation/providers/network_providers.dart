@@ -5,12 +5,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../infrastructure/network/app_network_service.dart';
-import '../../bootstrap/di/injection_container.dart' show sl;
-
-/// Singleton instance of AppNetworkService
-final appNetworkServiceProvider = Provider<AppNetworkService>((ref) {
-  return sl<AppNetworkService>();
-});
+import '../../core/di/providers.dart';
 
 /// Current connection status
 final isConnectedProvider = Provider<bool>((ref) {

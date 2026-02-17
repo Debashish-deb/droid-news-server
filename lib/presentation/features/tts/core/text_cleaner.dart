@@ -23,7 +23,14 @@ class TextCleaner {
     text = _removeUrls(text);
     text = _removeAdMarkers(text);
     text = _fixFormatting(text);
+    text = _applyPhoneticFixes(text);
     return text.trim();
+  }
+
+  static String _applyPhoneticFixes(String text) {
+    // Reverting broad replacement as it causes issues like Sujit -> Chujit.
+    // Need more specific contextual rules if specific corrections are required.
+    return text;
   }
   
   static String _stripHtml(String text) {

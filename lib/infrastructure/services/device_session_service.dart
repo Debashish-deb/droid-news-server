@@ -9,8 +9,8 @@ import '../persistence/device_session.dart';
 import '../persistence/device_session.dart' show DeviceLimitCheck, DeviceRegistrationResult, DeviceSession;
 import 'security_audit_service.dart';
 import 'app_verification_service.dart';
-import '../../bootstrap/di/injection_container.dart' show sl;
 import '../../core/security/secure_prefs.dart'; 
+import '../../core/telemetry/structured_logger.dart';
 
 // Service for managing device sessions and enforcing device limits
 class DeviceSessionService {
@@ -20,10 +20,13 @@ class DeviceSessionService {
     FirebaseAuth? auth,
     SecurityAuditService? auditService,
     AppVerificationService? appVerification,
+    required SecurePrefs securePrefs,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
        _auth = auth ?? FirebaseAuth.instance,
        _auditService = auditService ?? SecurityAuditService(),
-       _appVerification = appVerification ?? AppVerificationService();
+       _appVerification = appVerification ?? AppVerificationService(),
+       _securePrefs = securePrefs;
+  final SecurePrefs _securePrefs;
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
   final SecurityAuditService _auditService;
@@ -385,7 +388,7 @@ class DeviceSessionService {
   }
 
   Future<String> _getDeviceId() async {
-    final cachedId = await sl<SecurePrefs>().getDeviceId();
+    final cachedId = await _securePrefs.getDeviceId();
     if (cachedId != null && cachedId.isNotEmpty) {
       return cachedId;
     }
@@ -402,7 +405,7 @@ class DeviceSessionService {
       deviceId = 'unknown-platform';
     }
 
-    await sl<SecurePrefs>().setDeviceId(deviceId);
+    await _securePrefs.setDeviceId(deviceId);
     return deviceId;
   }
 

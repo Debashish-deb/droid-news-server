@@ -1,6 +1,7 @@
-import 'dart:ui';
+import 'dart:ui'; // Added for ImageFilter
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:bdnewsreader/l10n/generated/app_localizations.dart'; // Fixed import
 import '../../../providers/premium_providers.dart';
 
 class PaywallGuard extends ConsumerStatefulWidget {
@@ -43,10 +44,11 @@ class _PaywallGuardState extends ConsumerState<PaywallGuard> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final isUserPremium = ref.watch(isPremiumProvider);
 
     // If content is free, or user is premium, or user still has free views left for this session
-    if (!widget.isPremiumContent || isUserPremium || _unlockedLocally) {
+    if (!widget.isPremiumContent || (isUserPremium.valueOrNull ?? false) || _unlockedLocally) {
       return widget.child;
     }
 
@@ -100,27 +102,27 @@ class _PaywallGuardState extends ConsumerState<PaywallGuard> {
                     child: const Icon(Icons.lock_person_rounded, size: 40, color: Colors.amber),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Exclusive Content',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Join Droid+ to access premium analysis, expert insights, and ad-free experience.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
+                    Text(
+                      loc.exclusiveContent,
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      loc.droidPlusDescription,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.grey),
+                    ),
                   const SizedBox(height: 28),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Navigating to Premium Plans...')),
+                          SnackBar(content: Text(loc.navigatingToPremium)),
                         );
                       },
                       icon: const Icon(Icons.star_rounded),
-                      label: const Text('Upgrade to Droid+'),
+                      label: Text(loc.upgradeDroidPlus),
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         backgroundColor: Colors.black87,

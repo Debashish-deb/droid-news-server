@@ -1,11 +1,13 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_core/firebase_core.dart';
+
 import 'structured_logger.dart';
 import 'performance_metrics.dart';
 
 /// Unified service for all observability concerns.
 /// Manually registered in DI to ensure availability before any error handlers.
+
 class ObservabilityService {
 
   ObservabilityService()

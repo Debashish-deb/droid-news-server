@@ -9,9 +9,14 @@ import '../../../../core/utils/number_localization.dart';
 import '../../../providers/language_providers.dart';
 
 class ProfessionalHeader extends ConsumerWidget {
-  const ProfessionalHeader({required this.articleCount, super.key});
+  const ProfessionalHeader({
+    required this.articleCount,
+    this.category,
+    super.key,
+  });
 
   final int articleCount;
+  final String? category;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -85,12 +90,12 @@ class ProfessionalHeader extends ConsumerWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              'UPDATES',
+              category?.toUpperCase() ?? 'UPDATES',
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1,
-                color: subtitleColor,
+                color: category != null ? (isDark ? Colors.blue.shade300 : Colors.blue.shade700) : subtitleColor,
               ),
             ),
             const Spacer(),

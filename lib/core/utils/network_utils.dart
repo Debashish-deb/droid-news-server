@@ -2,11 +2,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-import '../../bootstrap/di/injection_container.dart' show sl;
-import 'package:injectable/injectable.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 // Global error handling and retry utility for network operations
-@lazySingleton
 class NetworkUtils {
   NetworkUtils();
 
@@ -93,28 +91,10 @@ class NetworkUtils {
 
 // Custom exception for network errors
 class NetworkException implements Exception {
-  
   NetworkException(this.message, {this.statusCode});
   final String message;
   final int? statusCode;
   
   @override
   String toString() => 'NetworkException: $message (status: $statusCode)';
-}
-
-// Extension on Future for easy retry/fallback
-extension FutureRetryExtension<T> on Future<T> {
-  Future<T> withRetry({int maxRetries = 3}) {
-    return sl<NetworkUtils>().withRetry(
-      operation: () => this,
-      maxRetries: maxRetries,
-    );
-  }
-  
-  Future<T> withFallback(T fallbackValue) {
-    return sl<NetworkUtils>().withFallback(
-      operation: () => this,
-      fallbackValue: fallbackValue,
-    );
-  }
 }

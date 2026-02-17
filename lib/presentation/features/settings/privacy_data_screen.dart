@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../../core/utils/error_handler.dart' as ErrorHandler show logError;
 import '../../../l10n/generated/app_localizations.dart';
 import '../../providers/theme_providers.dart' show navIconColorProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -490,7 +491,10 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            padding: EdgeInsets.symmetric(
+              horizontal: MediaQuery.of(context).size.width * 0.05,
+              vertical: 20,
+            ),
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

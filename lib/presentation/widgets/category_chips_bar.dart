@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/theme_providers.dart';
@@ -204,86 +205,71 @@ class _Bouncy3DChipState extends ConsumerState<Bouncy3DChip>
       onTapDown: (_) => setState(() => _isPressed = true),
       onTapUp: (_) => setState(() => _isPressed = false),
       onTapCancel: () => setState(() => _isPressed = false),
-      onPanUpdate: _onPanUpdate,
-      onPanEnd: _onPanEnd,
+      behavior: HitTestBehavior.opaque,
       onTap: widget.onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOut,
-        transform: matrix,
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 160),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), // Reduced from 18x10
-            decoration: BoxDecoration(
-              color: baseColor,
-              borderRadius: BorderRadius.circular(16), // Reduced from 32
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: isLuminous
-                    ? [
-                        Colors.white.withOpacity(0.28),
-                        Colors.white.withOpacity(0.04),
-                      ]
-                    : [
-                        Colors.white.withOpacity(0.95),
-                        Colors.white.withOpacity(0.75),
-                      ],
-              ),
-              border: Border.all(
-                color: widget.selected
-                    ? selectionColor.withOpacity(isLuminous ? 0.75 : 0.5)
-                    : (isLuminous
-                        ? Colors.white.withOpacity(0.28)
-                        : Colors.black.withOpacity(0.12)),
-                width: 1.3,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isLuminous ? 0.6 : 0.14),
-                  offset: const Offset(3, 3),
-                  blurRadius: 9,
-                ),
-                if (widget.selected)
-                  BoxShadow(
-                    color: selectionColor.withOpacity(
-                      isLuminous ? 0.45 : 0.3,
-                    ),
-                    blurRadius: 18,
-                    spreadRadius: 1,
-                  ),
-                if (isLuminous)
-                  BoxShadow(
-                    color: Colors.white.withOpacity(0.06),
-                    blurRadius: 8,
-                    spreadRadius: -1,
-                  ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 140),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: isDark
+                ? Colors.white.withOpacity(0.06)
+                : Colors.black.withOpacity(0.04),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(
+              alignment: Alignment.center,
               children: [
+                // Frosted Glass
+                BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(color: Colors.transparent),
+                ),
+
+                // Side Indicator
                 if (widget.selected)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: Icon(
-                      Icons.circle,
-                      size: 6,
-                      color: selectionColor,
+                  Positioned(
+                    left: 0,
+                    top: 6,
+                    bottom: 6,
+                    child: Container(
+                      width: 3,
+                      decoration: BoxDecoration(
+                        color: selectionColor,
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(4),
+                          bottomRight: Radius.circular(4),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: selectionColor.withOpacity(0.6),
+                            blurRadius: 10,
+                            offset: const Offset(2, 0),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                Text(
-                  widget.label,
-                  style: TextStyle(
-                    fontSize: widget.fontSize,
-                    fontWeight:
-                        widget.selected ? FontWeight.w900 : FontWeight.w700,
-                    color: widget.selected
-                        ? (isLuminous ? Colors.white : selectionColor)
-                        : contentColor,
-                    letterSpacing: -0.25,
+
+                // Content
+                Padding(
+                  padding: EdgeInsets.only(left: widget.selected ? 6 : 0),
+                  child: Text(
+                    widget.label,
+                    style: TextStyle(
+                      fontSize: widget.fontSize,
+                      fontWeight: widget.selected ? FontWeight.w800 : FontWeight.w600,
+                      color: widget.selected
+                          ? selectionColor
+                          : (isDark
+                              ? Colors.white.withOpacity(0.4)
+                              : Colors.black.withOpacity(0.4)),
+                    ),
                   ),
                 ),
               ],

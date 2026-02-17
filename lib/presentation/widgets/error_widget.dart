@@ -2,6 +2,7 @@ import '../../core/architecture/failure.dart';
 import 'package:flutter/material.dart' show Colors, ElevatedButton, Icons, ScaffoldMessenger, SizedBox, SnackBar, SnackBarAction, SnackBarBehavior, TextAlign, TextButton, Theme;
 import 'package:flutter/rendering.dart' show EdgeInsets, MainAxisAlignment, TextStyle;
 import 'package:flutter/widgets.dart' show Border, BorderRadius, BoxDecoration, BuildContext, Center, Column, Container, Expanded, FontWeight, Icon, Padding, RoundedRectangleBorder, Row, StatelessWidget, Text, VoidCallback, Widget;
+import '../../l10n/generated/app_localizations.dart';
 
 /// Widget to display errors with retry actions
 class ErrorDisplay extends StatelessWidget {
@@ -53,7 +54,7 @@ class ErrorDisplay extends StatelessWidget {
                   ),
                 ),
                 icon: const Icon(Icons.refresh_rounded),
-                label: Text(error.actionLabel ?? 'Retry'),
+                label: Text(error.actionLabel ?? AppLocalizations.of(context).retry),
               ),
           ],
         ),
@@ -97,7 +98,7 @@ class ErrorBanner extends StatelessWidget {
             const SizedBox(width: 12),
             TextButton(
               onPressed: onRetry,
-              child: Text(error.actionLabel ?? 'Retry'),
+              child: Text(error.actionLabel ?? AppLocalizations.of(context).retry),
             ),
           ],
         ],
@@ -125,7 +126,7 @@ class ErrorSnackBar {
         action:
             (error.actionLabel != null || onRetry != null)
                 ? SnackBarAction(
-                  label: error.actionLabel ?? 'Retry',
+                  label: error.actionLabel ?? AppLocalizations.of(context).retry,
                   onPressed: onRetry ?? () {},
                 )
                 : null,

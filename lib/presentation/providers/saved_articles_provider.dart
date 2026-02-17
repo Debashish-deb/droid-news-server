@@ -3,9 +3,7 @@ import "../../domain/entities/news_article.dart";
 import '../../infrastructure/persistence/saved_articles_service.dart';
 import '../../domain/entities/news_article.dart' show NewsArticle;
 
-import 'feature_providers.dart';
-
-import '../../bootstrap/di/injection_container.dart' as di show sl;
+import '../../core/di/providers.dart';
 
 /// Provider for saved articles state
 final savedArticlesProvider =
@@ -40,8 +38,8 @@ class SavedArticlesState {
 
 /// Notifier for saved articles
 class SavedArticlesNotifier extends StateNotifier<SavedArticlesState> {
-  SavedArticlesNotifier({SavedArticlesService? service})
-    : _service = service ?? di.sl<SavedArticlesService>(),
+  SavedArticlesNotifier({required SavedArticlesService service})
+    : _service = service,
       super(SavedArticlesState()) {
     _init();
   }

@@ -1,3 +1,5 @@
+// lib/infrastructure/repositories/subscription_repository_impl.dart
+
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,10 +13,9 @@ import '../../domain/interfaces/subscription_repository.dart' show SubscriptionR
 import '../../domain/interfaces/subscription_repository.dart';
 import '../services/payment_service.dart';
 import '../../domain/facades/auth_facade.dart';
-import 'package:injectable/injectable.dart';
 
 /// Implementation of SubscriptionRepository using in_app_purchase.
-@LazySingleton(as: SubscriptionRepository)
+
 class SubscriptionRepositoryImpl implements SubscriptionRepository {
 
   SubscriptionRepositoryImpl(

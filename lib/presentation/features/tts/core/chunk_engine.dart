@@ -20,23 +20,49 @@ class ChunkEngine {
     String rawText, {
     String language = 'en',
     String? title,
+    String? author,
+    String? imageSource,
   }) {
     
     final cleanedText = TextCleaner.clean(rawText);
     if (cleanedText.isEmpty) return [];
     
+    final introPhrase = language == 'bn' ? 'বিস্তারিত খবরে আসছি' : 'Moving on to detailed news';
+    final titleLabel = language == 'bn' ? 'শিরোনাম: ' : 'Title: ';
+    final reporterLabel = language == 'bn' ? 'প্রতিবেদক: ' : 'Reporter: ';
+    final courtesyLabel = language == 'bn' ? 'ছবি সৌজন্যে: ' : 'Photo courtesy: ';
+    final metadataWarning = language == 'bn' ? 'সতর্কবার্তা, এটি সংবাদ সংশ্লিষ্ট তথ্য মাত্র: ' : 'Notice, the following is metadata only: ';
     
-    final fullText = title != null && title.isNotEmpty
-        ? '$title. $cleanedText'
-        : cleanedText;
+    final StringBuffer fullTextBuffer = StringBuffer();
     
+    // 1. Structured Title
+    if (title != null && title.isNotEmpty) {
+      fullTextBuffer.write('$titleLabel $title. ');
+      fullTextBuffer.write('$introPhrase. ');
+    }
+    
+    // 2. Metadata with Warning Labels
+    bool hasMetadata = (author != null && author.isNotEmpty) || (imageSource != null && imageSource.isNotEmpty);
+    if (hasMetadata) {
+      fullTextBuffer.write('$metadataWarning. ');
+      if (author != null && author.isNotEmpty) {
+        fullTextBuffer.write('$reporterLabel $author. ');
+      }
+      if (imageSource != null && imageSource.isNotEmpty) {
+        fullTextBuffer.write('$courtesyLabel $imageSource. ');
+      }
+      fullTextBuffer.write('. '); // Small pause after metadata
+    }
+    
+    // 3. Main News Content
+    fullTextBuffer.write(cleanedText);
+    
+    final fullText = fullTextBuffer.toString();
     
     final segments = _splitIntoSegments(fullText);
     
- 
     final rawChunks = _groupSegments(segments, language);
     
-   
     final mergedChunks = _mergeSmallChunks(rawChunks);
     
     return _finalizeChunks(mergedChunks, language);

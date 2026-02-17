@@ -1,9 +1,9 @@
 import 'dart:ui';
+import '../../core/app_icons.dart' show AppIcons;
 import '../../core/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/app_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/theme_providers.dart';
 import '../../core/enums/theme_mode.dart';

@@ -12,7 +12,6 @@ import '../persistence/notification_preferences.dart';
 import '../persistence/notification_preferences.dart' show NotificationPreferences;
 
 import '../../core/telemetry/structured_logger.dart';
-import 'package:injectable/injectable.dart';
 
 /// Background message handler - must be top-level function
 @pragma('vm:entry-point')
@@ -27,7 +26,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 /// Production-ready push notification service using FCM and local notifications
-@lazySingleton
+
 class PushNotificationService {
 
   PushNotificationService(

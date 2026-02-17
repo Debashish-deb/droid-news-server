@@ -3,6 +3,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../core/di/providers.dart' show deviceSessionServiceProvider;
 import '../../../infrastructure/persistence/device_session.dart';
 import '../../../infrastructure/services/device_session_service.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -22,7 +23,7 @@ class DeviceManagementScreen extends ConsumerStatefulWidget {
 
 class _DeviceManagementScreenState
     extends ConsumerState<DeviceManagementScreen> {
-  final DeviceSessionService _deviceSession = DeviceSessionService();
+  late final DeviceSessionService _deviceSession;
   List<DeviceSession> _devices = [];
   String? _currentDeviceId;
   bool _loading = true;
@@ -31,6 +32,7 @@ class _DeviceManagementScreenState
   @override
   void initState() {
     super.initState();
+    _deviceSession = ref.read(deviceSessionServiceProvider);
     _loadDevices();
   }
 
@@ -778,8 +780,8 @@ class _DeviceManagementScreenState
                     backgroundColor: colorScheme.surface,
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: MediaQuery.of(context).size.width * 0.05,
                         vertical: 20,
                       ),
                       child: Column(

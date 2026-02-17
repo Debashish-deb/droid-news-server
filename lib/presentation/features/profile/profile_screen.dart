@@ -1,30 +1,32 @@
 import 'dart:io' show File;
+import 'dart:ui';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
-import '../../../l10n/generated/app_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/app_icons.dart' show AppIcons;
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../core/design_tokens.dart';
-import '../../../core/app_icons.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils/number_localization.dart';
 import '../../../core/security/input_sanitizer.dart';
+
 import '../../providers/favorites_providers.dart';
 import '../../providers/theme_providers.dart';
 import '../../providers/language_providers.dart';
-import '../../../infrastructure/persistence/offline_service.dart' show OfflineService;
-import '../../providers/theme_providers.dart' as theme show themeProvider;
-import '../../widgets/app_drawer.dart';
 import '../../providers/feature_providers.dart';
 import '../../providers/premium_providers.dart';
-import '../settings/widgets/settings_3d_widgets.dart';
+
+import '../../../infrastructure/persistence/offline_service.dart';
+import '../../widgets/app_drawer.dart';
 import '../../widgets/glass_pill_button.dart';
 import '../../widgets/glass_icon_button.dart';
+import '../settings/widgets/settings_3d_widgets.dart';
 import '../common/app_bar.dart';
-import 'dart:ui';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -35,10 +37,13 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+
   late Map<String, dynamic> _profile;
   bool _isEditing = false;
   bool _isSaving = false;
+
   String? _imagePath;
+
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -67,13 +72,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _departmentController.text = data['department'] ?? '';
         _imagePath = data['image'];
       });
-    } catch (e) {
-      debugPrint('❌ Profile load error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).failedToLoadProfile)));
-      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).failedToLoadProfile)),
+      );
     }
   }
 
@@ -85,44 +88,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _favoritesCount = favorites.articles.length;
         _downloadsCount = downloads;
       });
-    } catch (e) {
-      debugPrint('❌ Statistics load error: $e');
-    }
+    } catch (_) {}
   }
 
   Future<void> _toggleEdit() async {
-    if (_isEditing) {
-      if (_formKey.currentState!.validate()) {
-        setState(() => _isSaving = true);
-        try {
-          await ref.read(authServiceProvider).updateProfile(
-            name: InputSanitizer.sanitizeText(_nameController.text),
-            email: InputSanitizer.sanitizeEmail(_emailController.text) ?? _emailController.text,
-            phone: InputSanitizer.sanitizeText(_phoneController.text),
-            role: InputSanitizer.sanitizeText(_roleController.text),
-            department: InputSanitizer.sanitizeText(_departmentController.text),
-            imagePath: _imagePath ?? '',
-          );
-          await _loadProfile();
-          if (mounted) {
-            final loc = AppLocalizations.of(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(loc.profileUpdated),
-                backgroundColor: Colors.green,
-              ),
+    if (_isEditing && _formKey.currentState!.validate()) {
+      setState(() => _isSaving = true);
+      try {
+        await ref.read(authServiceProvider).updateProfile(
+              name: InputSanitizer.sanitizeText(_nameController.text),
+              email: InputSanitizer.sanitizeEmail(_emailController.text) ??
+                  _emailController.text,
+              phone: InputSanitizer.sanitizeText(_phoneController.text),
+              role: InputSanitizer.sanitizeText(_roleController.text),
+              department:
+                  InputSanitizer.sanitizeText(_departmentController.text),
+              imagePath: _imagePath ?? '',
             );
-          }
-        } catch (e) {
-          if (mounted) {
-            final loc = AppLocalizations.of(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(loc.failedToSaveProfile)),
-            );
-          }
-        }
-      }
+        await _loadProfile();
+      } catch (_) {}
     }
+
     setState(() {
       _isEditing = !_isEditing;
       _isSaving = false;
@@ -131,49 +117,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _pickImage() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      setState(() => _imagePath = picked.path);
-    }
+    if (picked != null) setState(() => _imagePath = picked.path);
   }
 
-  String? validateEmail(String? value) {
-    if (value == null || value.isEmpty) return 'Enter email';
-    if (!RegExp(r'^[\w\-.]+@([\w\-]+\.)+[\w\-]{2,4}$').hasMatch(value)) {
-      return 'Invalid email format';
-    }
-    return null;
-  }
-
-  // Add the resolveImage method here
   static ImageProvider<Object>? resolveImage(String path) {
     if (path.isEmpty) return null;
     if (path.startsWith('http')) return NetworkImage(path);
     if (path.startsWith('assets/')) return AssetImage(path);
-    final File file = File(path);
-    if (file.existsSync()) return FileImage(file);
-    return null;
+    final file = File(path);
+    return file.existsSync() ? FileImage(file) : null;
   }
 
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) context.go('/login');
       });
       return const SizedBox.shrink();
     }
 
-    final flutterTheme = Theme.of(context);
-    final brightness = flutterTheme.brightness;
-    final themeState = ref.watch(theme.themeProvider);
-    final mode = themeState.mode;
-    final isDark = brightness == Brightness.dark;
-
-    final gradientColors = AppGradients.getBackgroundGradient(mode);
-    final startColor = gradientColors[0];
-    final endColor = gradientColors[1];
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final mode = ref.watch(themeProvider).mode;
+    final gradient = AppGradients.getBackgroundGradient(mode);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -192,11 +161,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
         ),
-        leadingWidth: 64,
         actions: [
           if (!_isEditing)
             Padding(
-              padding: const EdgeInsets.only(right: 12.0),
+              padding: const EdgeInsets.only(right: 12),
               child: GlassIconButton(
                 icon: Icons.edit_outlined,
                 onPressed: _toggleEdit,
@@ -207,38 +175,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
       body: Stack(
         children: [
-          
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    startColor.withOpacity(0.85),
-                    endColor.withOpacity(0.85),
+                    gradient[0].withOpacity(0.9),
+                    gradient[1].withOpacity(0.9),
                   ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
                 ),
               ),
             ),
           ),
-
-       
           SafeArea(
             child: Form(
               key: _formKey,
               child: ListView(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(12),
                 children: [
-                  const SizedBox(height: 8),
                   _buildProfileCard(isDark, loc),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   _buildStatisticsCards(isDark),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   _buildInformationSection(isDark, loc),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   _buildActionButtons(isDark, loc),
-                  const SizedBox(height: 120), // Increased padding to avoid FAB overlap
+                  const SizedBox(height: 120),
                 ],
               ),
             ),
@@ -250,223 +212,124 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  // ───────────────── PROFILE CARD ─────────────────
+
   Widget _buildProfileCard(bool isDark, AppLocalizations loc) {
-    final selectionColor = ref.watch(navIconColorProvider);
-    final glassColor = ref.watch(glassColorProvider);
-    final borderColor = ref.watch(borderColorProvider);
+    final accent = ref.watch(navIconColorProvider);
+    final glass = ref.watch(glassColorProvider);
+    final border = ref.watch(borderColorProvider);
     final isPremium = ref.watch(isPremiumProvider);
 
     return ClipRRect(
       borderRadius: AppRadius.xlBorder,
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Container(
           decoration: BoxDecoration(
-            color: glassColor,
+            color: glass,
             borderRadius: AppRadius.xlBorder,
-            border: Border.all(color: borderColor),
+            border: Border.all(color: border.withOpacity(0.6)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
+                color: Colors.black.withOpacity(isDark ? 0.28 : 0.14),
+                blurRadius: 26,
+                offset: const Offset(0, 16),
               ),
             ],
           ),
           child: Column(
             children: [
-              const SizedBox(height: AppSpacing.lg),
-              
-              // 3D Avatar Frame (Synced with AppDrawer)
+              const SizedBox(height: 22),
+
+              /// Avatar
               Stack(
                 alignment: Alignment.bottomRight,
                 children: [
-                    // 3D Hexagonal Glass Box Avatar
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Outer Glow
-                        ClipPath(
-                          clipper: _HexagonClipper(),
-                          child: Container(
-                            width: 100,
-                            height: 115,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  selectionColor.withOpacity(0.6),
-                                  selectionColor.withOpacity(0.1),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Inner Glass & Image
-                        ClipPath(
-                          clipper: _HexagonClipper(),
-                          child: Container(
-                            width: 96,
-                            height: 111,
-                            padding: const EdgeInsets.all(2),
-                            color: isDark ? Colors.black.withOpacity(0.4) : Colors.white.withOpacity(0.4),
-                            child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  _imagePath != null && (_imagePath!.startsWith('http') || _imagePath!.startsWith('assets/') || _imagePath!.startsWith('/'))
-                                      ? Image(
-                                          image: resolveImage(_imagePath!)!,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) => Icon(AppIcons.person, size: 40, color: isDark ? Colors.white54 : Colors.black54),
-                                        )
-                                      : Icon(
-                                          AppIcons.person,
-                                          size: 40,
-                                          color: isDark ? Colors.white54 : Colors.black54,
-                                        ),
-                                  
-                                  // 3D "Oval" Lens Effect
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      gradient: RadialGradient(
-                                        radius: 0.8,
-                                        colors: [
-                                          Colors.white.withOpacity(0.1),
-                                          Colors.transparent,
-                                          Colors.black.withOpacity(0.2),
-                                        ],
-                                        stops: const [0.0, 0.5, 1.0],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                            ),
-                          ),
-                        ),
-                        // Top Gloss
-                        ClipPath(
-                          clipper: _HexagonClipper(),
-                          child: Container(
-                            width: 96,
-                            height: 111,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.white.withOpacity(0.1),
-                                  Colors.transparent,
-                                ],
-                                stops: const [0.0, 0.3],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  _HexAvatar(
+                    imagePath: _imagePath,
+                    accent: accent,
+                    isDark: isDark,
+                  ),
                   if (_isEditing)
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: _pickImage,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: selectionColor,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: const Icon(
-                            Icons.camera_alt,
-                            size: 16,
-                            color: Colors.white,
-                          ),
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: accent,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
                         ),
+                        child: const Icon(Icons.camera_alt,
+                            size: 16, color: Colors.white),
                       ),
                     ),
                 ],
               ),
-              const SizedBox(height: 12),
-    
+
+              const SizedBox(height: 14),
+
+              /// Name
               _isEditing
-                  ? Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 40),
-                    child: TextFormField(
+                  ? TextFormField(
                       controller: _nameController,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 22,
-                        fontFamily: AppTypography.fontFamily,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
                       textAlign: TextAlign.center,
-                      decoration: InputDecoration(
-                        hintText: loc.enterName,
-                        hintStyle: TextStyle(
-                          color: isDark ? Colors.white38 : Colors.black38,
-                        ),
-                        border: InputBorder.none,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : Colors.black,
                       ),
-                      validator:
-                          (value) =>
-                              value?.isEmpty == true ? loc.nameRequired : null,
-                    ),
-                  )
+                      decoration: const InputDecoration(border: InputBorder.none),
+                    )
                   : Text(
-                    _nameController.text.isEmpty
-                        ? 'User Name'
-                        : _nameController.text,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 24,
-                      fontFamily: AppTypography.fontFamily,
-                      color: isDark ? Colors.white : Colors.black87,
-                      letterSpacing: -0.8,
+                      _nameController.text.isEmpty
+                          ? loc.userNamePlaceholder
+                          : _nameController.text,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                        color: isDark ? Colors.white : Colors.black,
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-              
-              if (isPremium) ...[
-                const SizedBox(height: 8),
-                // Pill-Glass Premium Tag (Synced)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: selectionColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: selectionColor.withOpacity(0.4),
-                      width: 1.2
-                    ),
-                  ),
-                  child: Text(
-                    'PREMIUM MEMBER',
-                    style: TextStyle(
-                      color: selectionColor,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.5,
-                      fontFamily: AppTypography.fontFamily,
-                    ),
-                  ),
-                ),
-              ],
-    
-              const SizedBox(height: 8),
-              
+
+              const SizedBox(height: 6),
+
+              /// Email (subtle)
               Text(
                 _emailController.text.isEmpty
                     ? 'user@example.com'
                     : _emailController.text,
                 style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.5),
+                  fontSize: 12,
+                  color:
+                      (isDark ? Colors.white : Colors.black).withOpacity(0.45),
                 ),
               ),
-              const SizedBox(height: 20),
+
+              if (isPremium.valueOrNull ?? false) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: accent.withOpacity(0.25)),
+                  ),
+                  child: Text(
+                    loc.premiumMemberBadge,
+                    style: TextStyle(
+                      fontSize: 9,
+                      letterSpacing: 1.8,
+                      fontWeight: FontWeight.w800,
+                      color: accent,
+                    ),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 22),
             ],
           ),
         ),
@@ -474,310 +337,73 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildDefaultAvatar(bool isDark) {
-    return Container(
-      color: isDark ? Colors.grey[800] : Colors.grey[300],
-      child: Icon(
-        Icons.person,
-        size: 35,
-        color: isDark ? Colors.white54 : Colors.black54,
-      ),
-    );
-  }
+  // ───────────────── STATS ─────────────────
 
   Widget _buildStatisticsCards(bool isDark) {
-    final AppLocalizations loc = AppLocalizations.of(context);
-    final String languageCode = ref.watch(languageCodeProvider);
+    final lang = ref.watch(languageCodeProvider);
+    final loc = AppLocalizations.of(context);
+
     return Row(
       children: [
         Expanded(
-          child: _buildStatCard(
-            loc.favorites,
-            _favoritesCount,
-            Icons.favorite,
-            Colors.red,
-            isDark,
-            languageCode,
+          child: _StatCard(
+            label: loc.favorites,
+            value: _favoritesCount,
+            icon: Icons.favorite,
+            color: Colors.red,
+            isDark: isDark,
+            languageCode: lang,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Expanded(
-          child: _buildStatCard(
-            loc.downloaded,
-            _downloadsCount,
-            Icons.download,
-            Colors.green,
-            isDark,
-            languageCode,
+          child: _StatCard(
+            label: loc.downloaded,
+            value: _downloadsCount,
+            icon: Icons.download,
+            color: Colors.green,
+            isDark: isDark,
+            languageCode: lang,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStatCard(
-    String label,
-    int count,
-    IconData icon,
-    Color color,
-    bool isDark,
-    String languageCode,
-  ) {
-    final glassColor = ref.watch(glassColorProvider);
-    final borderColor = ref.watch(borderColorProvider);
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          decoration: BoxDecoration(
-            color: glassColor,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: borderColor),
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                localizeNumber('$count', languageCode),
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  fontFamily: '.SF Pro Display',
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-              ),
-              Text(
-                label.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.4),
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // ───────────────── INFO SECTION ─────────────────
 
   Widget _buildInformationSection(bool isDark, AppLocalizations loc) {
-    final glassColor = ref.watch(glassColorProvider);
-    final borderColor = ref.watch(borderColorProvider);
+    final glass = ref.watch(glassColorProvider);
+    final border = ref.watch(borderColorProvider);
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(22),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           decoration: BoxDecoration(
-            color: glassColor,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: borderColor),
+            color: glass,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: border.withOpacity(0.6)),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Text(
-                  loc.information.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
-                    fontFamily: '.SF Pro Display',
-                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
-                  ),
-                ),
-              ),
-              const Divider(height: 1, thickness: 0.5),
-              _isEditing
-                  ? Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        _buildEditField(
-                          loc.emailLabel,
-                          _emailController,
-                          Icons.email_outlined,
-                          validateEmail,
-                          isDark,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildEditField(
-                          loc.phoneLabel,
-                          _phoneController,
-                          Icons.phone_outlined,
-                          null,
-                          isDark,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildEditField(
-                          loc.roleLabel,
-                          _roleController,
-                          Icons.work_outline,
-                          null,
-                          isDark,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildEditField(
-                          loc.departmentLabel,
-                          _departmentController,
-                          Icons.business_outlined,
-                          null,
-                          isDark,
-                        ),
-                      ],
-                    ),
-                  )
-                  : Column(
-                    children: [
-                      _buildInfoTile(
-                        loc.emailLabel,
-                        _emailController.text,
-                        Icons.email_outlined,
-                        isDark,
-                      ),
-                      _buildInfoTile(
-                        loc.phoneLabel,
-                        _phoneController.text,
-                        Icons.phone_outlined,
-                        isDark,
-                      ),
-                      _buildInfoTile(
-                        loc.roleLabel,
-                        _roleController.text,
-                        Icons.work_outline,
-                        isDark,
-                      ),
-                      _buildInfoTile(
-                        loc.departmentLabel,
-                        _departmentController.text,
-                        Icons.business_outlined,
-                        isDark,
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
+              _InfoTile(label: loc.emailLabel, value: _emailController.text),
+              _InfoTile(label: loc.phoneLabel, value: _phoneController.text),
+              _InfoTile(label: loc.roleLabel, value: _roleController.text),
+              _InfoTile(
+                  label: loc.departmentLabel,
+                  value: _departmentController.text),
+              const SizedBox(height: 8),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildInfoTile(
-    String label,
-    String value,
-    IconData icon,
-    bool isDark,
-  ) {
-    final AppLocalizations loc = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), // Compact Padding
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6), // Compact Icon
-            decoration: BoxDecoration(
-              color: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.4),
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                Text(
-                  value.isEmpty ? loc.notSet : value,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: '.SF Pro Display',
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEditField(
-    String label,
-    TextEditingController controller,
-    IconData icon,
-    String? Function(String?)? validator,
-    bool isDark,
-  ) {
-    final borderColor = ref.watch(borderColorProvider);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
-      ),
-      child: TextFormField(
-        controller: controller,
-        style: TextStyle(
-          color: isDark ? Colors.white : Colors.black,
-          fontWeight: FontWeight.w600,
-          fontFamily: '.SF Pro Display',
-        ),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(
-            color: (isDark ? Colors.white : Colors.black).withOpacity(0.45),
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
-          prefixIcon: Icon(
-            icon, 
-            color: (isDark ? Colors.white : Colors.black).withOpacity(0.5),
-            size: 20,
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        ),
-        validator: validator,
       ),
     );
   }
 
   Widget _buildActionButtons(bool isDark, AppLocalizations loc) {
     if (!_isEditing) return const SizedBox.shrink();
-
     return Row(
       children: [
         Expanded(
@@ -787,13 +413,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             onPressed: () {
               setState(() {
                 _isEditing = false;
-                _loadProfile(); 
+                _loadProfile();
               });
             },
             isDark: isDark,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Expanded(
           child: GlassPillButton(
             icon: Icons.save,
@@ -808,50 +434,167 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildBottomButtons(bool isDark, AppLocalizations loc) {
+    return Row(
+      children: [
+        Expanded(
+          child: Settings3DButton(
+            label: loc.home,
+            icon: Icons.home_outlined,
+            onTap: () => context.go('/home'),
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Settings3DButton(
+            label: loc.logout,
+            icon: Icons.logout_rounded,
+            isDestructive: true,
+            onTap: () async {
+              await ref.read(authServiceProvider).logout();
+              if (mounted) context.go('/login');
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// ───────────────── SUPPORT WIDGETS ─────────────────
+
+class _HexAvatar extends StatelessWidget {
+  final String? imagePath;
+  final Color accent;
+  final bool isDark;
+
+  const _HexAvatar({
+    required this.imagePath,
+    required this.accent,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipPath(
+      clipper: _HexagonClipper(),
+      child: Container(
+        width: 96,
+        height: 110,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              accent.withOpacity(0.6),
+              accent.withOpacity(0.15),
+            ],
+          ),
+        ),
+        child: imagePath != null
+            ? Image(
+                image: _ProfileScreenState.resolveImage(imagePath!)!,
+                fit: BoxFit.cover,
+              )
+            : Icon(AppIcons.person,
+                size: 42,
+                color: isDark ? Colors.white54 : Colors.black54),
+      ),
+    );
+  }
+}
+
+class _StatCard extends ConsumerWidget {
+  final String label;
+  final int value;
+  final IconData icon;
+  final Color color;
+  final bool isDark;
+  final String languageCode;
+
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.isDark,
+    required this.languageCode,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final glass = ref.watch(glassColorProvider);
+    final border = ref.watch(borderColorProvider);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: glass,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: border.withOpacity(0.6)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 8),
+              Text(
+                localizeNumber('$value', languageCode),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
+              ),
+              Text(
+                label.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 8,
+                  letterSpacing: 1,
+                  color:
+                      (isDark ? Colors.white : Colors.black).withOpacity(0.4),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoTile({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Settings3DButton(
-              onTap: () => context.go('/home'),
-              label: loc.home,
-              icon: Icons.home_outlined,
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontSize: 9,
+              letterSpacing: 1,
+              color:
+                  (isDark ? Colors.white : Colors.black).withOpacity(0.45),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Settings3DButton(
-              onTap: () async {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder:
-                      (context) => AlertDialog(
-                        title: Text(loc.logout),
-                        content: Text(loc.logoutConfirmation),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: Text(loc.cancel),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: Text(
-                              loc.logout,
-                              style: const TextStyle(color: Colors.red),
-                            ),
-                          ),
-                        ],
-                      ),
-                );
-                if (confirmed == true) {
-                  await ref.read(authServiceProvider).logout();
-                  if (mounted) context.go('/login');
-                }
-              },
-              label: loc.logout,
-              icon: Icons.logout_rounded,
-              isDestructive: true,
+          const SizedBox(height: 2),
+          Text(
+            value.isEmpty ? '—' : value,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : Colors.black,
             ),
           ),
         ],
@@ -863,21 +606,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 class _HexagonClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
-    final path = Path();
-    final double width = size.width;
-    final double height = size.height;
-    
-    path.moveTo(width * 0.5, 0); // Top Center
-    path.lineTo(width, height * 0.25); // Top Right
-    path.lineTo(width, height * 0.75); // Bottom Right
-    path.lineTo(width * 0.5, height); // Bottom Center
-    path.lineTo(0, height * 0.75); // Bottom Left
-    path.lineTo(0, height * 0.25); // Top Left
-    path.close();
-    
-    return path;
+    final w = size.width;
+    final h = size.height;
+    return Path()
+      ..moveTo(w * 0.5, 0)
+      ..lineTo(w, h * 0.25)
+      ..lineTo(w, h * 0.75)
+      ..lineTo(w * 0.5, h)
+      ..lineTo(0, h * 0.75)
+      ..lineTo(0, h * 0.25)
+      ..close();
   }
 
   @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

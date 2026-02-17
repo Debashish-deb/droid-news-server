@@ -1,12 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'dart:convert';
-import 'package:injectable/injectable.dart';
 import 'log_sanitizer.dart';
 
 /// Logger that outputs logs in a structured format using the logger package.
 /// Compatible with ELK stack, Datadog, etc.
-@lazySingleton
 class StructuredLogger {
 
   StructuredLogger();

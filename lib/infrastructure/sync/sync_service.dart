@@ -5,41 +5,31 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import "../../domain/entities/news_article.dart";
-import '../../core/premium_service.dart';
+
+import '../../domain/repositories/premium_repository.dart';
 import '../../core/telemetry/observability_service.dart';
 import '../../core/telemetry/structured_logger.dart';
-import 'package:injectable/injectable.dart';
 
-@lazySingleton
 class SyncService {
-
   SyncService(
-    this._premiumService,
+    this._premiumRepository,
     this._observability,
     this._logger,
+    this._prefs,
+    this._firestore,
+    this._auth,
   ) {
     _init();
   }
-  final PremiumService _premiumService;
+  final PremiumRepository _premiumRepository;
   final ObservabilityService _observability;
   final StructuredLogger _logger;
-  
-  bool _initialized = false;
-
-  void _init() {
-    if (_initialized) return;
-    _initialized = true;
-    _logger.info('SyncService initialized');
-    _observability.measure('sync_init', () => _ensureLocalReady().then((_) => flushPending()));
-  }
-
-  PremiumService get premium => _premiumService;
-
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final SharedPreferences _prefs;
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
 
   bool get _canSync =>
-      _initialized && _auth.currentUser != null && _premiumService.isPremium;
+      _initialized && _auth.currentUser != null && _premiumRepository.isPremium;
 
   String? get _uid => _auth.currentUser?.uid;
 
@@ -56,22 +46,27 @@ class SyncService {
   String get _kShadowFavoritesKey =>
       'sync_shadow_favorites_v2_${_uid ?? "anon"}';
 
-  SharedPreferences? _prefs;
   String? _deviceId;
-  bool _localReady = false;
+  bool _initialized = false;
   bool _flushing = false;
 
-  Future<void> _ensureLocalReady() async {
-    if (_localReady) return;
-    _prefs ??= await SharedPreferences.getInstance();
+  void _init() {
+    if (_initialized) return;
+    _initialized = true;
+    _logger.info('SyncService initialized');
+    _observability.measure('sync_init', () => _ensureLocalReady().then((_) => flushPending()));
+  }
 
-    _deviceId ??= _prefs!.getString(_kDeviceIdKey);
+  PremiumRepository get premium => _premiumRepository;
+
+  Future<void> _ensureLocalReady() async {
+    if (_deviceId != null) return;
+
+    _deviceId = _prefs.getString(_kDeviceIdKey);
     if (_deviceId == null || _deviceId!.isEmpty) {
       _deviceId = '${DateTime.now().microsecondsSinceEpoch}_${_rand32()}';
-      await _prefs!.setString(_kDeviceIdKey, _deviceId!);
+      await _prefs.setString(_kDeviceIdKey, _deviceId!);
     }
-
-    _localReady = true;
   }
 
   int _rand32() => DateTime.now().microsecondsSinceEpoch & 0x7fffffff;
@@ -816,7 +811,7 @@ class SyncService {
 
  
   Future<void> _clearPending(String key) async {
-    await _prefs!.remove(key);
+    await _prefs.remove(key);
   }
 
   List<Map<String, dynamic>> _asListMap(dynamic v) {
@@ -838,14 +833,14 @@ class SyncService {
 
   Future<void> _writeShadow(String key, Map<String, dynamic> payload) async {
     try {
-      await _prefs!.setString(key, jsonEncode(_jsonSafe(payload)));
+      await _prefs.setString(key, jsonEncode(_jsonSafe(payload)));
     } catch (e) {
       _logger.error('Failed to write shadow', e);
     }
   }
 
   Map<String, dynamic>? _readShadow(String key) {
-    final s = _prefs?.getString(key);
+    final s = _prefs.getString(key);
     if (s == null || s.isEmpty) return null;
     try {
       final v = jsonDecode(s);
@@ -859,12 +854,22 @@ class SyncService {
     final out = <String, dynamic>{};
     input.forEach((k, v) {
       if (v is FieldValue) return;
+      if (v is Timestamp) {
+        out[k] = v.toDate().toUtc().toIso8601String();
+        return;
+      }
+      if (v is DateTime) {
+        out[k] = v.toUtc().toIso8601String();
+        return;
+      }
       if (v is Map) {
         out[k] = _jsonSafe(v.cast<String, dynamic>());
       } else if (v is List) {
         out[k] =
             v.map((e) {
               if (e is Map) return _jsonSafe(e.cast<String, dynamic>());
+              if (e is Timestamp) return e.toDate().toUtc().toIso8601String();
+              if (e is DateTime) return e.toUtc().toIso8601String();
               return e;
             }).toList();
       } else {

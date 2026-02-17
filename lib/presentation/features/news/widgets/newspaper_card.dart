@@ -5,10 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:bdnewsreader/l10n/generated/app_localizations.dart';
 import '../../../../core/enums/theme_mode.dart';
 
 import '../../../../core/theme.dart' show AppGradients;
-import '../../../providers/theme_providers.dart' show borderColorProvider, themeProvider;
+import '../../../providers/theme_providers.dart' show themeProvider;
 
 class NewspaperCard extends ConsumerStatefulWidget {
   const NewspaperCard({
@@ -46,7 +47,7 @@ class _NewspaperCardState extends ConsumerState<NewspaperCard>
     if (url.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('No URL available')));
+      ).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).noUrlAvailable)));
       return;
     }
 
@@ -71,7 +72,6 @@ class _NewspaperCardState extends ConsumerState<NewspaperCard>
     final theme = Theme.of(context);
     final themeState = ref.watch(themeProvider);
     final mode = themeState.mode;
-    final borderColor = ref.watch(borderColorProvider);
     final List<Color> gradientColors = AppGradients.getGradientColors(mode);
     final localLogoPath = _getLocalLogoPath();
 

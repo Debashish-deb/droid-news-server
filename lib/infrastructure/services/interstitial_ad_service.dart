@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import '../../core/premium_service.dart';
+import '../../domain/repositories/premium_repository.dart';
 
 // Service to manage interstitial ads with automatic premium bypass.
 // Shows ads at strategic points to improve user engagement while
@@ -24,10 +24,10 @@ class InterstitialAdService {
   DateTime? _lastAdShownTime;
   static const Duration _cooldownDuration = Duration(minutes: 30);
 
-  PremiumService? _premiumService;
+  PremiumRepository? _premiumRepository;
 
-  void init(PremiumService premiumService) {
-    _premiumService = premiumService;
+  void init(PremiumRepository premiumRepository) {
+    _premiumRepository = premiumRepository;
     _loadAd();
   }
 
@@ -37,7 +37,7 @@ class InterstitialAdService {
   Future<void> _loadAd() async {
     if (_isAdLoaded || _isLoading) return;
 
-    if (_premiumService?.isPremium ?? false) return;
+    if (_premiumRepository?.isPremium ?? false) return;
 
     _isLoading = true;
     final String adUnitId = _resolveAdUnitId();
@@ -131,7 +131,7 @@ class InterstitialAdService {
   }
 
   bool _shouldShowAd() {
-    if (_premiumService?.isPremium ?? false) {
+    if (_premiumRepository?.isPremium ?? false) {
       if (kDebugMode) debugPrint('🚫 Ad blocked: User is Premium');
       return false;
     }
@@ -156,7 +156,7 @@ class InterstitialAdService {
   }
 
   Future<void> onArticleViewed() async {
-    if (_premiumService?.isPremium ?? false) return;
+    if (_premiumRepository?.isPremium ?? false) return;
 
     _articleViewCount++;
 

@@ -3,14 +3,15 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../../core/security/security_service.dart';
+import '../../core/telemetry/structured_logger.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
 // Service to aggregate security signals and calculate a Device Trust Score.
 // Score ranges from 0.0 (Untrusted) to 1.0 (Fully Trusted).
 class DeviceTrustService {
 
-  DeviceTrustService({SecurityService? security})
-      : _security = security ?? SecurityService();
+  DeviceTrustService({SecurityService? security, StructuredLogger? logger})
+      : _security = security ?? SecurityService(logger ?? StructuredLogger());
   final SecurityService _security;
   final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
 

@@ -5,7 +5,6 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:get_it/get_it.dart';
 
 // Core & Domain
 import '../core/pipeline_orchestrator.dart';
@@ -26,7 +25,6 @@ import '../core/tts_analytics.dart';
 import '../core/synthesis_circuit_breaker.dart';
 import '../core/tts_performance_monitor.dart';
 
-import '../../../../bootstrap/di/injection_container.dart' show sl;
 
 class TtsManager {
   TtsManager({
@@ -35,13 +33,13 @@ class TtsManager {
     required SynthesisCircuitBreaker circuitBreaker,
     required TtsPerformanceMonitor performanceMonitor,
     required PipelineOrchestrator pipelineOrchestrator,
-    AudioCacheManager? cacheManager,
+    required AudioCacheManager cacheManager,
   }) : _repository = repository,
        _analytics = analytics,
        _circuitBreaker = circuitBreaker,
        _performanceMonitor = performanceMonitor,
        _pipelineOrchestrator = pipelineOrchestrator,
-       _cacheManager = cacheManager ?? sl<AudioCacheManager>() {
+       _cacheManager = cacheManager {
          _ttsService = FlutterTtsAdapter();
          _preloader = ChunkPreloader(
             synthesizeChunk: _synthesizeChunkForPreloader,
@@ -67,8 +65,6 @@ class TtsManager {
        _circuitBreaker = SynthesisCircuitBreaker(analytics: analytics ?? TtsAnalytics()),
        _performanceMonitor = TtsPerformanceMonitor(analytics: analytics ?? TtsAnalytics());
 
-  @Deprecated('Use dependency injection via GetIt/Riverpod')
-  static TtsManager get instance => GetIt.instance<TtsManager>();
 
 
   final TtsRepository _repository;
@@ -188,7 +184,14 @@ class TtsManager {
 
 
 
-  Future<void> speakArticle(String articleId, String title, String content, {String language = 'en'}) async {
+  Future<void> speakArticle(
+    String articleId,
+    String title,
+    String content, {
+    String language = 'en',
+    String? author,
+    String? imageSource,
+  }) async {
     debugPrint("TTS_DEBUG: speakArticle. Init=$_isInitialized");
     if (!_isInitialized) {
        await init();
@@ -203,6 +206,8 @@ class TtsManager {
       title: title,
       content: content,
       language: language,
+      author: author,
+      imageSource: imageSource,
     );
     
     if (!result.success || result.session == null) {

@@ -4,7 +4,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../core/premium_service.dart';
+import '../../domain/repositories/premium_repository.dart';
 
 /// Service to manage rewarded video ads for unlocking premium content
 class RewardedAdService {
@@ -20,15 +20,14 @@ class RewardedAdService {
 
   int _rewardedAdViewCount = 0;
 
-  PremiumService? _premiumService;
+  PremiumRepository? _premiumRepository;
   SharedPreferences? _prefs;
 
-  /// Initialize the service with PremiumService reference
-  void init(PremiumService premiumService, SharedPreferences prefs) {
-    _premiumService = premiumService;
+  /// Initialize the service with PremiumRepository reference
+  void init(PremiumRepository premiumRepository, SharedPreferences prefs) {
+    _premiumRepository = premiumRepository;
     _prefs = prefs;
     _rewardedAdViewCount = prefs.getInt('rewarded_ad_count') ?? 0;
-
 
     _loadAd();
   }
@@ -37,7 +36,7 @@ class RewardedAdService {
   Future<void> _loadAd() async {
     if (_isAdLoaded || _isLoading) return;
 
-    if (_premiumService?.isPremium ?? false) return;
+    if (_premiumRepository?.isPremium ?? false) return;
 
     _isLoading = true;
 
@@ -107,7 +106,7 @@ class RewardedAdService {
   /// Returns true if ad was shown and reward granted, false otherwise
   Future<bool> showAdToUnlockArticle(String articleUrl) async {
     
-    if (_premiumService?.isPremium ?? false) {
+    if (_premiumRepository?.isPremium ?? false) {
       _unlockedArticles.add(articleUrl);
       return true;
     }
@@ -158,7 +157,7 @@ class RewardedAdService {
 
   /// Check if an article is unlocked
   bool isArticleUnlocked(String articleUrl) {
-    if (_premiumService?.isPremium ?? false) return true;
+    if (_premiumRepository?.isPremium ?? false) return true;
 
     return _unlockedArticles.contains(articleUrl);
   }

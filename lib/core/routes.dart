@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../presentation/features/home/home_screen.dart' show HomeScreen;
-import '../domain/facades/auth_facade.dart';
 import '../presentation/features/profile/profile_screen.dart';
 import '../presentation/features/profile/login_screen.dart';
 import '../presentation/features/profile/signup_screen.dart';
@@ -30,7 +29,6 @@ import '../domain/entities/news_article.dart';
 import 'app_paths.dart';
 import '../presentation/widgets/bottom_nav_bar.dart';
 import '../l10n/generated/app_localizations.dart';
-import '../bootstrap/di/injection_container.dart' as di;
 import 'performance_config.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();

@@ -132,7 +132,7 @@ class MainNavigationScreen extends ConsumerWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(32),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                  filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
                   child: Padding(
                   padding: const EdgeInsets.symmetric(
                     vertical: 12,

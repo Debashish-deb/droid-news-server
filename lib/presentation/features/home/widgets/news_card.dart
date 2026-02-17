@@ -8,6 +8,7 @@ import '../../../../core/utils/source_logos.dart';
 import '../../../../domain/entities/news_article.dart';
 import '../../../../infrastructure/services/ml/ml_categorizer.dart';
 import '../../../../infrastructure/services/ml/ml_sentiment_analyzer.dart';
+import '../../../../core/di/providers.dart' show mlCategorizerProvider, mlSentimentAnalyzerProvider;
 import '../../../providers/favorites_providers.dart';
 import '../../../providers/theme_providers.dart';
 import '../../../widgets/glass_icon_button.dart';
@@ -328,7 +329,7 @@ class _NewsCardState extends ConsumerState<NewsCard>
 
   Widget _buildCategoryBadge(BuildContext context, Color selectionColor) {
     return FutureBuilder<String>(
-      future: MLCategorizer.instance.categorizeArticle(
+      future: ref.read(mlCategorizerProvider).categorizeArticle(
         widget.article.title,
         widget.article.snippet,
       ),
@@ -338,7 +339,8 @@ class _NewsCardState extends ConsumerState<NewsCard>
         }
 
         final categoryId = snapshot.data!;
-        final categoryInfo = MLCategorizer.instance.getCategoryInfo(categoryId);
+        final categorizer = ref.watch(mlCategorizerProvider);
+        final categoryInfo = categorizer.getCategoryInfo(categoryId);
         if (categoryInfo == null) return const SizedBox.shrink();
 
         final colorStr = categoryInfo['color'] as String?;
@@ -401,14 +403,14 @@ class _NewsCardState extends ConsumerState<NewsCard>
 
   Widget _buildSentimentIndicator() {
     return FutureBuilder<double>(
-      future: MLSentimentAnalyzer.instance.analyzeSentiment(
+      future: ref.read(mlSentimentAnalyzerProvider).analyzeSentiment(
         '${widget.article.title} ${widget.article.snippet}'
       ),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const SizedBox.shrink();
 
         final sentiment = snapshot.data!;
-        final emoji = MLSentimentAnalyzer.instance.getSentimentEmoji(sentiment);
+        final emoji = ref.watch(mlSentimentAnalyzerProvider).getSentimentEmoji(sentiment);
         Color sentimentColor;
 
         if (sentiment > 0.3) {
@@ -774,3 +776,4 @@ class _NewsCardState extends ConsumerState<NewsCard>
     );
   }
 }
+

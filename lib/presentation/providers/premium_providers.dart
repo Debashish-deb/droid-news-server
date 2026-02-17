@@ -1,16 +1,24 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/premium_service.dart';
-import '../../core/providers.dart';
+import '../../core/di/providers.dart';
 
-// Provides the current premium status, listening to the underlying service
-// Provides the current premium status
-final isPremiumProvider = Provider<bool>((ref) {
-  return ref.watch(premiumNotifierProvider).isPremium;
+/// Reactive stream of premium status. Use this in Widgets via ref.watch()
+final isPremiumProvider = StreamProvider<bool>((ref) {
+  return ref.watch(premiumRepositoryProvider).premiumStatusStream;
 });
 
-// Provides access to the PremiumService as a ChangeNotifier
-final premiumNotifierProvider = ChangeNotifierProvider<PremiumService>((ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return PremiumService(prefs: prefs);
+/// Convenience provider for standard logic checks (uses last known state)
+final isPremiumStateProvider = Provider<bool>((ref) {
+  return ref.watch(premiumRepositoryProvider).isPremium;
 });
 
+/// Provides the current premium tier name
+final tierNameProvider = Provider<String>((ref) {
+  final isPremium = ref.watch(isPremiumStateProvider);
+  return isPremium ? 'pro' : 'free';
+});
+
+/// Provider family to check if a specific feature is available
+final hasFeatureProvider = Provider.family<bool, String>((ref, featureId) {
+  final isPremium = ref.watch(isPremiumStateProvider);
+  return isPremium;
+});

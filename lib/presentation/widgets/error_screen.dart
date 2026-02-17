@@ -2,6 +2,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// A user-friendly error screen displayed when uncaught errors occur
 class ErrorScreen extends StatelessWidget {
@@ -50,7 +51,7 @@ class ErrorScreen extends StatelessWidget {
 
             
                   Text(
-                    'Oops! Something went wrong',
+                    AppLocalizations.of(context).errorOops,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: isDark ? Colors.white : Colors.black87,
@@ -62,7 +63,7 @@ class ErrorScreen extends StatelessWidget {
 
                  
                   Text(
-                    'We encountered an unexpected error. Please try restarting the app.',
+                    AppLocalizations.of(context).errorUnexpected,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: isDark ? Colors.white70 : Colors.black54,
                     ),
@@ -85,7 +86,7 @@ class ErrorScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
-                            'Debug Info:',
+                            AppLocalizations.of(context).debugInfo,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: isDark ? Colors.white : Colors.black87,
@@ -112,7 +113,7 @@ class ErrorScreen extends StatelessWidget {
                     ElevatedButton.icon(
                       onPressed: onRetry,
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Restart App'),
+                       label: Text(AppLocalizations.of(context).restartApp),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 32,

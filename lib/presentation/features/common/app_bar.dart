@@ -17,15 +17,10 @@ class AppBarTitle extends ConsumerWidget {
     final isDesh = themeMode == AppThemeMode.bangladesh;
 
     final appBarTextStyle = styleOverride ??
-        theme.appBarTheme.titleTextStyle?.copyWith(
-          fontSize: 24,
-          fontWeight: FontWeight.w900,
-          letterSpacing: -0.5,
-        ) ??
+        theme.appBarTheme.titleTextStyle ??
         GoogleFonts.inter(
-          fontSize: 24,
-          fontWeight: FontWeight.w900,
-          letterSpacing: -0.5,
+          fontSize: 22,
+          fontWeight: FontWeight.w400,
           color: (isDark || isDesh) ? Colors.white : Colors.black,
         );
 

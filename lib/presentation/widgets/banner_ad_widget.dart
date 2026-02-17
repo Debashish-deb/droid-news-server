@@ -3,7 +3,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/subscription_providers.dart' show isPremiumProvider;
+import '../providers/premium_providers.dart' show isPremiumStateProvider;
 
 class BannerAdWidget extends ConsumerStatefulWidget {
   const BannerAdWidget({super.key});
@@ -27,7 +27,7 @@ class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
     }
   }
   Future<void> _loadAd() async {
-    final bool isPremium = ref.read(isPremiumProvider);
+    final bool isPremium = ref.read(isPremiumStateProvider);
     if (isPremium) return;
 
     _isLoading = true;
@@ -100,7 +100,7 @@ class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
  
   @override
   Widget build(BuildContext context) {
-    final bool isPremium = ref.watch(isPremiumProvider);
+    final bool isPremium = ref.watch(isPremiumStateProvider);
 
     if (isPremium || !_isAdLoaded || _bannerAd == null || _adSize == null) {
       return const SizedBox.shrink();

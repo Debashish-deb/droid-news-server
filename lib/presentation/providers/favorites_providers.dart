@@ -4,8 +4,7 @@
 // ==========================================
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../bootstrap/di/injection_container.dart'; // for sl
-import '../../domain/repositories/favorites_repository.dart';
+import '../../core/di/providers.dart';
 import '../../infrastructure/persistence/favorites_service.dart';
 import "../../domain/entities/news_article.dart";
 
@@ -16,7 +15,7 @@ import "../../domain/entities/news_article.dart";
 /// Main favorites state provider
 final favoritesProvider =
     StateNotifierProvider<FavoritesNotifier, FavoritesState>((ref) {
-      final repo = sl<FavoritesRepository>();
+      final repo = ref.watch(favoritesRepositoryProvider);
       return FavoritesNotifier(repo);
     });
 

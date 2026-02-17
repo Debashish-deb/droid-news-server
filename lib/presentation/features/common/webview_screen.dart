@@ -6,21 +6,18 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/di/providers.dart' show structuredLoggerProvider;
 import '../../../l10n/generated/app_localizations.dart';
 
-import "../../../domain/entities/news_article.dart";
-import '../../../bootstrap/di/injection_container.dart' show sl;
-import '../../../core/telemetry/structured_logger.dart';
-import '../../providers/favorites_providers.dart';
-import '../../providers/saved_articles_provider.dart';
-import '../tts/services/tts_manager.dart' show TtsManager;
-import '../tts/domain/models/speech_chunk.dart';
-import '../settings/widgets/settings_3d_widgets.dart'; // Copied style
-import '../../../core/webview_blocking.dart';
-
-import '../../providers/premium_providers.dart' show isPremiumProvider;
+import '../../../domain/entities/news_article.dart';
+import '../../providers/premium_providers.dart' show isPremiumStateProvider;
+import '../../providers/favorites_providers.dart' show favoritesProvider, isFavoriteArticleProvider;
+import '../../providers/saved_articles_provider.dart' show savedArticlesProvider;
 import '../../providers/feature_providers.dart' show ttsManagerProvider, userInterestProvider;
 import '../../../application/ai/ranking/user_interest_service.dart';
+import '../settings/widgets/settings_3d_widgets.dart';
+import '../tts/domain/models/speech_chunk.dart';
+import '../../../core/webview_blocking.dart';
 
 import '../reader/controllers/reader_controller.dart';
 import '../reader/ui/native_reader_view.dart';
@@ -53,7 +50,6 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
   InAppWebViewController? _ctrl;
   late final PullToRefreshController _ptrCtrl;
   double _progress = 0.0;
-  String _pageContent = ''; 
 
   DateTime? _startTime;
   DateTime? _lastBackPressed;
@@ -213,7 +209,7 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
     try {
       await _ctrl!.evaluateJavascript(source: js);
     } catch (e, stack) {
-      sl<StructuredLogger>().warning('JS text highlighting failed', e, stack);  
+      ref.read(structuredLoggerProvider).warning('JS text highlighting failed', e, stack);  
     }
   }
 
@@ -222,7 +218,7 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
     _saveScrollPosition();
     _recordReadingSession();
 
-    sl<TtsManager>().stop();
+    ref.read(ttsManagerProvider).stop();
     super.dispose();
   }
 
@@ -346,7 +342,7 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
   }
 
   Future<void> _translate(_TranslateEngine engine) async {
-    final bool isPremium = ref.read(isPremiumProvider);
+    final bool isPremium = ref.read(isPremiumStateProvider);
     if (!isPremium) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -394,7 +390,6 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
       _currentIndex++;
       _currentArticle = widget.articles![_currentIndex];
       _progress = 0;
-      _pageContent = '';
     });
     
     _ctrl?.loadUrl(urlRequest: URLRequest(url: WebUri(_currentArticle.url)));
@@ -410,7 +405,6 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
       _currentIndex--;
       _currentArticle = widget.articles![_currentIndex];
       _progress = 0;
-      _pageContent = '';
     });
     
     _ctrl?.loadUrl(urlRequest: URLRequest(url: WebUri(_currentArticle.url)));
@@ -458,12 +452,15 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
             ),
             child: Row(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.black),
-                  onPressed: () => Navigator.of(context).pop(),
-                  padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
+                const SizedBox(width: 8),
+                Settings3DButton(
+                  icon: Icons.arrow_back,
+                  onTap: () => Navigator.of(context).pop(),
+                  width: 44,
+                  height: 44,
+                  iconSize: 20,
                 ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -575,12 +572,9 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
               await _restoreScrollPosition();
 
               try {
-                 final text = await controller.evaluateJavascript(source: "document.body.innerText");
-                 if (text != null && text is String && text.isNotEmpty) {
-                   if (mounted) setState(() => _pageContent = text);
-                 }
+                 await controller.evaluateJavascript(source: "document.body.innerText");
               } catch (e, stack) {
-                 sl<StructuredLogger>().warning('Text extraction failed', e, stack);
+                 ref.read(structuredLoggerProvider).warning('Text extraction failed', e, stack);
               }
             },
             onLoadError: (_, __, ___, ____) => _showErrorSnackbar('Load error'),

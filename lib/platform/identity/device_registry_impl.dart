@@ -5,9 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 import 'device_registry.dart';
 
-import 'package:injectable/injectable.dart';
 
-@LazySingleton(as: DeviceRegistry)
+
 class DeviceRegistryImpl implements DeviceRegistry {
 
   DeviceRegistryImpl(

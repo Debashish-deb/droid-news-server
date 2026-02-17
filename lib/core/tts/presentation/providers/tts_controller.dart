@@ -35,13 +35,25 @@ class TtsController extends StateNotifier<TtsState> {
     });
   }
 
-  Future<void> playFromText(String text) async {
+  Future<void> playFromText(
+    String text, {
+    String? title,
+    String? author,
+    String? imageSource,
+    String language = 'en',
+  }) async {
     if (text.isEmpty) return;
     
     state = state.copyWith(status: TtsStatus.loading);
     
     try {
-      final chunks = ChunkScheduler.buildChunks(text);
+      final chunks = ChunkScheduler.buildChunks(
+        text,
+        title: title,
+        author: author,
+        imageSource: imageSource,
+        language: language,
+      );
       await playChunks(chunks);
     } catch (e) {
       state = state.copyWith(status: TtsStatus.error, error: e.toString());

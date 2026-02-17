@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/app_icons.dart' show AppIcons;
 import '../../../../core/enums/theme_mode.dart';
 import '../../../../core/utils/source_logos.dart';
 import '../publisher_layout_provider.dart';
 import '../../../providers/theme_providers.dart';
 
-import '../../../../core/app_icons.dart' show AppIcons;
 
 class PublisherTile extends ConsumerStatefulWidget {
   const PublisherTile({

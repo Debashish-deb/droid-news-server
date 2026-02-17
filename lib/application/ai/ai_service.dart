@@ -42,7 +42,6 @@ class AIServiceImpl implements AIService {
       case SummaryType.keyPoints:
         return _generateKeyPoints(sentences);
       case SummaryType.detailed:
-      default:
         return _generateDetailedSummary(sentences);
     }
   }
@@ -97,7 +96,9 @@ class AIServiceImpl implements AIService {
         // Position bias
         if (i == 0) {
           score += 2.0;
-        } else if (i < 5) score += 1.0;
+        } else if (i < 5) {
+          score += 1.0;
+        }
         
         // Length bias (sweet spot 50-150 chars)
         if (s.length > 50 && s.length < 150) score += 0.5;

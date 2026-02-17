@@ -1,7 +1,7 @@
 class TtsConfig {
 
   const TtsConfig({
-    this.rate = 1.0,
+    this.rate = 0.85,
     this.pitch = 1.0,
     this.voice,
     this.language = 'en-US',

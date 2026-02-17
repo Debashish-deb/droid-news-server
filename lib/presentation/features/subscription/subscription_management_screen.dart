@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/architecture/either.dart';
 import '../../../core/architecture/failure.dart';
 import '../../../domain/entities/subscription.dart'; 
+import '../../providers/premium_providers.dart' show isPremiumProvider;
 import '../../providers/subscription_providers.dart';
 import '../../widgets/error_widget.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -150,7 +151,7 @@ class _SubscriptionManagementScreenState
           );
           Future.delayed(const Duration(milliseconds: 500), () {
              if (mounted) {
-                 ref.read(premiumStatusProvider);
+                 ref.invalidate(isPremiumProvider);
                 }
           });
         }

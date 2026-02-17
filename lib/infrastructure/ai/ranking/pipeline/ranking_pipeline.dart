@@ -1,85 +1,83 @@
+// lib/infrastructure/ai/ranking/pipeline/ranking_pipeline.dart
+import 'package:flutter/foundation.dart';
 import '../../../../domain/entities/news_article.dart';
 import '../../../../domain/repositories/news_repository.dart';
 import '../../../../application/ai/ranking/user_interest_service.dart';
 
-// The Brain of the Feed.
-// 
-// Executes the 4-stage ranking process:
-// 1. Candidate Generation
-// 2. Filtering & Deduplication
-// 3. Personal Relevance Scoring
-// 4. Diversity Injection
-import 'package:injectable/injectable.dart';
+/// Payload for background ranking computation
+class _RankingPayload {
+  final List<NewsArticle> articles;
+  final UserInterestSnapshot snapshot;
+  _RankingPayload(this.articles, this.snapshot);
+}
 
-// The Brain of the Feed.
-// 
-// Executes the 4-stage ranking process:
-// 1. Candidate Generation
-// 2. Filtering & Deduplication
-// 3. Personal Relevance Scoring
-// 4. Diversity Injection
-@lazySingleton
+
 class RankingPipeline {
   RankingPipeline(this._repository, this._interestService);
 
   final NewsRepository _repository;
   final UserInterestService _interestService;
 
-  List<NewsArticle> rank(List<NewsArticle> articles) {
-    final unique = _deduplicate(articles);
-    final ranked = _scoreAndRank(unique);
-    return _injectDiversity(ranked);
+  /// RESTORED: Now async to support Isolate-based background ranking
+  Future<List<NewsArticle>> rank(List<NewsArticle> articles) async {
+    if (articles.isEmpty) return [];
+    
+    return await compute(
+      _rankLogic, 
+      _RankingPayload(articles, _interestService.getSnapshot()),
+    );
   }
 
+  /// UPDATED: Fetches and ranks in one flow
   Future<List<NewsArticle>> run(String category) async {
     final result = await _repository.getNewsFeed(page: 1, limit: 100, category: category);
     
     return result.fold(
       (fail) => [],
-      (candidates) {
-        final unique = _deduplicate(candidates);
-
-        final ranked = _scoreAndRank(unique);
-
-        return _injectDiversity(ranked);
+      (candidates) async {
+        return await rank(candidates);
       },
     );
   }
 
-  List<NewsArticle> _deduplicate(List<NewsArticle> articles) {
+  /// Background Isolate function (Logic moved here for thread-safety)
+  static List<NewsArticle> _rankLogic(_RankingPayload payload) {
+    // 1. Deduplicate
     final seen = <String>{};
-    return articles.where((a) => seen.add(a.url)).toList();
-  }
+    final unique = payload.articles.where((a) => seen.add(a.url)).toList();
 
-  List<NewsArticle> _scoreAndRank(List<NewsArticle> articles) {
-    articles.sort((a, b) {
-      final scoreA = _calculateScore(a);
-      final scoreB = _calculateScore(b);
+    // 2. Score and Sort
+    unique.sort((a, b) {
+      final scoreA = _calculateScoreStatic(a, payload.snapshot);
+      final scoreB = _calculateScoreStatic(b, payload.snapshot);
       return scoreB.compareTo(scoreA); // Descending
     });
-    return articles;
+
+    // 3. Inject Diversity
+    if (unique.length > 10) {
+      final explorationItem = unique.removeLast();
+      unique.insert(5, explorationItem); // Discovery article at pos 5
+    }
+
+    return unique;
   }
 
-  double _calculateScore(NewsArticle article) {
-    // 1. Personalization Score from TF-IDF Engine
-    final personalizationScore = _interestService.getPersonalizationScore(article);
-    
-    // 2. Freshness Score (Decay over time)
+  /// Static scoring logic for Isolate safety
+  static double _calculateScoreStatic(NewsArticle article, UserInterestSnapshot snapshot) {
+    // Freshness Factor
     final hoursOld = DateTime.now().difference(article.publishedAt).inHours;
     final freshness = 1.0 / (1.0 + hoursOld * 0.1);
 
-    // 3. Source weight (Legacy support if still needed, otherwise simple blend)
-    final sourceScore = _interestService.getInterestScore(article.source);
-
-    // Weighted Blend
-    return (0.5 * personalizationScore) + (0.3 * freshness) + (0.2 * sourceScore);
-  }
-
-  List<NewsArticle> _injectDiversity(List<NewsArticle> ranked) {
-    if (ranked.length > 10) {
-      final explorationItem = ranked.last;
-      ranked.insert(5, explorationItem); // Inject at pos 5
+    // Personalization Baseline
+    double personalization = 0.5;
+    
+    // Category check using the snapshot's vocabulary/vector
+    final index = snapshot.vocabulary.indexOf(article.category.toLowerCase());
+    if (index != -1 && snapshot.interestVector != null) {
+      personalization = (snapshot.interestVector![index] / 65535.0);
     }
-    return ranked;
+
+    // Weighted blend: 60% Personalization, 40% Freshness
+    return (0.6 * personalization) + (0.4 * freshness);
   }
 }

@@ -10,7 +10,7 @@ import '../../../../core/tts/domain/entities/tts_chunk.dart';
 import '../../../../core/tts/presentation/providers/tts_controller.dart';
 import '../models/reader_settings.dart';
 import '../../../../domain/repositories/settings_repository.dart';
-import '../../../../bootstrap/di/injection_container.dart' as di;
+import '../../../providers/app_settings_providers.dart';
 
 class ReaderState {
 
@@ -81,7 +81,7 @@ class ReaderController extends StateNotifier<ReaderState> {
   }
   
   final Ref ref;
-  final SettingsRepository _repository = di.sl<SettingsRepository>();
+  late final SettingsRepository _repository = ref.read(settingsRepositoryProvider);
   ProviderSubscription? _ttsSubscription;
   InAppWebViewController? _webViewController;
   String? _readabilityScript;
@@ -149,7 +149,7 @@ class ReaderController extends StateNotifier<ReaderState> {
         final article = ReaderArticle.fromJson(jsonMap);
         
         // Process HTML for TTS
-        final processingResult = _processHtmlForTts(article.content);
+        final processingResult = _processHtmlForTts(article);
 
         state = state.copyWith(
           isReaderMode: true,
@@ -172,10 +172,38 @@ class ReaderController extends StateNotifier<ReaderState> {
     }
   }
 
-  ({String html, List<TtsChunk> chunks}) _processHtmlForTts(String rawHtml) {
-    final document = html_parser.parseFragment(rawHtml);
+  ({String html, List<TtsChunk> chunks}) _processHtmlForTts(ReaderArticle article, {String language = 'en'}) {
+    final document = html_parser.parseFragment(article.content);
     final List<TtsChunk> chunks = [];
     int chunkCount = 0;
+
+    // Prep Humanized Cues
+    final titleLabel = language.startsWith('bn') ? 'শিরোনাম: ' : 'Title: ';
+    final introPhrase = language.startsWith('bn') ? 'বিস্তারিত খবরে আসছি' : 'Moving on to detailed news';
+    final reporterLabel = language.startsWith('bn') ? 'প্রতিবেদক: ' : 'Reporter: ';
+    final siteLabel = language.startsWith('bn') ? 'উৎস: ' : 'Source: ';
+    final metadataWarning = language.startsWith('bn') ? 'সতর্কবার্তা, এটি সংবাদ সংশ্লিষ্ট তথ্য মাত্র: ' : 'Notice, the following is metadata only: ';
+
+    // 1. Initial Metadata Chunks (Wait, these won't be highlightable in the HTML, but that's okay for start)
+    if (article.title.isNotEmpty) {
+      chunks.add(TtsChunk(
+        index: chunkCount++,
+        text: '$titleLabel ${article.title}. $introPhrase.',
+        estimatedDuration: Duration(milliseconds: (article.title.length + 50) * 40),
+      ));
+    }
+
+    if (article.byline != null || article.siteName != null) {
+       String metaText = '$metadataWarning. ';
+       if (article.byline != null) metaText += '$reporterLabel ${article.byline}. ';
+       if (article.siteName != null) metaText += '$siteLabel ${article.siteName}. ';
+       
+       chunks.add(TtsChunk(
+         index: chunkCount++,
+         text: metaText,
+         estimatedDuration: Duration(milliseconds: metaText.length * 40),
+       ));
+    }
 
     void walk(dom.Node node) {
       if (node.nodeType == dom.Node.TEXT_NODE) {

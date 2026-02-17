@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import "../../application/sync/sync_orchestrator.dart";
-
 import '../../domain/repositories/settings_repository.dart' show SettingsRepository;
-import 'app_settings_providers.dart' show settingsRepositoryProvider;
+import '../../core/di/providers.dart' as di;
 
 // ============================================================================
 // Language State Management
@@ -26,11 +25,12 @@ class LanguageState {
 
 /// Language Notifier - manages language state
 class LanguageNotifier extends StateNotifier<LanguageState> {
-  LanguageNotifier(this._repository)
+  LanguageNotifier(this._repository, this._syncOrchestrator)
     : super(const LanguageState(locale: Locale('en'))) {
-    SyncOrchestrator().registerLanguageNotifier(this);
+    _syncOrchestrator.registerLanguageNotifier(this);
   }
   final SettingsRepository _repository;
+  final SyncOrchestrator _syncOrchestrator;
   
   /// Public getter to avoid protected 'state' access warnings
   LanguageState get current => state;
@@ -48,7 +48,7 @@ class LanguageNotifier extends StateNotifier<LanguageState> {
     state = LanguageState(locale: newLocale);
     await _repository.setLanguageCode(languageCode);
 
-    SyncOrchestrator().pushSettings();
+    _syncOrchestrator.pushSettings();
   }
 
   Future<void> toggleLanguage() async {
@@ -64,8 +64,9 @@ class LanguageNotifier extends StateNotifier<LanguageState> {
 /// Provider for language state
 final languageProvider = StateNotifierProvider<LanguageNotifier, LanguageState>(
   (ref) {
-    final repo = ref.watch(settingsRepositoryProvider);
-    return LanguageNotifier(repo);
+    final repo = ref.watch(di.settingsRepositoryProvider);
+    final syncOrchestrator = ref.watch(di.syncOrchestratorProvider);
+    return LanguageNotifier(repo, syncOrchestrator);
   },
 );
 

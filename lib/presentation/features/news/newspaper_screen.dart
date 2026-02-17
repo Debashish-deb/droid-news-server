@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,6 +47,7 @@ class _NewspaperScreenState extends ConsumerState<NewspaperScreen>
   
   // Cache categories to avoid rebuilding list
   List<String> _cachedCategories = [];
+  AppLocalizations get loc => AppLocalizations.of(context);
 
   @override
   void initState() {
@@ -80,7 +82,7 @@ class _NewspaperScreenState extends ConsumerState<NewspaperScreen>
     if (_lastBackPressed == null ||
         now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
       _lastBackPressed = now;
-      Fluttertoast.showToast(msg: 'Press back again to exit');
+      Fluttertoast.showToast(msg: loc.pressBackToExit);
       return false;
     }
     return true;
@@ -149,7 +151,6 @@ class _NewspaperScreenState extends ConsumerState<NewspaperScreen>
   Widget _buildLanguageFilter(BuildContext context) {
      final loc = AppLocalizations.of(context);
      final theme = Theme.of(context);
-     final scheme = theme.colorScheme;
      
      return Container(
         padding: const EdgeInsets.all(4), // Reduced from 12
@@ -161,21 +162,24 @@ class _NewspaperScreenState extends ConsumerState<NewspaperScreen>
             width: 0.8,
           ),
         ),
-        child: Wrap(
-          spacing: 12,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
              Bouncy3DChip(
                label: loc.all,
                selected: _langFilter == null,
                onTap: () => setState(() => _langFilter = null),
              ),
+             const SizedBox(width: 8),
              Bouncy3DChip(
-               label: 'Bangla',
+               label: loc.bangla,
                selected: _langFilter == 'bn',
                onTap: () => setState(() => _langFilter = 'bn'),
              ),
+             const SizedBox(width: 8),
              Bouncy3DChip(
-               label: 'English',
+               label: loc.english,
                selected: _langFilter == 'en',
                onTap: () => setState(() => _langFilter = 'en'),
              ),
@@ -209,7 +213,7 @@ class _NewspaperScreenState extends ConsumerState<NewspaperScreen>
       },
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        backgroundColor: scheme.surface,
+        backgroundColor: theme.scaffoldBackgroundColor,
         drawer: const AppDrawer(),
         body: Stack(
           fit: StackFit.expand,
@@ -220,8 +224,8 @@ class _NewspaperScreenState extends ConsumerState<NewspaperScreen>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: <Color>[
-                    colors[0].withOpacity(0.85),
-                    colors[1].withOpacity(0.85),
+                    colors[0].withOpacity(0.9),
+                    colors[1].withOpacity(0.9),
                   ],
                 ),
               ),
@@ -232,10 +236,18 @@ class _NewspaperScreenState extends ConsumerState<NewspaperScreen>
               slivers: <Widget>[
                 SliverAppBar(
                   pinned: true,
-                  backgroundColor: theme.appBarTheme.backgroundColor,
-                  elevation: theme.appBarTheme.elevation,
+                  backgroundColor: Colors.transparent,
+                  flexibleSpace: ClipRect(
+                    child: BackdropFilter(
+                      filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        color: scheme.surface.withOpacity(0.7),
+                      ),
+                    ),
+                  ),
+                  elevation: 0, // Elevation should be 0 for glass effect
                   centerTitle: true,
-                  toolbarHeight: 54, // Reduced from 58
+                  toolbarHeight: 54, 
                   titleTextStyle: theme.appBarTheme.titleTextStyle,
                   title: isEditMode 
                       ? Text(loc.editLayout, style: theme.appBarTheme.titleTextStyle?.copyWith(color: Colors.white, fontWeight: FontWeight.w900))
@@ -269,7 +281,7 @@ class _NewspaperScreenState extends ConsumerState<NewspaperScreen>
                       IconButton(
                         icon: const Icon(Icons.edit_note_rounded, size: 28),
                         onPressed: () => ref.read(editModeProvider.notifier).state = true,
-                        tooltip: 'Edit Layout',
+                        tooltip: loc.editLayout,
                       )
                   ],
                 ),
@@ -278,43 +290,52 @@ class _NewspaperScreenState extends ConsumerState<NewspaperScreen>
                   SliverPersistentHeader(
                     pinned: true,
                     delegate: StickyHeaderDelegate(
-                      minHeight: 48, // Reduced from 56
-                      maxHeight: 48, // Reduced from 56
-                      child: Container(
-                        height: 48, // Reduced from 56
-                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 0), // Reduced from 2
-                        decoration: BoxDecoration(
-                          color: theme.brightness == Brightness.light ? Colors.black.withOpacity(0.02) : Colors.white.withOpacity(0.04),
-                          borderRadius: BorderRadius.circular(32),
-                          border: Border.all(
-                            color: theme.brightness == Brightness.light ? Colors.black.withOpacity(0.05) : Colors.white.withOpacity(0.1),
-                            width: 0.8,
-                          ),
-                        ),
-                        child: ListView.separated(
-                          controller: _chipsController,
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemCount: categories.length,
-                          itemBuilder: (BuildContext ctx, int i) {
-                            final bool sel = i == _tabController.index;
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Bouncy3DChip(
-                                label: categories[i],
-                                selected: sel,
-                                onTap: () {
-                                  _tabController.animateTo(i);
-                                  _centerChip(i);
-                                  if (_scrollController.hasClients) {
-                                    _scrollController.jumpTo(0);
-                                  }
-                                },
-                                key: _chipKeys[i],
+                      minHeight: 48,
+                      maxHeight: 48,
+                      child: ClipRect(
+                        child: BackdropFilter(
+                          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            height: 48,
+                            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                            decoration: BoxDecoration(
+                              color: theme.brightness == Brightness.light 
+                                  ? Colors.black.withOpacity(0.05) 
+                                  : Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(32),
+                              border: Border.all(
+                                color: theme.brightness == Brightness.light 
+                                    ? Colors.black.withOpacity(0.05) 
+                                    : Colors.white.withOpacity(0.1),
+                                width: 0.8,
                               ),
-                            );
-                          },
+                            ),
+                            child: ListView.separated(
+                              controller: _chipsController,
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              separatorBuilder: (_, __) => const SizedBox(width: 8),
+                              itemCount: categories.length,
+                              itemBuilder: (BuildContext ctx, int i) {
+                                final bool sel = i == _tabController.index;
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Bouncy3DChip(
+                                    label: categories[i],
+                                    selected: sel,
+                                    onTap: () {
+                                      _tabController.animateTo(i);
+                                      _centerChip(i);
+                                      if (_scrollController.hasClients) {
+                                        _scrollController.jumpTo(0);
+                                      }
+                                    },
+                                    key: _chipKeys[i],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -365,11 +386,11 @@ class _NewspaperScreenState extends ConsumerState<NewspaperScreen>
                                           final tags = List<String>.from(paper['tags'] ?? []);
                                           final bool isPremium = tags.contains('premium');
                                           final url = paper['contact']?['website'] ?? paper['url'] ?? '';
-                                          final title = paper['name'] ?? 'Newspaper';
+                                          final title = paper['name'] ?? loc.unknownNewspaper;
 
                                           if (url.isEmpty) {
                                               ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('No URL available'))
+                                                  SnackBar(content: Text(loc.noUrlAvailable))
                                               );
                                               return;
                                           }
@@ -401,7 +422,7 @@ class _NewspaperScreenState extends ConsumerState<NewspaperScreen>
                       ),
                   ),
                   error: (err, stack) => SliverFillRemaining(
-                      child: Center(child: Text('Error: $err')),
+                      child: Center(child: Text('${loc.error}: $err')),
                   ),
                 ),
               ],
@@ -412,7 +433,7 @@ class _NewspaperScreenState extends ConsumerState<NewspaperScreen>
           onPressed: () {
             ref.read(editModeProvider.notifier).state = false;
           },
-          label: const Text('Save Layout'),
+          label: Text(loc.saveLayout),
           icon: const Icon(CupertinoIcons.check_mark),
           backgroundColor: scheme.tertiary,
           foregroundColor: Colors.black,

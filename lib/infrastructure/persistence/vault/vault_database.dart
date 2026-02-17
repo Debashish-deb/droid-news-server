@@ -1,10 +1,9 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
-import 'package:injectable/injectable.dart';
 
 /// The "Safe" - A local SQLite database for storing encrypted data.
-@lazySingleton
+
 class VaultDatabase {
 
   VaultDatabase();

@@ -6,13 +6,12 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import '../../core/architecture/failure.dart';
 import 'receipt_verification_service.dart' show ReceiptVerificationService;
 
-import 'package:injectable/injectable.dart';
 
 /// Service responsible for handling in-app purchase operations.
 ///
 /// This service wraps the `in_app_purchase` plugin and provides
 /// a clean interface for the repository layer.
-@lazySingleton
+
 class PaymentService {
 
   PaymentService(this._iap);

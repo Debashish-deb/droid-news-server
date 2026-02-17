@@ -2,7 +2,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../bootstrap/di/injection_container.dart';
+// import '../../bootstrap/di/injection_container.dart'; // Deleted during Riverpod migration
 import '../persistence/app_database.dart';
 
 enum DataClassification {
@@ -22,12 +22,12 @@ enum ConsentStatus {
 class GovernanceEngine {
 
   GovernanceEngine({
-    FlutterSecureStorage? secureStorage,
-    SharedPreferences? prefs,
-    AppDatabase? db,
-  })  : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
-        _prefs = prefs ?? sl<SharedPreferences>(),
-        _db = db ?? sl<AppDatabase>();
+    required FlutterSecureStorage secureStorage,
+    required SharedPreferences prefs,
+    required AppDatabase db,
+  })  : _secureStorage = secureStorage,
+        _prefs = prefs,
+        _db = db;
   final FlutterSecureStorage _secureStorage;
   final SharedPreferences _prefs;
   final AppDatabase _db;

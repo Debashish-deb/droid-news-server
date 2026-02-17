@@ -170,15 +170,6 @@ class _GlassIconButtonState extends State<GlassIconButton>
                             blurRadius: 10,
                             offset: const Offset(0, 5),
                           ),
-                          if (widget.glowIntensity != null &&
-                              widget.glowIntensity! > 0)
-                            BoxShadow(
-                              color: (widget.color ??
-                                      (widget.isDark ? Colors.white : Colors.blue))
-                                  .withOpacity(widget.glowIntensity! * 0.5),
-                              blurRadius: 15,
-                              spreadRadius: 2,
-                            ),
                         ],
                       ),
                       child: Stack(

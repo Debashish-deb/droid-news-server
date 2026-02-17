@@ -5,9 +5,8 @@ import '../../domain/repositories/search_repository.dart';
 import '../../domain/repositories/news_repository.dart';
 import '../../domain/repositories/settings_repository.dart';
 
-import 'package:injectable/injectable.dart';
 
-@LazySingleton(as: SearchRepository)
+
 class SearchRepositoryImpl implements SearchRepository {
 
   SearchRepositoryImpl(this._newsRepository, this._settingsRepository);

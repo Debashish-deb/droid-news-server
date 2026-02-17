@@ -1,3 +1,4 @@
+// lib/application/ai/ranking/user_interest_service.dart
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,15 +6,20 @@ import '../../../domain/entities/news_article.dart' show NewsArticle;
 import '../../../infrastructure/ai/engine/quantized_tfidf_engine.dart' show QuantizedTfIdfEngine;
 import '../../../core/telemetry/app_logger.dart';
 
-import 'package:injectable/injectable.dart';
+/// Data class to pass interest state across Isolate boundaries
+class UserInterestSnapshot {
+  final Uint16List? interestVector;
+  final List<String> vocabulary;
 
-/// Tracks user behavior at a granular term-level to build a Quantized "User Interest Vector".
-@lazySingleton
+  UserInterestSnapshot({this.interestVector, required this.vocabulary});
+}
+
+
 class UserInterestService {
-
   UserInterestService(this._engine, this._prefs) {
     _loadState();
   }
+
   final QuantizedTfIdfEngine _engine;
   final SharedPreferences _prefs;
   
@@ -23,6 +29,16 @@ class UserInterestService {
   Uint16List? _currentInterestVector;
   List<String> _vocabulary = [];
 
+  /// NEW: Provides a thread-safe snapshot for the Ranking Isolate
+  UserInterestSnapshot getSnapshot() {
+    return UserInterestSnapshot(
+      interestVector: _currentInterestVector != null 
+          ? Uint16List.fromList(_currentInterestVector!) 
+          : null,
+      vocabulary: List<String>.from(_vocabulary),
+    );
+  }
+
   void _loadState() {
     final vocabJson = _prefs.getString(_kVocabularyKey);
     if (vocabJson != null) {
@@ -31,7 +47,13 @@ class UserInterestService {
 
     final vectorBase64 = _prefs.getString(_kInterestVectorKey);
     if (vectorBase64 != null) {
-      _currentInterestVector = Uint16List.fromList(base64.decode(vectorBase64).buffer.asUint16List());
+      try {
+        _currentInterestVector = Uint16List.fromList(
+          base64.decode(vectorBase64).buffer.asUint16List()
+        );
+      } catch (e) {
+        AppLogger.error('Failed to decode interest vector', e);
+      }
     }
   }
 
@@ -43,26 +65,21 @@ class UserInterestService {
     }
   }
 
-  /// Updates the interest vector based on interactions.
   Future<void> recordInteraction({
     required NewsArticle article,
     required InteractionType type,
   }) async {
-    // 1. Ensure vocabulary is initialized/updated if needed
     if (_vocabulary.isEmpty) {
       _vocabulary = _engine.extractVocabulary([article]);
     }
 
-    // 2. Generate vector for the current article
     final articleVector = _engine.generateVector(article, _vocabulary);
 
-    // 3. Update interest vector (moving average / weight update)
     if (_currentInterestVector == null) {
       _currentInterestVector = articleVector;
     } else {
       final double weight = _getWeightForType(type);
       for (int i = 0; i < _vocabulary.length; i++) {
-        // Simple smoothing update: V_new = V_old * (1-w) + V_art * w
         final oldVal = _currentInterestVector![i];
         final newVal = articleVector[i];
         _currentInterestVector![i] = (oldVal * (1 - weight) + newVal * weight).toInt();
@@ -70,7 +87,6 @@ class UserInterestService {
     }
 
     await _saveState();
-    AppLogger.debug('UserInterest: Updated interest vector for ${article.title}');
   }
 
   double _getWeightForType(InteractionType type) {
@@ -83,30 +99,20 @@ class UserInterestService {
     }
   }
 
-  /// Returns the similarity of an article to the user's current interest vector.
   double getPersonalizationScore(NewsArticle article) {
     if (_currentInterestVector == null || _vocabulary.isEmpty) return 0.5;
-
     final articleVector = _engine.generateVector(article, _vocabulary);
     return _engine.calculateSimilarity(_currentInterestVector!, articleVector);
   }
 
-  /// Returns a weighted score for a category based on user history.
   double getInterestScore(String category) {
     if (_currentInterestVector == null || _vocabulary.isEmpty) return 1.0;
-    
-    // Look for the category keyword in the vocabulary
     final index = _vocabulary.indexOf(category.toLowerCase());
     if (index != -1) {
-      // Normalize the quantized weight (0-65535) to a 0.5 - 2.0 range boost
-      final weight = _currentInterestVector![index];
-      return 1.0 + (weight / 65535.0);
+      return 1.0 + (_currentInterestVector![index] / 65535.0);
     }
-    
     return 1.0;
   }
 }
 
-enum InteractionType {
-  view, click, share, bookmark, dismiss
-}
+enum InteractionType { view, click, share, bookmark, dismiss }

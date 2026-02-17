@@ -5,14 +5,12 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
-import '../../bootstrap/di/injection_container.dart' show sl;
 import '../../core/telemetry/structured_logger.dart';
 
 /// Service to handle Machine Learning operations using TensorFlow Lite
 class MLService {
-  factory MLService() => _instance;
-  MLService._internal();
-  static final MLService _instance = MLService._internal();
+  MLService(this._logger);
+  final StructuredLogger _logger;
 
   Interpreter? _interpreter;
 
@@ -44,7 +42,7 @@ class MLService {
       try {
         options.addDelegate(XNNPackDelegate());
       } catch (e, stack) {
-        sl<StructuredLogger>().warning('Failed to add XNNPackDelegate', e, stack);
+        _logger.warning('Failed to add XNNPackDelegate', e, stack);
       }
 
       _interpreter = await Interpreter.fromAsset(assetPath, options: options);
@@ -134,7 +132,7 @@ class MLService {
     try {
       _interpreter?.close();
     } catch (e, stack) {
-       sl<StructuredLogger>().warning('Error closing interpreter', e, stack); 
+       _logger.warning('Error closing interpreter', e, stack); 
     } finally {
       _interpreter = null;
     }
@@ -208,14 +206,14 @@ class MLService {
     try {
       _isolateReceivePort?.close();
     } catch (e, stack) {
-      sl<StructuredLogger>().warning('Error closing isolate receive port', e, stack);
+      _logger.warning('Error closing isolate receive port', e, stack);
     }
     _isolateReceivePort = null;
 
     try {
       _inferenceIsolate?.kill(priority: Isolate.immediate);
     } catch (e, stack) {
-      sl<StructuredLogger>().warning('Error killing inference isolate', e, stack);
+      _logger.warning('Error killing inference isolate', e, stack);
     }
     _inferenceIsolate = null;
   }
@@ -233,7 +231,7 @@ class MLService {
 
       if (kDebugMode) debugPrint('🔥 Main interpreter warm-up done');
     } catch (e, stack) {
-      sl<StructuredLogger>().warning('Warm-up failed', e, stack);
+      _logger.warning('Warm-up failed', e, stack);
     }
   }
 

@@ -1,14 +1,11 @@
 // lib/application/sync/sync_orchestrator.dart
-// Central orchestrator for all cloud sync operations
-// Provides real-time listeners, debouncing, and conflict resolution
-
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../presentation/providers/language_providers.dart' show LanguageNotifier;
 import '../../infrastructure/sync/sync_service.dart';
-import '../../core/premium_service.dart';
+import '../../domain/repositories/premium_repository.dart'; // Updated
 import '../../presentation/providers/theme_providers.dart';
 import '../../core/enums/theme_mode.dart'; 
 import '../../presentation/providers/app_settings_providers.dart'; 
@@ -16,44 +13,41 @@ import '../lifecycle/app_state_machine.dart' show AppLifecycleNotifier;
 import '../background/background_task_scheduler.dart';
 import 'sync_tasks.dart'; 
 
-class SyncOrchestrator {
-  factory SyncOrchestrator() => _instance;
-  SyncOrchestrator._internal();
-  static final SyncOrchestrator _instance = SyncOrchestrator._internal();
+/// Central orchestrator for all cloud sync operations.
+/// 
+/// Refactored to use [PremiumRepository] and [get_it] DI.
 
-  late final SyncService _syncService;
-  late final PremiumService _premiumService;
-  late final SharedPreferences _prefs;
+class SyncOrchestrator {
+  SyncOrchestrator(
+    this._syncService,
+    this._premiumRepository,
+    this._prefs,
+  ) : _initialized = true {
+    debugPrint('🔄 SyncOrchestrator initialized with Repository pattern');
+  }
+
+  final SyncService _syncService;
+  final PremiumRepository _premiumRepository;
+  final SharedPreferences _prefs;
 
   ThemeNotifier? _themeNotifier; 
   LanguageNotifier? _languageNotifier;
   AppSettingsNotifier? _appSettingsNotifier; 
+  AppLifecycleNotifier? _appLifecycleNotifier;
   
-  bool _initialized = false;
+  final bool _initialized;
   bool _listeningToRealtime = false;
 
   StreamSubscription<Map<String, dynamic>?>? _settingsSubscription;
-  StreamSubscription<Map<String, dynamic>?>? _favoritesSubscription;
 
   Timer? _debounceTimer;
   static const Duration _debounceDuration = Duration(seconds: 2);
 
   DateTime? _lastSettingsPush;
+  Timer? _batchTimer;
+  Map<String, dynamic> _pendingSettingsUpdates = {};
 
-
-  Future<void> init(
-    SyncService syncService,
-    PremiumService premiumService,
-    SharedPreferences prefs,
-  ) async {
-    if (_initialized) return;
-    _syncService = syncService;
-    _premiumService = premiumService;
-    _prefs = prefs;
-    _initialized = true;
-    debugPrint('🔄 SyncOrchestrator initialized');
-  }
-
+  /// Registers UI Notifiers for state propagation
   void connectProviders({
     required ThemeNotifier themeNotifier,
     required LanguageNotifier languageNotifier,
@@ -62,35 +56,28 @@ class SyncOrchestrator {
     _themeNotifier = themeNotifier;
     _languageNotifier = languageNotifier;
     _appSettingsNotifier = appSettingsNotifier;
-    debugPrint('🔗 SyncOrchestrator connected to providers');
+    debugPrint('🔗 SyncOrchestrator connected to UI providers');
+  }
+
+  void registerAppLifecycleNotifier(AppLifecycleNotifier notifier) {
+    _appLifecycleNotifier = notifier;
   }
 
   void registerThemeNotifier(ThemeNotifier notifier) {
     _themeNotifier = notifier;
-    debugPrint('🔗 SyncOrchestrator: ThemeNotifier registered');
-  }
-  
-  void registerLanguageNotifier(LanguageNotifier notifier) {
-    _languageNotifier = notifier;
-    debugPrint('🔗 SyncOrchestrator: LanguageNotifier registered');
   }
 
   void registerAppSettingsNotifier(AppSettingsNotifier notifier) {
     _appSettingsNotifier = notifier;
-    debugPrint('🔗 SyncOrchestrator: AppSettingsNotifier registered');
   }
 
-  AppLifecycleNotifier? _appLifecycleNotifier;
-
-  void registerAppLifecycleNotifier(AppLifecycleNotifier notifier) {
-    _appLifecycleNotifier = notifier;
-    debugPrint('🔗 SyncOrchestrator: AppLifecycleNotifier registered');
+  void registerLanguageNotifier(LanguageNotifier notifier) {
+    _languageNotifier = notifier;
   }
 
-
-
+  /// Pushes all syncable data to the cloud (Premium Only)
   Future<void> pushAll() async {
-    if (!_initialized || !_premiumService.isPremium) return;
+    if (!_initialized || !_premiumRepository.isPremium) return;
 
     _appLifecycleNotifier?.startSync();
     try {
@@ -104,8 +91,9 @@ class SyncOrchestrator {
     }
   }
 
+  /// Pushes settings with debouncing to prevent excessive API calls
   Future<void> pushSettings() async {
-    if (!_initialized || !_premiumService.isPremium) return;
+    if (!_initialized || !_premiumRepository.isPremium) return;
 
     _debounceTimer?.cancel();
     _debounceTimer = Timer(_debounceDuration, () async {
@@ -120,6 +108,7 @@ class SyncOrchestrator {
         'readerContrast': _themeNotifier?.current.readerContrast ?? _prefs.getDouble('reader_contrast') ?? 1.0,
       };
 
+      // Offload actual network work to the task scheduler
       BackgroundTaskScheduler().schedule(
         SyncSettingsTask(
           syncService: _syncService,
@@ -129,9 +118,9 @@ class SyncOrchestrator {
     });
   }
 
-
+  /// Force-pulls latest data from cloud
   Future<void> pullAll() async {
-    if (!_initialized || !_premiumService.isPremium) return;
+    if (!_initialized || !_premiumRepository.isPremium) return;
 
     _appLifecycleNotifier?.startSync();
     try {
@@ -146,7 +135,7 @@ class SyncOrchestrator {
   }
 
   Future<void> pullSettings() async {
-    if (!_initialized || !_premiumService.isPremium) return;
+    if (!_initialized || !_premiumRepository.isPremium) return;
 
     final Map<String, dynamic>? data = await _syncService.pullSettings();
     if (data == null) return;
@@ -154,60 +143,48 @@ class SyncOrchestrator {
     await _applySettings(data);
   }
 
-
-  Timer? _batchTimer;
-  Map<String, dynamic> _pendingSettingsUpdates = {};
-
+  /// Starts listening for real-time Firestore updates
   void startRealtimeSync() {
-    if (!_initialized || !_premiumService.isPremium || _listeningToRealtime) {
+    if (!_initialized || !_premiumRepository.isPremium || _listeningToRealtime) {
       return;
     }
 
-    debugPrint('🔴 Starting real-time sync listeners');
+    debugPrint('📡 Starting real-time sync listeners');
 
-    bool started = false;
     final settingsStream = _syncService.settingsStream();
     if (settingsStream != null) {
-      _settingsSubscription = settingsStream.listen((
-        Map<String, dynamic>? data,
-      ) {
+      _settingsSubscription = settingsStream.listen((Map<String, dynamic>? data) {
         if (data == null) return;
+        
+        // Anti-Feedback Loop: Ignore updates if we just pushed our own settings
         if (_lastSettingsPush != null &&
-            DateTime.now().difference(_lastSettingsPush!) <
-                const Duration(seconds: 5)) {
+            DateTime.now().difference(_lastSettingsPush!) < const Duration(seconds: 5)) {
           return;
         }
 
         _pendingSettingsUpdates.addAll(data);
 
+        // Batch incoming updates to prevent UI jitter
         _batchTimer?.cancel();
         _batchTimer = Timer(const Duration(milliseconds: 500), () {
           if (_pendingSettingsUpdates.isNotEmpty) {
-            debugPrint('📡 Received settings update from another device');
             _applySettings(_pendingSettingsUpdates);
             _pendingSettingsUpdates = {};
           }
         });
       });
-      started = true;
-    }
-
-    _listeningToRealtime = started;
-    if (!started) {
-      debugPrint('⚠️ Real-time sync unavailable (settings stream is null)');
+      _listeningToRealtime = true;
     }
   }
 
   void stopRealtimeSync() {
     _settingsSubscription?.cancel();
-    _favoritesSubscription?.cancel();
     _settingsSubscription = null;
-    _favoritesSubscription = null;
     _listeningToRealtime = false;
-    debugPrint('🔴 Stopped real-time sync listeners');
+    debugPrint('🛑 Stopped real-time sync listeners');
   }
 
-
+  /// Internal helper to propagate cloud data to the local UI state
   Future<void> _applySettings(Map<String, dynamic> data) async {
     bool changed = false;
 
@@ -217,9 +194,6 @@ class SyncOrchestrator {
       if (cloudTheme != localTheme && cloudTheme < AppThemeMode.values.length) {
         await _themeNotifier?.setTheme(AppThemeMode.values[cloudTheme]);
         changed = true;
-        debugPrint(
-          '🎨 Theme synced from cloud: ${AppThemeMode.values[cloudTheme]}',
-        );
       }
     }
 
@@ -229,7 +203,6 @@ class SyncOrchestrator {
       if (cloudLang != localLang) {
         await _languageNotifier?.setLanguage(cloudLang);
         changed = true;
-        debugPrint('🌐 Language synced from cloud: $cloudLang');
       }
     }
 
@@ -249,26 +222,18 @@ class SyncOrchestrator {
       }
     }
 
-    if (data.containsKey('readerLineHeight') ||
-        data.containsKey('readerContrast')) {
-      final dynamic lineHeightRaw = data['readerLineHeight'];
-      final dynamic contrastRaw = data['readerContrast'];
-      final double? lineHeight =
-          lineHeightRaw is num ? lineHeightRaw.toDouble() : null;
-      final double? contrast =
-          contrastRaw is num ? contrastRaw.toDouble() : null;
+    if (data.containsKey('readerLineHeight') || data.containsKey('readerContrast')) {
       await _themeNotifier?.updateReaderPrefs(
-        lineHeight: lineHeight,
-        contrast: contrast,
+        lineHeight: (data['readerLineHeight'] as num?)?.toDouble(),
+        contrast: (data['readerContrast'] as num?)?.toDouble(),
       );
       changed = true;
     }
 
     if (changed) {
-      debugPrint('☁️ Applied settings from cloud');
+      debugPrint('☁️ Applied updated settings from cloud');
     }
   }
-
 
   void dispose() {
     stopRealtimeSync();

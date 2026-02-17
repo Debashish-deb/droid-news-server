@@ -10,9 +10,8 @@ import '../../domain/entities/news_article.dart';
 import '../sync/sync_service.dart';
 import '../../platform/persistence/app_database.dart';
 
-import 'package:injectable/injectable.dart';
 
-@LazySingleton(as: FavoritesRepository)
+
 class FavoritesRepositoryImpl implements FavoritesRepository {
 
   FavoritesRepositoryImpl(this._prefs, this._syncService, this._db) {

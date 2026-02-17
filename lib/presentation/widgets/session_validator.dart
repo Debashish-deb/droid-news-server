@@ -2,20 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../infrastructure/services/device_session_service.dart';
 import '../../infrastructure/services/security_audit_service.dart';
+import '../../l10n/generated/app_localizations.dart';
+import '../../core/di/providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Widget that validates device sessions on app lifecycle changes
-class SessionValidator extends StatefulWidget {
+class SessionValidator extends ConsumerStatefulWidget {
 
   const SessionValidator({required this.child, super.key});
   final Widget child;
 
   @override
-  State<SessionValidator> createState() => _SessionValidatorState();
+  ConsumerState<SessionValidator> createState() => _SessionValidatorState();
 }
 
-class _SessionValidatorState extends State<SessionValidator>
+class _SessionValidatorState extends ConsumerState<SessionValidator>
     with WidgetsBindingObserver {
-  final DeviceSessionService _deviceSession = DeviceSessionService();
   final SecurityAuditService _auditService = SecurityAuditService();
   bool _isValidating = false;
 
@@ -53,10 +55,10 @@ class _SessionValidatorState extends State<SessionValidator>
     setState(() => _isValidating = true);
 
     try {
-      final isValid = await _deviceSession.validateSession();
+      final isValid = await ref.read(deviceSessionServiceProvider).validateSession();
 
       if (!isValid && mounted) {
-        await _auditService.logEvent(
+        await ref.read(securityAuditServiceProvider).logEvent(
           SecurityEventType.sessionValidationFailed,
           {'reason': 'session_revoked_or_expired'},
         );
@@ -78,7 +80,7 @@ class _SessionValidatorState extends State<SessionValidator>
 
   Future<void> _updateActivity() async {
     try {
-      await _deviceSession.updateActivity();
+      await ref.read(deviceSessionServiceProvider).updateActivity();
     } catch (e) {
       debugPrint('[SessionValidator] Activity update failed: $e');
     }
@@ -90,27 +92,22 @@ class _SessionValidatorState extends State<SessionValidator>
       barrierDismissible: false,
       builder:
           (context) => AlertDialog(
-            title: const Row(
+            title: Row(
               children: [
-                Icon(Icons.warning, color: Colors.orange),
-                SizedBox(width: 8),
-                Text('Session Ended'),
+                const Icon(Icons.warning, color: Colors.orange),
+                const SizedBox(width: 8),
+                Text(AppLocalizations.of(context).sessionEnded),
               ],
             ),
-            content: const Text(
-              'Your session on this device has been ended.\n\n'
-              'This may have happened because:\n'
-              '• You logged out from another device\n'
-              '• Your account exceeded device limits\n'
-              '• Security precaution\n\n'
-              'Please login again to continue.',
+            content: Text(
+              AppLocalizations.of(context).sessionEndedDesc,
             ),
             actions: [
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
                 },
-                child: const Text('OK'),
+                child: Text(AppLocalizations.of(context).ok),
               ),
             ],
           ),

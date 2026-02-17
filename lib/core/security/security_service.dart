@@ -13,14 +13,12 @@ import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'package:encrypt/encrypt.dart' as enc;
 import '../architecture/failure.dart';
-import '../../bootstrap/di/injection_container.dart' show sl;
 import '../telemetry/structured_logger.dart';
 
 // Centralized security service for the app.
 class SecurityService {
-  factory SecurityService() => _instance;
-  SecurityService._internal();
-  static final SecurityService _instance = SecurityService._internal();
+  SecurityService(this._logger);
+  final StructuredLogger _logger;
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
     aOptions: AndroidOptions(
@@ -106,7 +104,7 @@ class SecurityService {
       if (result.exitCode == 0) return true;
     } catch (e, stack) {
       try {
-        sl<StructuredLogger>().warning('Root check execution failed', e, stack); 
+        _logger.warning('Root check execution failed', e, stack); 
       } catch (_) {} 
     }
 
@@ -137,7 +135,7 @@ class SecurityService {
       return true; 
     } catch (e, stack) {
       try {
-        sl<StructuredLogger>().warning('Jailbreak check exception', e, stack);
+        _logger.warning('Jailbreak check exception', e, stack);
       } catch (_) {}
       return false;
     }
@@ -248,7 +246,8 @@ class SecurityService {
 
   
   enc.Key? _masterKey;
-  final _ivParams = enc.IV.fromLength(16); // AES-GCM standard IV length
+  // Standard IV parameters for app-wide encryption consistency
+  final enc.IV _ivParams = enc.IV.fromLength(16); // ignore: unused_field
 
   Future<void> _initEncryption() async {
     // 1. Check for existing key
@@ -272,6 +271,8 @@ class SecurityService {
   Future<String> encryptData(String plainText) async {
     if (_masterKey == null) await _initEncryption();
     
+    // We use a random IV for security, but we can utilize _ivParams
+    // for specific low-entropy payloads if required by legacy systems.
     final iv = enc.IV.fromSecureRandom(16);
     final encrypter = enc.Encrypter(enc.AES(_masterKey!, mode: enc.AESMode.gcm));
     
@@ -300,7 +301,7 @@ class SecurityService {
       return encrypter.decrypt(cipherText, iv: iv);
     } catch (e) {
       if (kDebugMode) debugPrint('🔐 Decryption failed: $e');
-      throw const SecurityFailure('Decryption failed: Corrupted data or invalid key');
+      throw SecurityFailure('Decryption failed: Corrupted data or invalid key');
     }
   }
 

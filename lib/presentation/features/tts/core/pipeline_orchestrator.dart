@@ -3,7 +3,6 @@ import '../domain/models/tts_session.dart';
 import 'text_cleaner.dart';
 import 'chunk_engine.dart';
 import '../../../../core/telemetry/structured_logger.dart';
-import 'package:injectable/injectable.dart';
 
 // Pipeline orchestrator for TTS flow
 // 
@@ -15,7 +14,7 @@ import 'package:injectable/injectable.dart';
 // 5. Trigger playback
 // 
 // This is the "conductor" that ensures proper flow and error handling.
-@lazySingleton
+
 class PipelineOrchestrator {
 
   PipelineOrchestrator(this._logger);
@@ -27,6 +26,8 @@ class PipelineOrchestrator {
     required String title,
     required String content,
     String language = 'en',
+    String? author,
+    String? imageSource,
   }) async {
     try {
       _logger.info('[Pipeline] Step 1: Cleaning text');
@@ -41,6 +42,8 @@ class PipelineOrchestrator {
         cleanedContent,
         language: language,
         title: title,
+        author: author,
+        imageSource: imageSource,
       );
       
       if (chunks.isEmpty) {

@@ -1,17 +1,17 @@
+// lib/infrastructure/network/intercepted_dio_client.dart
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
 import '../../core/telemetry/structured_logger.dart';
 import '../../core/security/certificate_pinner.dart';
-import 'package:injectable/injectable.dart';
+import '../../domain/facades/auth_facade.dart';
 
-/// A unified Dio client with interceptors for Logging, Auth, and Retry.
-/// Also implements SSL Pinning.
-@lazySingleton
+
 class InterceptedDioClient {
+  static const int _maxRetries = 3;
 
-  InterceptedDioClient() {
+  InterceptedDioClient(this._auth) {
     dio = Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 15),
@@ -21,32 +21,54 @@ class InterceptedDioClient {
     _addInterceptors();
     _setupSslPinning();
   }
+  
+  final AuthFacade _auth;
+  
   late final Dio dio;
   final _logger = StructuredLogger();
 
   void _addInterceptors() {
-    // 1. Logging Interceptor
+    // 1. Auth Interceptor: Securely injects Firebase Auth Token
     dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) {
-        _logger.info('Dio Request: [${options.method}] ${options.uri}');
+      onRequest: (options, handler) async {
+        try {
+          if (_auth.isLoggedIn) {
+            // getIdToken() automatically handles token refresh if expired
+            final token = await _auth.currentUser?.getIdToken();
+            if (token != null) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
+          }
+        } catch (e) {
+          _logger.warning('Failed to inject auth token', e);
+        }
         return handler.next(options);
-      },
-      onResponse: (response, handler) {
-        _logger.info('Dio Response: [${response.statusCode}] ${response.requestOptions.uri}');
-        return handler.next(response);
-      },
-      onError: (DioException e, handler) {
-        _logger.error('Dio Error: [${e.response?.statusCode}] ${e.requestOptions.uri}', e);
-        return handler.next(e);
       },
     ));
 
-    // 2. Retry Interceptor (Basic implementation)
+    // 2. Logging Interceptor
+    dio.interceptors.add(LogInterceptor(
+      requestHeader: true,
+      requestBody: kDebugMode,
+      responseHeader: false,
+    ));
+
+    // 3. Resilience Interceptor: Adds exponential backoff retry with limits
     dio.interceptors.add(InterceptorsWrapper(
       onError: (DioException e, handler) async {
-        if (_shouldRetry(e)) {
+        int retryCount = (e.requestOptions.extra['retries'] ?? 0) as int;
+        
+        if (_shouldRetry(e) && retryCount < _maxRetries) {
+          retryCount++;
+          e.requestOptions.extra['retries'] = retryCount;
+          
+          _logger.info('Retrying request [${retryCount}/$_maxRetries]: ${e.requestOptions.uri}');
+          
+          // Wait before retrying (exponential backoff)
+          await Future.delayed(Duration(seconds: retryCount * 2));
+          
           try {
-            final response = await _retry(e.requestOptions);
+            final response = await dio.fetch(e.requestOptions);
             return handler.resolve(response);
           } catch (retryError) {
             return handler.next(e);
@@ -55,37 +77,16 @@ class InterceptedDioClient {
         return handler.next(e);
       },
     ));
-
-    // 3. Auth Interceptor (Placeholder for token refresh)
-    dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        // TODO: Inject Auth token from AuthFacade
-        // options.headers['Authorization'] = 'Bearer $token';
-        return handler.next(options);
-      },
-    ));
   }
 
   bool _shouldRetry(DioException e) {
+    // Don't retry if the user cancelled or if the server explicitly rejected the data (4xx)
     return e.type != DioExceptionType.cancel &&
-        e.type != DioExceptionType.badResponse &&
-        e.error is! SocketException;
-  }
-
-  Future<Response> _retry(RequestOptions requestOptions) {
-    return dio.request(
-      requestOptions.path,
-      data: requestOptions.data,
-      queryParameters: requestOptions.queryParameters,
-      options: Options(
-        method: requestOptions.method,
-        headers: requestOptions.headers,
-      ),
-    );
+           e.type != DioExceptionType.badResponse &&
+           e.error is! SocketException;
   }
 
   void _setupSslPinning() {
-    // Only enable SSL Pinning in production/real devices if certificates are present
     if (kReleaseMode) {
        (dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
         final client = HttpClient();

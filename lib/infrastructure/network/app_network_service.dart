@@ -8,8 +8,6 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
-import '../../bootstrap/di/injection_container.dart' show sl;
-import 'package:injectable/injectable.dart';
 
 // Network connection quality levels
 enum NetworkQuality {
@@ -24,7 +22,6 @@ enum NetworkQuality {
 ///
 // This service consolidates NetworkManager and NetworkQualityManager
 // into a single, coherent service for network state management.
-@lazySingleton
 class AppNetworkService {
   AppNetworkService();
 

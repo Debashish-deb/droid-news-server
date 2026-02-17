@@ -1,4 +1,3 @@
-import 'package:injectable/injectable.dart';
 import 'device_registry.dart';
 
 enum TrustLevel {
@@ -13,7 +12,7 @@ abstract class TrustEngine {
   Future<TrustLevel> evaluateTrust(String deviceId);
 }
 
-@LazySingleton(as: TrustEngine)
+
 class TrustEngineImpl implements TrustEngine {
 
   TrustEngineImpl(this._deviceRegistry);

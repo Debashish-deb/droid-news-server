@@ -1,2 +1,0 @@
-/Users/debashishdeb/Documents/JS/MobileApp/droid/android/app/.cxx/RelWithDebInfo/6058346f/x86/CMakeFiles/edit_cache.dir
-/Users/debashishdeb/Documents/JS/MobileApp/droid/android/app/.cxx/RelWithDebInfo/6058346f/x86/CMakeFiles/rebuild_cache.dir

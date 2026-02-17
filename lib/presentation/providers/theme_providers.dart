@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../application/sync/sync_orchestrator.dart';
 import '../../domain/repositories/settings_repository.dart';
 import '../../core/enums/theme_mode.dart';
-import '../../application/sync/sync_orchestrator.dart';
-import '../../bootstrap/di/injection_container.dart' as di;
+import '../../core/di/providers.dart';
 import '../../core/design_tokens.dart';
 
 // Provider for ThemeNotifier
 // Must be overridden in ProviderScope with actual SharedPreferences instance
 final themeProvider = StateNotifierProvider<ThemeNotifier, ThemeState>((ref) {
-  return ThemeNotifier(di.sl<SettingsRepository>());
+  final repo = ref.watch(settingsRepositoryProvider);
+  final syncOrchestrator = ref.watch(syncOrchestratorProvider);
+  return ThemeNotifier(repo, syncOrchestrator);
 });
 
 // Provider for current theme mode
@@ -59,16 +61,16 @@ final glassColorProvider = Provider<Color>((ref) {
   final mode = ref.watch(currentThemeModeProvider);
   switch (mode) {
     case AppThemeMode.amoled:
-      return Colors.black.withOpacity(0.65);
+      return Colors.black.withOpacity(0.85);
     case AppThemeMode.dark:
-      return AppColors.darkSurface.withOpacity(0.4); // Lighter for better glass effect on mocha dark
+      return AppColors.darkSurface.withOpacity(0.7); 
 
     case AppThemeMode.bangladesh:
-      return const Color(0xFF00392C).withOpacity(0.25);
+      return const Color(0xFF00392C).withOpacity(0.6);
     case AppThemeMode.light:
-      return Colors.white.withOpacity(0.65);
+      return Colors.white.withOpacity(0.8);
     case AppThemeMode.system:
-      return Colors.white.withOpacity(0.42);
+      return Colors.white.withOpacity(0.75);
   }
 });
 
@@ -196,11 +198,12 @@ class ThemeState {
 
 // ThemeNotifier manages theme state
 class ThemeNotifier extends StateNotifier<ThemeState> {
-  ThemeNotifier(this._repository)
+  ThemeNotifier(this._repository, this._syncOrchestrator)
     : super(const ThemeState(mode: AppThemeMode.system)) {
-    SyncOrchestrator().registerThemeNotifier(this);
+    _syncOrchestrator.registerThemeNotifier(this);
   }
   final SettingsRepository _repository;
+  final SyncOrchestrator _syncOrchestrator;
   
   /// Public getter to avoid protected 'state' access warnings
   ThemeState get current => state;
@@ -225,19 +228,19 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
   Future<void> setTheme(AppThemeMode mode) async {
     state = state.copyWith(mode: mode);
     await _repository.setThemeMode(mode);
-    SyncOrchestrator().pushSettings();
+    _syncOrchestrator.pushSettings();
   }
 
   Future<void> setReaderLineHeight(double height) async {
     state = state.copyWith(readerLineHeight: height);
     await _repository.setReaderLineHeight(height);
-    SyncOrchestrator().pushSettings();
+    _syncOrchestrator.pushSettings();
   }
 
   Future<void> setReaderContrast(double contrast) async {
     state = state.copyWith(readerContrast: contrast);
     await _repository.setReaderContrast(contrast);
-    SyncOrchestrator().pushSettings();
+    _syncOrchestrator.pushSettings();
   }
 
   Future<void> updateReaderPrefs({double? lineHeight, double? contrast}) async {
@@ -248,7 +251,7 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
     if (lineHeight != null) await _repository.setReaderLineHeight(lineHeight);
     if (contrast != null) await _repository.setReaderContrast(contrast);
     
-    SyncOrchestrator().pushSettings();
+    _syncOrchestrator.pushSettings();
   }
 }
 

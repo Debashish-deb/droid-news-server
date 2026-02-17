@@ -39,11 +39,20 @@
     }
   },
   "national": "National",
-  "trending": "Trending",
+  "international": "International",
   "business": "Business",
+  "economics": "Economics",
   "technology": "Technology",
   "sports": "Sports",
   "entertainment": "Entertainment",
+  "science": "Science",
+  "worldAffairs": "World Affairs",
+  "lifestyle": "Lifestyle",
+  "arts": "Arts",
+  "fashion": "Fashion",
+  "education": "Education",
+  "regional": "Regional",
+  "politics": "Politics",
   "noImage": "No Image",
   "profile": "Profile",
   "editProfile": "Edit Profile",
@@ -123,12 +132,6 @@
   "newspapers": "Newspapers",
   "searchPapers": "Search…",
   "noPapersFound": "No papers found",
-  "international": "International",
-  "businessFinance": "Business & Finance",
-  "digitalTech": "Digital & Technology",
-  "sportsNews": "Sports News",
-  "entertainmentArts": "Entertainment & Arts",
-  "worldPolitics": "World & Politics",
   "blog": "Blog",
   "allLanguages": "All",
   "bangla": "Bangla",
@@ -141,8 +144,8 @@
   "articles": "Articles",
   "noFavoritesYet": "No Favorites Yet",
   "bdNewsreader": "BD News Reader",
+  "homeTitle": "BD NewsReader",
   "noArticlesFound": "No Articles Found",
-  "catFashion": "Fashion",
   "noMagazines": "No Magazines",
   "about": "About",
   "supports": "Supports",
@@ -172,16 +175,8 @@
   "next": "Next",
   "fastReliable": "Fast & Reliable",
   "close": "Close",
-  "catScience": "Science",
-  "catFinance": "Finance",
-  "catAffairs": "World Affairs",
-  "catTech": "Tech",
-  "catArts": "Arts",
-  "catLifestyle": "Lifestyle",
-  "catSports": "Sports",
   "loadFailed": "Load failed",
   "pressBackToExit": "Press back again to exit",
-  "education": "Education",
   "replaceFirst": "Replace First",
   "personalizedExperience": "Personalized Experience",
   "extras": "Extras",
@@ -385,9 +380,6 @@
   "deviceLimitInfo": "You can only have a limited number of active devices.",
   "thisDevice": "This Device",
   "deviceAutoLogoutInfo": "Devices that are inactive for 30 days will be automatically removed.",
-  "regional": "Regional",
-  "politics": "Politics",
-  "economics": "Economics",
   "all": "All",
   "news": "News",
   "noNewspapers": "No Newspapers Found",
@@ -474,6 +466,7 @@
   "noSavedArticles": "No saved articles",
   "continueWithGoogle": "Continue with Google",
   "copiedToClipboard": "Copied to clipboard",
+  "copiedToClipboardFlat": "Copied to clipboard",
   "editLayout": "Edit Layout",
   "done": "Done",
   "noUrlAvailable": "No URL available",
@@ -544,5 +537,119 @@
   "orContinueWith": "Or continue with",
   "noAccount": "Don't have an account?",
   "invalidEmail": "Invalid email address",
-  "fillAllFields": "Please fill all fields"
+  "fillAllFields": "Please fill all fields",
+  "navigatingToPremium": "Navigating to Premium Plans...",
+  "upgradeDroidPlus": "Upgrade to Droid+",
+  "historicalEvents": "Historical Events",
+  "historicalHistory": "HISTORY",
+  "noEventsFound": "No events found for this date.",
+  "noDescriptionAvailable": "No description available",
+  "onThisDayIn": "On this day in {year}: {description}",
+  "@onThisDayIn": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      },
+      "description": {
+        "type": "String"
+      }
+    }
+  },
+  "prev": "PREV",
+  "nextCaps": "NEXT",
+  "nowReading": "Now Reading",
+  "playbackSpeed": "Playback Speed",
+  "chunkCount": "{current} / {total} chunks",
+  "@chunkCount": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "audioPremiumFeature": "✨ Audio Listen is a Premium feature.",
+  "restartApp": "Restart App",
+  "sessionEnded": "Session Ended",
+  "ok": "OK",
+  "shareFailed": "Share failed: {error}",
+  "@shareFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "premiumMemberBadge": "PREMIUM MEMBER",
+  "thankYouPurchase": "Thank you for your purchase! Ads have been removed.",
+  "publishersLabel": "Publishers",
+  "searchOnGoogle": "Search \"{query}\" on Google",
+  "@searchOnGoogle": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardingWelcome": "Welcome to BD News",
+  "appDescription": "Your trusted source for latest news, live updates, and personalized feeds.",
+  "continueBtn": "Continue",
+  "premiumArticleHint": "This is a premium article",
+  "adLoading": "Ad is loading, please wait...",
+  "userNamePlaceholder": "User Name",
+  "exclusiveContent": "Exclusive Content",
+  "droidPlusDescription": "Join Droid+ to access premium analysis, expert insights, and ad-free experience.",
+  "deleteOfflineArticleHint": "This will remove the downloaded article and free up storage.",
+  "delete": "Delete",
+  "clearAllLabel": "Clear All",
+  "articlesCountLabel": "{count} articles",
+  "eventsFound": "{count} events found",
+  "articleLabel": "Article",
+  "speedX": "{speed}x",
+  "@speedX": {
+    "placeholders": {
+      "speed": {
+        "type": "double"
+      }
+    }
+  },
+  "stopReadingArticle": "Stop reading article: {title}",
+  "@stopReadingArticle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "listenToArticle": "Listen to article with text-to-speech: {title}",
+  "@listenToArticle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "tapToStop": "Tap to stop playback",
+  "tapToStart": "Tap to start reading article aloud",
+  "cacheClearedCount": "({count} caches cleared)",
+  "@cacheClearedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errorClearingCache": "Error clearing cache: {error}",
+  "sessionEndedDesc": "Your session on this device has been ended.\n\nThis may have happened because:\n• You logged out from another device\n• Your account exceeded device limits\n• Security precaution\n\nPlease login again to continue.",
+  "errorOops": "Oops! Something went wrong",
+  "errorUnexpected": "We encountered an unexpected error. Please try restarting the app.",
+  "debugInfo": "Debug Info:",
+  "classicFeedLabel": "Classic Feed (Feature Flag OFF)\nEnable \"news_threading\" to see Smart UI",
+  "resultsLabel": "Results",
+  "noNationalNews": "No national news found",
+  "noInternationalNews": "No international news found", 
+  "noSportsNews": "No sports news found",
+  "noEntertainmentNews": "No entertainment news found"
 }

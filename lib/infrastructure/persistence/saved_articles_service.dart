@@ -1,5 +1,4 @@
 import '../../core/telemetry/structured_logger.dart';
-import 'package:injectable/injectable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import "../../domain/entities/news_article.dart";
@@ -9,7 +8,7 @@ import 'news_article.dart';
 import 'news_article.dart' show NewsArticleModel; 
 
 // Service to manage articles saved for offline reading with full content
-@lazySingleton
+
 class SavedArticlesService {
 
   SavedArticlesService(this._scraper, this._logger);

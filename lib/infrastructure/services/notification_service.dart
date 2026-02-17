@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as ErrorHandler show log;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -12,7 +13,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (kDebugMode) {
     print('Handling background message: ${message.messageId}');
   }
-  ErrorHandler.log('Background notification: ${message.notification?.title}');
+  ErrorHandler.log('Background notification: ${message.notification?.title}' as num);
 }
 
 /// Notification service for push notifications
@@ -41,7 +42,7 @@ class NotificationService {
       // or will work silently on Android without explicit permission
       _fcmToken = await _messaging.getToken();
       if (_fcmToken != null) {
-        ErrorHandler.log('FCM Token: $_fcmToken');
+        ErrorHandler.log('FCM Token: $_fcmToken' as num);
         await _saveFCMToken(_fcmToken!);
       }
 
@@ -61,7 +62,7 @@ class NotificationService {
         _handleNotificationTap(initialMessage);
       }
     } catch (e) {
-      ErrorHandler.log('NotificationService initialization error: $e');
+      ErrorHandler.log('NotificationService initialization error: $e' as num);
       // Continue gracefully - notifications are not critical for app functionality
     }
   }
@@ -75,9 +76,9 @@ class NotificationService {
         settings.authorizationStatus == AuthorizationStatus.provisional;
 
     if (granted) {
-      ErrorHandler.log('Notification permission granted');
+      ErrorHandler.log('Notification permission granted' as num);
     } else {
-      ErrorHandler.log('Notification permission denied');
+      ErrorHandler.log('Notification permission denied' as num);
     }
 
     return granted;
@@ -179,7 +180,7 @@ class NotificationService {
   static Future<void> _saveFCMToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('fcm_token', token);
-    ErrorHandler.log('FCM token saved');
+    ErrorHandler.log('FCM token saved' as num);
   }
 
   /// Get current FCM token
@@ -191,13 +192,13 @@ class NotificationService {
   /// Subscribe to topic
   static Future<void> subscribeToTopic(String topic) async {
     await _messaging.subscribeToTopic(topic);
-    ErrorHandler.log('Subscribed to topic: $topic');
+    ErrorHandler.log('Subscribed to topic: $topic' as num);
   }
 
   /// Unsubscribe from topic
   static Future<void> unsubscribeFromTopic(String topic) async {
     await _messaging.unsubscribeFromTopic(topic);
-    ErrorHandler.log('Unsubscribed from topic: $topic');
+    ErrorHandler.log('Unsubscribed from topic: $topic' as num);
   }
 
   /// Check if notifications are enabled in preferences

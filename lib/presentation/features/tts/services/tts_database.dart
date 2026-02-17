@@ -4,14 +4,13 @@ import 'package:path/path.dart';
 import 'dart:convert';
 import '../domain/models/speech_chunk.dart';
 
-import 'package:injectable/injectable.dart';
-import '../../../../bootstrap/di/injection_container.dart' show sl;
 import '../../../../core/telemetry/structured_logger.dart';
 
-@lazySingleton
+
 class TtsDatabase {
 
-  TtsDatabase();
+  TtsDatabase(this._logger);
+  final StructuredLogger _logger;
   static Database? _database;
 
   Future<Database> get database async {
@@ -68,10 +67,10 @@ class TtsDatabase {
         session_data TEXT NOT NULL
       )
     ''');
-   try {
+    try {
       await db.execute('CREATE INDEX idx_article_id ON tts_sessions(article_id)');
     } catch (e, stack) {
-      try { sl<StructuredLogger>().warning('Failed to create index', e, stack); } catch (_) {}
+      try { _logger.warning('Failed to create index', e, stack); } catch (_) {}
     }
   }
 
@@ -125,7 +124,7 @@ class TtsDatabase {
         WHERE text_hash = ?
       ''', [DateTime.now().toIso8601String(), hash]);
     } catch (e, stack) {
-      sl<StructuredLogger>().warning('DB Error updating stats', e, stack);
+      _logger.warning('DB Error updating stats', e, stack);
     }
   }
 

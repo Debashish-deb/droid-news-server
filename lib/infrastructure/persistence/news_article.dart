@@ -44,7 +44,7 @@ class NewsArticleModel extends HiveObject {
         _extractImageFromContent(item.description);
 
     return NewsArticleModel(
-      title: item.title ?? '',
+      title: _cleanTitle(item.title ?? '', item.source?.value ?? ''),
       description: _cleanDescription(item.description ?? ''),
       url: item.link ?? '',
       source: item.source?.value ?? '',
@@ -65,7 +65,7 @@ class NewsArticleModel extends HiveObject {
     }
 
     return NewsArticleModel(
-      title: item.title ?? '',
+      title: _cleanTitle(item.title ?? '', item.source?.title ?? ''),
       description: _cleanDescription(item.summary ?? ''),
       url: item.links?.firstOrNull?.href ?? '',
       source: item.source?.title ?? '',
@@ -177,50 +177,66 @@ class NewsArticleModel extends HiveObject {
     if (html == null || html.isEmpty) return null;
 
     // 1. Try to find Open Graph image (often high quality)
-    final RegExp ogImage = RegExp(r'<meta\s+property="og:image"\s+content="([^"]+)"', caseSensitive: false);
+    final RegExp ogImage = RegExp(
+      r'<meta\s+(?:property|name)="og:image"\s+content="([^"]+)"',
+      caseSensitive: false,
+    );
     final matchOg = ogImage.firstMatch(html);
-    if (matchOg != null) {
-      return matchOg.group(1);
-    }
-    
-    // 2. Find the first img tag
+    if (matchOg != null) return matchOg.group(1);
+
+    // 2. Try to find Twitter card image
+    final RegExp twitterImage = RegExp(
+      r'<meta\s+(?:property|name)="twitter:image(?::src)?"\s+content="([^"]+)"',
+      caseSensitive: false,
+    );
+    final matchTwitter = twitterImage.firstMatch(html);
+    if (matchTwitter != null) return matchTwitter.group(1);
+
+    // 3. Find image tags with various source attributes (common in lazy-loading)
     final RegExp imgTag = RegExp(r'<img[^>]+>', caseSensitive: false);
-    final Match? match = imgTag.firstMatch(html);
-    
-    if (match != null) {
+    final matches = imgTag.allMatches(html);
+
+    for (final match in matches) {
       final String imgHtml = match.group(0)!;
 
-      // a. Check for encoded content in explicit 'data-src' or 'data-original' (lazy loading)
-      final RegExp dataSrcRegex = RegExp(r'(data-src|data-original)="([^"]+)"', caseSensitive: false);
-      final matchDataSrc = dataSrcRegex.firstMatch(imgHtml);
-      if (matchDataSrc != null) {
-        return matchDataSrc.group(2);
-      }
+      // List of attributes to check for image URL
+      final List<String> attributes = [
+        'data-src',
+        'data-original',
+        'data-lazy-src',
+        'src',
+      ];
 
-      // b. Check for srcset to get the largest image
-      final RegExp srcsetRegex = RegExp(r'srcset="([^"]+)"', caseSensitive: false);
-      final matchSrcset = srcsetRegex.firstMatch(imgHtml);
-      if (matchSrcset != null) {
-        final String srcset = matchSrcset.group(1)!;
-        // Split by comma+space not inside quotes? Usually simple comma is enough for RSS html.
-        final List<String> variants = srcset.split(',');
-        if (variants.isNotEmpty) {
-           // Parse the last variant which is usually the largest "url 1024w" or just "url"
-           final String lastVariant = variants.last.trim();
-           // Split by space to get URL part
-           final parts = lastVariant.split(' ');
-           if (parts.isNotEmpty) {
-             return parts.first;
-           }
+      for (final attr in attributes) {
+        final RegExp attrRegex = RegExp('$attr="([^"]+)"', caseSensitive: false);
+        final attrMatch = attrRegex.firstMatch(imgHtml);
+        if (attrMatch != null) {
+          final url = attrMatch.group(1)!;
+          if (url.startsWith('http') &&
+              (url.contains('.jpg') ||
+                  url.contains('.jpeg') ||
+                  url.contains('.png') ||
+                  url.contains('.webp'))) {
+            return url;
+          }
         }
       }
 
-      // c. Fallback to standard src
-      final RegExp srcRegex = RegExp(r'src="([^"]+)"', caseSensitive: false);
-      final matchSrc = srcRegex.firstMatch(imgHtml);
-      return matchSrc?.group(1);
+      // Check for srcset
+      final RegExp srcsetRegex = RegExp(r'srcset="([^"]+)"', caseSensitive: false);
+      final matchSrcset = srcsetRegex.firstMatch(imgHtml);
+      if (matchSrcset != null) {
+        final variants = matchSrcset.group(1)!.split(',');
+        if (variants.isNotEmpty) {
+          final lastVariant = variants.last.trim();
+          final parts = lastVariant.split(' ');
+          if (parts.isNotEmpty && parts.first.startsWith('http')) {
+            return parts.first;
+          }
+        }
+      }
     }
-    
+
     return null;
   }
 
@@ -235,5 +251,49 @@ class NewsArticleModel extends HiveObject {
                .replaceAll('&gt;', '>')
                .replaceAll('&quot;', '"');
     return text.length > 200 ? '${text.substring(0, 200)}...' : text;
+  }
+
+  static String _cleanTitle(String title, String source) {
+    if (title.isEmpty) return '';
+    var cleanTitle = title.trim();
+
+    // 1. Remove trailing source name like " - Dhakapost.com" or " | Dhaka Post"
+    // Aggregators like Google News often append this.
+    final List<String> separators = [' - ', ' | ', ' – ', ' — '];
+    
+    for (final sep in separators) {
+      if (cleanTitle.contains(sep)) {
+        final lastIndex = cleanTitle.lastIndexOf(sep);
+        final trailing = cleanTitle.substring(lastIndex + sep.length).toLowerCase();
+        final sourceLower = source.toLowerCase();
+        
+        // If the trailing part matches the source or is a domain-like string
+        if (sourceLower.contains(trailing) || 
+            trailing.contains(sourceLower) ||
+            trailing.contains('.com') || 
+            trailing.contains('.net') ||
+            trailing.contains('.org')) {
+          cleanTitle = cleanTitle.substring(0, lastIndex).trim();
+          break;
+        }
+      }
+    }
+
+    // 2. Remove common publication suffixes if source is known
+    if (source.isNotEmpty) {
+      final sourceNormalized = source.split('.').first.toLowerCase();
+      final List<String> suffixes = [
+        ' - $source',
+        ' | $source',
+        ' ($source)',
+      ];
+      for (final suffix in suffixes) {
+        if (cleanTitle.toLowerCase().endsWith(suffix.toLowerCase())) {
+          cleanTitle = cleanTitle.substring(0, cleanTitle.length - suffix.length).trim();
+        }
+      }
+    }
+
+    return cleanTitle;
   }
 }

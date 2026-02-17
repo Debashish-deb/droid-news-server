@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../core/di/providers.dart' show appNetworkServiceProvider;
 import '../../core/performance_config.dart';
 import '../providers/app_settings_providers.dart';
 import '../providers/network_providers.dart';

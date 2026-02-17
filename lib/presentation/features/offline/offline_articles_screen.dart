@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../../l10n/generated/app_localizations.dart';
+import 'package:bdnewsreader/l10n/generated/app_localizations.dart';
 
 import '../../../core/enums/theme_mode.dart';
 import "../../../domain/entities/news_article.dart";
@@ -44,24 +44,23 @@ class _OfflineArticlesScreenState extends ConsumerState<OfflineArticlesScreen> {
   }
 
   Future<void> _deleteArticle(NewsArticle article) async {
+    final loc = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text(AppLocalizations.of(context).deleteArticle),
-            content: const Text(
-              'This will remove the downloaded article and free up storage.',
-            ),
+            title: Text(loc.deleteArticle),
+            content: Text(loc.deleteOfflineArticleHint),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+                child: Text(loc.cancel),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text(
-                  'Delete',
-                  style: TextStyle(color: Colors.red),
+                child: Text(
+                  loc.delete,
+                  style: const TextStyle(color: Colors.red),
                 ),
               ),
             ],
@@ -80,22 +79,23 @@ class _OfflineArticlesScreenState extends ConsumerState<OfflineArticlesScreen> {
   }
 
   Future<void> _clearAll() async {
+    final loc = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text(AppLocalizations.of(context).clearAllDownloads),
-            content: Text(AppLocalizations.of(context).confirmClearDownloads),
+            title: Text(loc.clearAllDownloads),
+            content: Text(loc.confirmClearDownloads),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+                child: Text(loc.cancel),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text(
-                  'Clear All',
-                  style: TextStyle(color: Colors.red),
+                child: Text(
+                  loc.clearAllLabel,
+                  style: const TextStyle(color: Colors.red),
                 ),
               ),
             ],
@@ -115,6 +115,7 @@ class _OfflineArticlesScreenState extends ConsumerState<OfflineArticlesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final themeMode = ref.watch(currentThemeModeProvider);
     final isDark = themeMode != AppThemeMode.light;
 
@@ -139,7 +140,7 @@ class _OfflineArticlesScreenState extends ConsumerState<OfflineArticlesScreen> {
             IconButton(
               icon: const Icon(Icons.delete_sweep),
               onPressed: _clearAll,
-              tooltip: 'Clear all',
+              tooltip: loc.clearAll,
             ),
         ],
       ),
@@ -159,7 +160,7 @@ class _OfflineArticlesScreenState extends ConsumerState<OfflineArticlesScreen> {
                         const Icon(Icons.download, size: 20),
                         const SizedBox(width: 8),
                         Text(
-                          '${_articles.length} articles • ${OfflineService.formatBytes(_storageUsed)}',
+                          '${loc.articlesCountLabel(_articles.length)} • ${OfflineService.formatBytes(_storageUsed)}',
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ],

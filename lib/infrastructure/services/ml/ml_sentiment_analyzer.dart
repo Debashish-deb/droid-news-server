@@ -3,10 +3,8 @@ import '../ml_service.dart';
 
 /// ML-powered sentiment analysis service
 class MLSentimentAnalyzer {
-  MLSentimentAnalyzer._();
-  static final MLSentimentAnalyzer instance = MLSentimentAnalyzer._();
-
-  final MLService _mlService = MLService();
+  MLSentimentAnalyzer(this._mlService);
+  final MLService _mlService;
   bool _isInitialized = false;
   final Map<String, double> _resultCache = {};
 

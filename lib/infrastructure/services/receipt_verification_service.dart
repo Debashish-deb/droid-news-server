@@ -2,10 +2,9 @@
 
 import 'package:flutter/foundation.dart';
 
-import 'package:injectable/injectable.dart';
 
 /// Service to handle server-side receipt validation logic.
-@lazySingleton
+
 class ReceiptVerificationService {
   final String _validationEndpoint = 'https://your-api.com/verify-purchase';
 

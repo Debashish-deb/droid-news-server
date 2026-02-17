@@ -7,24 +7,25 @@ import '../../domain/repositories/news_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart';
 import '../../platform/persistence/app_database.dart';
-import '../../bootstrap/di/injection_container.dart' show sl;
+
 import '../services/rss_service.dart';
-import 'package:injectable/injectable.dart';
+import '../services/news_api_service.dart';
 import '../../core/telemetry/structured_logger.dart';
 
 /// Secure Implementation of NewsRepository using Drift (SQLite).
-@LazySingleton(as: NewsRepository)
+
 class NewsRepositoryImpl implements NewsRepository {
   
   // Cache to avoid hitting DB for every scroll frame, though Drift is fast.
   // Using Stream is better, but maintaining interface for now.
 
-  NewsRepositoryImpl(this._prefs, this._db, this._rssService) {
+  NewsRepositoryImpl(this._prefs, this._db, this._rssService, this._apiService) {
     _ensureArticlesLoaded();
   }
   final SharedPreferences _prefs;
   final AppDatabase _db;
   final RssService _rssService;
+  final NewsApiService _apiService;
   final _logger = StructuredLogger();
 
 
@@ -48,24 +49,45 @@ class NewsRepositoryImpl implements NewsRepository {
         return;
       }
 
-      // Fetch real news from RSS feeds
-      _logger.info('Fetching initial news from RSS feeds...');
-      final articles = await _fetchNewsFromRss();
-      
-      
-      if (articles.isEmpty) {
-        _logger.warn('No articles fetched from RSS');
-        return;
-      }
+      _logger.info('Bootstrapping database with categorized articles from RSS and APIs...');
+      final languages = ['en', 'bn'];
+      final categories = ['latest', 'national', 'international', 'sports', 'entertainment'];
 
-      await _saveArticlesToDb(articles);
-      _logger.info('Initialized AppDatabase with ${articles.length} real articles from RSS.');
+      for (final lang in languages) {
+        final locale = Locale(lang);
+        for (final category in categories) {
+          // 1. Fetch from RSS
+          final rssArticles = await _rssService.fetchNews(
+            category: category,
+            locale: locale,
+          );
+          if (rssArticles.isNotEmpty) {
+            await _saveArticlesToDb(rssArticles, category: category);
+          }
+
+          // 2. Fetch from APIs
+          final apiArticles = <NewsArticle>[];
+          apiArticles.addAll(await _apiService.fetchFromNewsData(
+            category: category,
+            language: lang,
+          ));
+          apiArticles.addAll(await _apiService.fetchFromGNews(
+            category: category,
+            language: lang,
+          ));
+
+          if (apiArticles.isNotEmpty) {
+            await _saveArticlesToDb(apiArticles, category: category);
+          }
+        }
+      }
+      _logger.info('Initialized AppDatabase with categorized news articles.');
     } catch (e) {
       _logger.error('Failed to initialize DB', e);
     }
   }
 
-  Future<void> _saveArticlesToDb(List<NewsArticle> articles) async {
+  Future<void> _saveArticlesToDb(List<NewsArticle> articles, {String category = 'general'}) async {
     await _db.batch((batch) {
       for (final article in articles) {
         batch.insert(
@@ -80,7 +102,7 @@ class NewsRepositoryImpl implements NewsRepository {
             source: Value(article.source),
             language: Value(article.language),
             publishedAt: Value(article.publishedAt),
-            category: const Value('general'), // Default
+            category: Value(category), // Use provided category
           ),
           mode: InsertMode.insertOrReplace,
         );
@@ -102,12 +124,40 @@ class NewsRepositoryImpl implements NewsRepository {
         ..where((t) => t.id.isNotIn(bookmarkedIds))
       ).go();
       
-      // 2. Fetch fresh news
-      final articles = await _fetchNewsFromRss(locale: locale);
+      // 2. Fetch fresh news for all categories
+      final categories = ['latest', 'national', 'international', 'sports', 'entertainment'];
+      int totalSynced = 0;
+
+      for (final category in categories) {
+        // 2a. Fetch from RSS
+        final rssArticles = await _rssService.fetchNews(
+          category: category,
+          locale: locale,
+        );
+        if (rssArticles.isNotEmpty) {
+          await _saveArticlesToDb(rssArticles, category: category);
+          totalSynced += rssArticles.length;
+        }
+
+        // 2b. Fetch from APIs (if not offline)
+        final apiArticles = <NewsArticle>[];
+        apiArticles.addAll(await _apiService.fetchFromNewsData(
+          category: category,
+          language: locale.languageCode,
+        ));
+        apiArticles.addAll(await _apiService.fetchFromGNews(
+          category: category,
+          language: locale.languageCode,
+        ));
+
+        if (apiArticles.isNotEmpty) {
+          await _saveArticlesToDb(apiArticles, category: category);
+          totalSynced += apiArticles.length;
+        }
+      }
       
-      if (articles.isNotEmpty) {
-        await _saveArticlesToDb(articles);
-        _logger.info('Synced ${articles.length} articles.');
+      if (totalSynced > 0) {
+        _logger.info('Synced $totalSynced articles across categories.');
         return const Right(null);
       } else {
         return const Left(ServerFailure('No new articles found'));
@@ -117,35 +167,8 @@ class NewsRepositoryImpl implements NewsRepository {
     }
   }
 
-  Future<List<NewsArticle>> _fetchNewsFromRss({Locale? locale}) async {
-    try {
-      final List<NewsArticle> articles = [];
-      
-      // If locale is specific, prioritize it but maybe fetch others too?
-      // For now, let's fetch based on requested locale or all if null (init)
-      
-      if (locale == null || locale.languageCode == 'en') {
-         articles.addAll(await _rssService.fetchNews(
-          category: 'latest',
-          locale: const Locale('en'),
-        ));
-      }
-      
-      if (locale == null || locale.languageCode == 'bn') {
-        articles.addAll(await _rssService.fetchNews(
-          category: 'latest',
-          locale: const Locale('bn'),
-        ));
-      }
-      
-      articles.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-      
-      return articles.take(50).toList();
-    } catch (e) {
-      _logger.error('Error fetching from RSS', e);
-      return [];
-    }
-  }
+  // This method is now legacy or used for combined view if needed
+  // Removing it to avoid confusion or potential category loss.
 
   NewsArticle _mapToEntity(Article row) {
     return NewsArticle(
@@ -181,11 +204,44 @@ class NewsRepositoryImpl implements NewsRepository {
       if (language != null) {
         query.where((t) => t.language.equals(language));
       }
-      
-      if (category != null && category.toLowerCase() != 'all' && category.toLowerCase() != 'latest') {
-        // Simple text match simulation for category since we don't have tags yet
+
+      if (category != null && category.toLowerCase() != 'all') {
         final term = category.toLowerCase();
-        query.where((t) => t.title.contains(term) | t.description.contains(term));
+        
+        if (term == 'mixed') {
+          // Special logic for 70% Bangladesh (national) and 30% World (international)
+          final nationalLimit = (limit * 0.7).ceil();
+          final internationalLimit = limit - nationalLimit;
+          
+          final nationalOffset = (page - 1) * nationalLimit;
+          final internationalOffset = (page - 1) * internationalLimit;
+
+          final nationalQuery = _db.select(_db.articles)
+            ..where((t) => t.category.equals('national'))
+            ..orderBy([(t) => OrderingTerm(expression: t.publishedAt, mode: OrderingMode.desc)])
+            ..limit(nationalLimit, offset: nationalOffset);
+
+          final internationalQuery = _db.select(_db.articles)
+            ..where((t) => t.category.equals('international'))
+            ..orderBy([(t) => OrderingTerm(expression: t.publishedAt, mode: OrderingMode.desc)])
+            ..limit(internationalLimit, offset: internationalOffset);
+
+          if (language != null) {
+            nationalQuery.where((t) => t.language.equals(language));
+            internationalQuery.where((t) => t.language.equals(language));
+          }
+
+          final nationalRows = await nationalQuery.get();
+          final internationalRows = await internationalQuery.get();
+          
+          final allMixed = [...nationalRows, ...internationalRows];
+          allMixed.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+          
+          return Right(allMixed.map((r) => _mapToEntity(r)).toList());
+        }
+
+        // Standard category filtering
+        query.where((t) => t.category.equals(term));
       }
 
       final rows = await query.get();

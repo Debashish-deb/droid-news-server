@@ -1,9 +1,8 @@
 import '../persistence/app_database.dart';
 import 'sync_types.dart';
 import 'package:drift/drift.dart' as drift;
-import 'package:injectable/injectable.dart';
 
-@lazySingleton
+
 class EventJournalService {
 
   EventJournalService(this._db);

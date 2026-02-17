@@ -4,10 +4,9 @@ import '../../core/architecture/failure.dart';
 import '../../core/enums/theme_mode.dart';
 import '../../domain/repositories/settings_repository.dart';
 
-import 'package:injectable/injectable.dart';
 
 /// Implementation of SettingsRepository using SharedPreferences
-@LazySingleton(as: SettingsRepository)
+
 class SettingsRepositoryImpl implements SettingsRepository {
   SettingsRepositoryImpl(this._prefs);
   final SharedPreferences _prefs;

@@ -1,7 +1,6 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../../../../core/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/enums/theme_mode.dart';
 import '../../../providers/theme_providers.dart';
 
 /// Premium 3D Container wrapping a standard Icon to give it depth and presence
@@ -22,9 +21,7 @@ class Settings3DIcon extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(currentThemeModeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isBangladesh = themeMode == AppThemeMode.bangladesh;
 
     // Premium Glass Face Colors
     final Color faceColor = isDark 
@@ -96,252 +93,157 @@ class Settings3DIcon extends ConsumerWidget {
 
 /// Premium 3D Button implementation for Settings actions
 class Settings3DButton extends ConsumerStatefulWidget {
-
   const Settings3DButton({
-    required this.onTap, super.key,
+    required this.onTap,
+    super.key,
     this.label,
     this.icon,
     this.isSelected = false,
     this.isDestructive = false,
-    this.color,
     this.width,
+    this.height,
     this.fontSize,
+    this.iconSize,
+    this.padding,
   });
+
   final VoidCallback onTap;
   final String? label;
   final IconData? icon;
   final bool isSelected;
   final bool isDestructive;
-  final Color? color;
   final double? width;
+  final double? height;
   final double? fontSize;
+  final double? iconSize;
+  final EdgeInsetsGeometry? padding;
 
   @override
   ConsumerState<Settings3DButton> createState() => _Settings3DButtonState();
 }
 
-class _Settings3DButtonState extends ConsumerState<Settings3DButton> 
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _elevationAnimation;
+class _Settings3DButtonState extends ConsumerState<Settings3DButton> with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  late final Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this, 
-      duration: const Duration(milliseconds: 150)
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 140),
     );
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.94).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-    _elevationAnimation = Tween<double>(begin: 1.0, end: 0.3).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
     );
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _animController.dispose();
     super.dispose();
   }
 
-  void _onTapDown(_) => _controller.forward();
-  void _onTapUp(_) => _controller.reverse().then((_) => widget.onTap());
-  void _onTapCancel() => _controller.reverse();
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final themeMode = ref.watch(currentThemeModeProvider);
-    final isBangladesh = themeMode == AppThemeMode.bangladesh;
-    
-    // Premium Color Scheme
-    final Color baseColor;
-    final Color contentColor;
-    final Color glowColor;
-    final selectionColor = ref.watch(navIconColorProvider);
-    
-    final Color activeGlow;
-    if (themeMode == AppThemeMode.bangladesh) {
-      activeGlow = Colors.redAccent;
-    } else if (themeMode == AppThemeMode.light) {
-      activeGlow = Colors.blueAccent;
-    } else {
-      activeGlow = const Color(0xFFFFC107); // Amber for dark/default
-    }
-    
-    const deepGrey = Color(0xFF1A1C1E);
-    
-    if (widget.isDestructive) {
-      baseColor = Colors.redAccent.withOpacity(0.25);
-      contentColor = Colors.redAccent;
-      glowColor = Colors.redAccent;
-    } else {
-      baseColor = isDark 
-          ? deepGrey.withOpacity(0.9)
-          : Colors.black.withOpacity(0.08);
-          
-      if (widget.isSelected) {
-        contentColor = isDark ? Colors.white : Colors.black;
-        glowColor = activeGlow;
-      } else {
-        contentColor = isDark ? Colors.white.withOpacity(0.7) : Colors.black.withOpacity(0.7);
-        glowColor = Colors.transparent;
-      }
-    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = ref.watch(navIconColorProvider);
 
-    final bool isLuminous = isDark || isBangladesh;
-    final double buttonWidth = widget.width ?? 120;
-    const double buttonHeight = 42; // Further reduced from 48 for ultra-compactness
+    final Color activeColor = widget.isDestructive ? Colors.redAccent : accent;
 
     return GestureDetector(
-      onTapDown: _onTapDown,
-      onTapUp: _onTapUp,
-      onTapCancel: _onTapCancel,
+      onTapDown: (_) => _animController.forward(),
+      onTapUp: (_) => _animController.reverse().then((_) => widget.onTap()),
+      onTapCancel: () => _animController.reverse(),
+      behavior: HitTestBehavior.opaque,
       child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value,
-            child: Container(
-              width: buttonWidth,
-              height: buttonHeight,
-              decoration: BoxDecoration(
-                color: baseColor,
-                borderRadius: BorderRadius.circular(buttonHeight / 2), // Perfect pill shape
-                
-                // Premium Gradient
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: isLuminous
-                      ? [
-                          Colors.white.withOpacity(0.35),
-                          Colors.white.withOpacity(0.15),
-                          Colors.white.withOpacity(0.05),
-                        ]
-                      : [
-                          Colors.white.withOpacity(0.98),
-                          Colors.white.withOpacity(0.85),
-                          Colors.white.withOpacity(0.7),
-                        ],
+        animation: _scaleAnimation,
+        builder: (context, child) => Transform.scale(
+          scale: _scaleAnimation.value,
+          child: child,
+        ),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+          width: widget.width,
+          height: widget.height ?? 54,
+          padding: widget.padding,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12), // Rounded rectangle for switch look
+            color: isDark
+                ? Colors.white.withOpacity(0.06)
+                : Colors.black.withOpacity(0.04),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Frosted Glass Background
+                BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(color: Colors.transparent),
                 ),
-                
-                // Premium 3D Shadows & Glow
-                boxShadow: [
-                  // Main shadow
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isLuminous ? 0.9 : 0.2),
-                    offset: Offset(0, _elevationAnimation.value * 5),
-                    blurRadius: _elevationAnimation.value * 15,
-                    spreadRadius: -1,
-                  ),
-                  
-                  // Selection glow (Dynamic Theme Color)
-                  if (widget.isSelected)
-                    BoxShadow(
-                      color: glowColor.withOpacity(0.6),
-                      blurRadius: 25,
-                      spreadRadius: 1,
-                    ),
-                  if (widget.isSelected)
-                    BoxShadow(
-                      color: glowColor.withOpacity(0.3),
-                      blurRadius: 40,
-                      spreadRadius: 4,
-                    ),
-                ],
-                
-                // Premium Border
-                border: Border.all(
-                  color: widget.isSelected 
-                      ? glowColor.withOpacity(0.9)
-                      : (isLuminous ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.1)),
-                  width: widget.isSelected ? 2.2 : 1.2,
-                ),
-              ),
-              
-              // Premium Content Layout
-              child: Stack(
-                children: [
-                  // Premium Top Highlight
+
+                // Electric Switch Indicator (Left side)
+                if (widget.isSelected)
                   Positioned(
-                    top: 2,
-                    left: 15,
-                    right: 15,
+                    left: 0,
+                    top: 10,
+                    bottom: 10,
                     child: Container(
-                      height: 3,
+                      width: 3,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(2),
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.white.withOpacity(isLuminous ? 0.4 : 0.8),
-                            Colors.white.withOpacity(0.2),
-                            Colors.transparent,
-                          ],
+                        color: activeColor,
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(4),
+                          bottomRight: Radius.circular(4),
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: activeColor.withOpacity(0.6),
+                            blurRadius: 10,
+                            offset: const Offset(2, 0),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  
-                  // Premium Content Stack for absolute centering
-                  Center(
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        if (widget.icon != null)
-                          Positioned(
-                            left: 14,
-                            child: Icon(
-                              widget.icon,
-                              size: widget.label == null ? 24 : 18,
-                              color: widget.isSelected ? selectionColor : contentColor,
-                            ),
-                          ),
-                        if (widget.label != null)
-                          Padding(
-                            padding: EdgeInsets.only(
-                              left: widget.icon != null ? 36 : 12,
-                              right: 12,
-                            ),
-                            child: Text(
-                              widget.label!,
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: contentColor,
-                                fontWeight: FontWeight.w900,
-                                fontSize: widget.fontSize ?? (buttonWidth > 140 ? 14 : 12),
-                                fontFamily: AppTypography.fontFamily,
-                                height: 1.15,
-                                letterSpacing: -0.2,
-                                  shadows: [
-                                    if (widget.isSelected)
-                                      Shadow(
-                                        color: glowColor.withOpacity(0.8),
-                                        blurRadius: 8,
-                                      ),
-                                    Shadow(
-                                      color: Colors.black.withOpacity(isDark ? 0.5 : 0.2),
-                                      blurRadius: 2,
-                                      offset: const Offset(1, 1),
-                                    ),
-                                  ],
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+
+                // Content
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (widget.icon != null)
+                      Icon(
+                        widget.icon,
+                        size: widget.iconSize ?? 20,
+                        color: widget.isSelected
+                            ? activeColor
+                            : (isDark
+                                ? Colors.white.withOpacity(0.4)
+                                : Colors.black.withOpacity(0.4)),
+                      ),
+                    if (widget.icon != null && widget.label != null) const SizedBox(height: 2),
+                    if (widget.label != null)
+                      Text(
+                        widget.label!,
+                        style: TextStyle(
+                          fontSize: widget.fontSize ?? 11,
+                          fontWeight: FontWeight.w600,
+                          color: widget.isSelected
+                              ? activeColor
+                              : (isDark
+                                  ? Colors.white.withOpacity(0.4)
+                                  : Colors.black.withOpacity(0.4)),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }

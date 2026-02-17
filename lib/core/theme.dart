@@ -6,21 +6,20 @@ import 'design_tokens.dart';
 class AppTheme {
   const AppTheme._();
 
-  static const Color _iOSBlue = AppColors.iOSBlue;
-  static const Color _iOSDarkBlue = AppColors.iOSDarkBlue;
-  static const Color _iOSLightBackground = Color(0xFFF2F2F7);
-  static const Color _iOSSecondaryLightBackground = Color(0xFFFFFFFF);
-  static const Color _iOSDarkBackground = AppColors.darkBackground;
+  static const Color _primaryBlue = Color(0xFF0061A4);
+  static const Color _primaryDarkBlue = Color(0xFF99CBFF);
+  static const Color _lightBackground = Color(0xFFF8F9FF);
+  static const Color _darkBackground = AppColors.darkBackground;
   static const Color _gold = AppColors.gold;
 
-  static const Color _iOSSecondaryLight = Color(0xFF6E6E73); // System Gray
-  static const Color _iOSSecondaryDark = Color(0xFF8E8E93); // System Gray 2
+  static const Color _secondaryLight = Color(0xFF535F70); 
+  static const Color _secondaryDark = Color(0xFFBFC8D8); 
 
   static final ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
     colorScheme: lightColorScheme,
-    scaffoldBackgroundColor: _iOSLightBackground,
+    scaffoldBackgroundColor: _lightBackground,
     textTheme: _lightTextTheme,
     appBarTheme: _lightAppBarTheme(),
     cardTheme: _lightCardTheme,
@@ -28,20 +27,20 @@ class AppTheme {
     dropdownMenuTheme: _dropdownMenuTheme(lightColorScheme),
     chipTheme: _chipTheme(lightColorScheme),
     dividerTheme: _dividerTheme(lightColorScheme),
-    iconTheme: const IconThemeData(color: Color(0xFF000000), size: 22),
+    iconTheme: const IconThemeData(color: Color(0xFF191C1E), size: 24),
 
-    elevatedButtonTheme: _elevatedButtonTheme(_iOSBlue, lightColorScheme),
-    outlinedButtonTheme: _outlinedButtonTheme(_iOSBlue, lightColorScheme),
-    textButtonTheme: _textButtonTheme(_iOSBlue, lightColorScheme),
+    elevatedButtonTheme: _elevatedButtonTheme(_primaryBlue, lightColorScheme),
+    outlinedButtonTheme: _outlinedButtonTheme(_primaryBlue, lightColorScheme),
+    textButtonTheme: _textButtonTheme(_primaryBlue, lightColorScheme),
 
-    pageTransitionsTheme: _cupertinoTransitions,
+    pageTransitionsTheme: _androidTransitions,
   );
 
   static final ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
     colorScheme: darkColorScheme,
-    scaffoldBackgroundColor: _iOSDarkBackground,
+    scaffoldBackgroundColor: _darkBackground,
     textTheme: _darkTextTheme,
     appBarTheme: _darkAppBarTheme(_gold),
     cardTheme: _darkCardTheme(_gold),
@@ -57,9 +56,9 @@ class AppTheme {
     outlinedButtonTheme: _outlinedButtonTheme(_gold, darkColorScheme),
     textButtonTheme: _textButtonTheme(_gold, darkColorScheme),
 
-    iconTheme: const IconThemeData(color: Color(0xFFEBEBF5), size: 22),
+    iconTheme: const IconThemeData(color: Color(0xFFE2E2E6), size: 24),
 
-    pageTransitionsTheme: _cupertinoTransitions,
+    pageTransitionsTheme: _androidTransitions,
   );
 
   static final ThemeData _amoledTheme = ThemeData(
@@ -84,7 +83,7 @@ class AppTheme {
 
     iconTheme: const IconThemeData(color: Color(0xFFEBEBF5), size: 22),
 
-    pageTransitionsTheme: _cupertinoTransitions,
+    pageTransitionsTheme: _androidTransitions,
   );
 
   static ThemeData get amoledTheme => _amoledTheme;
@@ -106,7 +105,7 @@ class AppTheme {
     dividerTheme: _dividerTheme(bangladeshColorScheme),
 
     elevatedButtonTheme: _elevatedButtonTheme(
-      const Color(0xFF006A4E),
+      _gold,
       bangladeshColorScheme,
     ),
     outlinedButtonTheme: _outlinedButtonTheme(
@@ -121,7 +120,7 @@ class AppTheme {
     iconTheme: const IconThemeData(color: _gold, size: 22),
     primaryIconTheme: const IconThemeData(color: _gold, size: 22),
 
-    pageTransitionsTheme: _cupertinoTransitions,
+    pageTransitionsTheme: _androidTransitions,
   );
 
 
@@ -145,41 +144,43 @@ class AppTheme {
   }
 
   static final TextTheme _lightTextTheme = TextTheme(
-    displayLarge: _fontStyle(fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: 0.37, color: Colors.black, height: 1.2),
-    displayMedium: _fontStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: 0.36, color: Colors.black, height: 1.2),
-    displaySmall: _fontStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: 0.35, color: Colors.black, height: 1.2),
+    displayLarge: _fontStyle(fontSize: 57, fontWeight: FontWeight.w400, letterSpacing: -0.25, color: Colors.black, height: 1.12),
+    displayMedium: _fontStyle(fontSize: 45, fontWeight: FontWeight.w400, letterSpacing: 0, color: Colors.black, height: 1.15),
+    displaySmall: _fontStyle(fontSize: 36, fontWeight: FontWeight.w400, letterSpacing: 0, color: Colors.black, height: 1.22),
     
-    headlineMedium: _fontStyle(fontSize: 20, fontWeight: FontWeight.w600, letterSpacing: 0.38, color: Colors.black, height: 1.2),
-    headlineSmall: _fontStyle(fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: -0.41, color: Colors.black, height: 1.3),
+    headlineLarge: _fontStyle(fontSize: 32, fontWeight: FontWeight.w400, letterSpacing: 0, color: Colors.black),
+    headlineMedium: _fontStyle(fontSize: 28, fontWeight: FontWeight.w400, letterSpacing: 0, color: Colors.black),
+    headlineSmall: _fontStyle(fontSize: 24, fontWeight: FontWeight.w400, letterSpacing: 0, color: Colors.black),
     
-    titleLarge: _fontStyle(fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: 0.37, color: Colors.black),
-    titleMedium: _fontStyle(fontSize: 20, fontWeight: FontWeight.w600, letterSpacing: 0.38, color: Colors.black), 
-    titleSmall: _fontStyle(fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: -0.23, color: Colors.black),
+    titleLarge: _fontStyle(fontSize: 22, fontWeight: FontWeight.w500, letterSpacing: 0, color: Colors.black),
+    titleMedium: _fontStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 0.15, color: Colors.black), 
+    titleSmall: _fontStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1, color: Colors.black),
     
-    bodyLarge: _fontStyle(fontSize: 17, fontWeight: FontWeight.w400, letterSpacing: -0.41, color: Colors.black, height: 1.3),
-    bodyMedium: _fontStyle(fontSize: 15, fontWeight: FontWeight.w400, letterSpacing: -0.23, color: _iOSSecondaryLight, height: 1.4),
-    bodySmall: _fontStyle(fontSize: 13, fontWeight: FontWeight.w400, letterSpacing: -0.08, color: _iOSSecondaryLight, height: 1.4),
+    bodyLarge: _fontStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5, color: Colors.black),
+    bodyMedium: _fontStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25, color: _secondaryLight),
+    bodySmall: _fontStyle(fontSize: 12, fontWeight: FontWeight.w400, letterSpacing: 0.4, color: _secondaryLight),
     
-    labelLarge: _fontStyle(fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: -0.41, color: _iOSBlue), // Buttons
+    labelLarge: _fontStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1, color: _primaryBlue),
   );
 
   static final TextTheme _darkTextTheme = TextTheme(
-    displayLarge: _fontStyle(fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: 0.37, color: Colors.white, height: 1.2),
-    displayMedium: _fontStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: 0.36, color: Colors.white, height: 1.2),
-    displaySmall: _fontStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: 0.35, color: Colors.white, height: 1.2),
+    displayLarge: _fontStyle(fontSize: 57, fontWeight: FontWeight.w400, letterSpacing: -0.25, color: Colors.white, height: 1.12),
+    displayMedium: _fontStyle(fontSize: 45, fontWeight: FontWeight.w400, letterSpacing: 0, color: Colors.white, height: 1.15),
+    displaySmall: _fontStyle(fontSize: 36, fontWeight: FontWeight.w400, letterSpacing: 0, color: Colors.white, height: 1.22),
     
-    headlineMedium: _fontStyle(fontSize: 20, fontWeight: FontWeight.w600, letterSpacing: 0.38, color: Colors.white, height: 1.2),
-    headlineSmall: _fontStyle(fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: -0.41, color: Colors.white, height: 1.3),
+    headlineLarge: _fontStyle(fontSize: 32, fontWeight: FontWeight.w400, letterSpacing: 0, color: Colors.white),
+    headlineMedium: _fontStyle(fontSize: 28, fontWeight: FontWeight.w400, letterSpacing: 0, color: Colors.white),
+    headlineSmall: _fontStyle(fontSize: 24, fontWeight: FontWeight.w400, letterSpacing: 0, color: Colors.white),
     
-    titleLarge: _fontStyle(fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: 0.37, color: Colors.white),
-    titleMedium: _fontStyle(fontSize: 20, fontWeight: FontWeight.w600, letterSpacing: 0.38, color: Colors.white), 
-    titleSmall: _fontStyle(fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: -0.23, color: Colors.white),
+    titleLarge: _fontStyle(fontSize: 22, fontWeight: FontWeight.w500, letterSpacing: 0, color: Colors.white),
+    titleMedium: _fontStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 0.15, color: Colors.white), 
+    titleSmall: _fontStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1, color: Colors.white),
 
-    bodyLarge: _fontStyle(fontSize: 17, fontWeight: FontWeight.w400, letterSpacing: -0.41, color: Colors.white, height: 1.3),
-    bodyMedium: _fontStyle(fontSize: 15, fontWeight: FontWeight.w400, letterSpacing: -0.23, color: _iOSSecondaryDark, height: 1.4),
-    bodySmall: _fontStyle(fontSize: 13, fontWeight: FontWeight.w400, letterSpacing: -0.08, color: _iOSSecondaryDark, height: 1.4),
+    bodyLarge: _fontStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5, color: Colors.white),
+    bodyMedium: _fontStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25, color: _secondaryDark),
+    bodySmall: _fontStyle(fontSize: 12, fontWeight: FontWeight.w400, letterSpacing: 0.4, color: _secondaryDark),
     
-    labelLarge: _fontStyle(fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: -0.41, color: _iOSDarkBlue),
+    labelLarge: _fontStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1, color: _primaryDarkBlue),
   );
 
   static final TextTheme _bangladeshTextTheme = TextTheme(
@@ -203,43 +204,41 @@ class AppTheme {
 
 
   static AppBarTheme _lightAppBarTheme() => AppBarTheme(
-    backgroundColor: _iOSLightBackground,
-    foregroundColor: const Color(0xFF000000),
+    backgroundColor: Colors.transparent,
+    foregroundColor: const Color(0xFF191C1E),
     elevation: 0,
-    centerTitle: false, // Android Native Pattern
+    centerTitle: false, 
     surfaceTintColor: Colors.transparent,
     iconTheme: const IconThemeData(
-      color: Color(0xFF000000),
-      size: 22,
+      color: Color(0xFF191C1E),
+      size: 24,
     ),
     actionsIconTheme: const IconThemeData(
-      color: Color(0xFF000000),
-      size: 22,
+      color: Color(0xFF191C1E),
+      size: 24,
     ),
     titleTextStyle: GoogleFonts.inter(
-      fontSize: 20,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.38,
-      color: const Color(0xFF000000),
+      fontSize: 22,
+      fontWeight: FontWeight.w700,
+      color: const Color(0xFF191C1E),
     ),
-    scrolledUnderElevation: 0,
+    scrolledUnderElevation: 3,
   );
 
   static AppBarTheme _darkAppBarTheme(Color gold) => AppBarTheme(
-    backgroundColor: AppColors.darkSurface,
-    foregroundColor: const Color(0xFFFFFFFF),
+    backgroundColor: Colors.transparent,
+    foregroundColor: const Color(0xFFE2E2E6),
     elevation: 0,
-    centerTitle: false, // Android Native Pattern
+    centerTitle: false, 
     surfaceTintColor: Colors.transparent,
-    iconTheme: const IconThemeData(color: Color(0xFFFFFFFF), size: 22),
-    actionsIconTheme: const IconThemeData(color: Color(0xFFFFFFFF), size: 22),
+    iconTheme: const IconThemeData(color: Color(0xFFE2E2E6), size: 24),
+    actionsIconTheme: const IconThemeData(color: Color(0xFFE2E2E6), size: 24),
     titleTextStyle: GoogleFonts.inter(
-      fontSize: 20,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.38,
-      color: const Color(0xFFFFFFFF),
+      fontSize: 22,
+      fontWeight: FontWeight.w700,
+      color: const Color(0xFFE2E2E6),
     ),
-    scrolledUnderElevation: 0,
+    scrolledUnderElevation: 3,
   );
 
   static AppBarTheme _amoledAppBarTheme() => AppBarTheme(
@@ -252,7 +251,7 @@ class AppTheme {
     actionsIconTheme: const IconThemeData(color: Color(0xFFFFFFFF), size: 22),
     titleTextStyle: GoogleFonts.inter(
       fontSize: 20,
-      fontWeight: FontWeight.w600,
+      fontWeight: FontWeight.w700,
       letterSpacing: 0.38,
       color: const Color(0xFFFFFFFF),
     ),
@@ -278,13 +277,13 @@ class AppTheme {
 
 
   static final CardThemeData _lightCardTheme = CardThemeData(
-    color: _iOSSecondaryLightBackground,
+    color: const Color(0xFFFFFFFF),
     elevation: 0, 
     shadowColor: Colors.transparent,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(16), 
       side: const BorderSide(
-        color: Color(0xFFE5E5EA),
+        color: Color(0xFFDFE2EB),
       ),
     ),
   );
@@ -461,7 +460,7 @@ class AppTheme {
 
   static OutlineInputBorder _outline({Color? color}) => OutlineInputBorder(
     borderRadius: BorderRadius.circular(12),
-    borderSide: BorderSide(color: color ?? Colors.transparent),
+    borderSide: BorderSide(color: color ?? Colors.transparent, width: 1.5),
   );
 
   static DropdownMenuThemeData _dropdownMenuTheme(ColorScheme scheme) =>
@@ -485,12 +484,12 @@ class AppTheme {
     color: scheme.onSurface.withOpacity(0.08),
   );
 
-  static const PageTransitionsTheme _cupertinoTransitions =
+  static const PageTransitionsTheme _androidTransitions =
       PageTransitionsTheme(
         builders: {
+          TargetPlatform.android: PredictiveBackPageTransitionsBuilder(), // Modern Android
           TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
           TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(), 
         },
       );
 }
@@ -500,23 +499,55 @@ class AppTheme {
 // ─────────────────────────────────────────────
 
 const ColorScheme lightColorScheme = ColorScheme.light(
-  primary: Color(0xFF007AFF), 
-  secondary: Color(0xFFFFFFFF),
-  tertiary: Color(0xFF5AC8FA), 
-  surface: Color(0xFFF2F2F7), 
-  surfaceContainerHighest: Color(0xFFFFFFFF), 
-  onSurfaceVariant: Color(0xFF3C3C43), 
-  outline: Color(0xFF3C3C43), 
+  primary: Color(0xFF0061A4),
+  onPrimary: Color(0xFFFFFFFF),
+  primaryContainer: Color(0xFFD1E4FF),
+  onPrimaryContainer: Color(0xFF001D36),
+  secondary: Color(0xFF535F70),
+  onSecondary: Color(0xFFFFFFFF),
+  secondaryContainer: Color(0xFFD7E3F7),
+  onSecondaryContainer: Color(0xFF101C2B),
+  tertiary: Color(0xFF6B5778),
+  onTertiary: Color(0xFFFFFFFF),
+  tertiaryContainer: Color(0xFFF2DAFF),
+  onTertiaryContainer: Color(0xFF251431),
+  error: Color(0xFFBA1A1A),
+  onError: Color(0xFFFFFFFF),
+  errorContainer: Color(0xFFFFDAD6),
+  onErrorContainer: Color(0xFF410002),
+  background: Color(0xFFF8F9FF),
+  onBackground: Color(0xFF191C1E),
+  surface: Color(0xFFF8F9FF),
+  onSurface: Color(0xFF191C1E),
+  surfaceVariant: Color(0xFFDFE2EB),
+  onSurfaceVariant: Color(0xFF43474E),
+  outline: Color(0xFF73777F),
 );
 
 const ColorScheme darkColorScheme = ColorScheme.dark(
-  primary: AppColors.iOSDarkBlue, 
-  secondary: AppColors.darkSurface, 
-  tertiary: Color(0xFF64D2FF),
-  surface: AppColors.darkBackground,
-  surfaceContainerHighest: AppColors.darkSurface, 
-  onSurfaceVariant: Color(0xFFEBEBF5), 
-  outline: AppColors.darkSecondary,
+  primary: Color(0xFF99CBFF),
+  onPrimary: Color(0xFF003355),
+  primaryContainer: Color(0xFF00497B),
+  onPrimaryContainer: Color(0xFFD1E4FF),
+  secondary: Color(0xFFBFC8D8),
+  onSecondary: Color(0xFF29313E),
+  secondaryContainer: Color(0xFF3F4756),
+  onSecondaryContainer: Color(0xFFD7E3F7),
+  tertiary: Color(0xFFD7BEE4),
+  onTertiary: Color(0xFF3B2948),
+  tertiaryContainer: Color(0xFF523F5F),
+  onTertiaryContainer: Color(0xFFF3DAFF),
+  error: Color(0xFFFFB4AB),
+  onError: Color(0xFF690005),
+  errorContainer: Color(0xFF93000A),
+  onErrorContainer: Color(0xFFFFDAD6),
+  background: AppColors.darkBackground,
+  onBackground: Color(0xFFE2E2E6),
+  surface: AppColors.darkSurface,
+  onSurface: Color(0xFFE2E2E6),
+  surfaceVariant: Color(0xFF43474E),
+  onSurfaceVariant: Color(0xFFC3C7CF),
+  outline: Color(0xFF8D9199),
 );
 
 const ColorScheme amoledColorScheme = ColorScheme.dark(
@@ -566,7 +597,7 @@ class AppGradients {
       case AppThemeMode.light:
         return const [Color(0xFFF2F2F7), Color(0xFFE5E5EA)]; 
       case AppThemeMode.bangladesh:
-        return const [Color(0xFF0D3830), Color(0xFF3D0F15)];
+        return const [Color(0xFF006A4E), Color(0xFF450D15)]; // Proper Bangladesh Green to Deep Maroon
       case AppThemeMode.dark:
         return [AppColors.darkBackground, const Color(0xFF2A2626)]; // Deeper mocha for the bottom
       case AppThemeMode.amoled:

@@ -9,7 +9,6 @@ import '../../../domain/entities/news_article.dart';
 ///   usage.
 /// - **IDF Cache**: Tracks document frequency locally across sessions for accurate weighing.
 /// - **Fast Similarity**: Optimized Cosine Similarity for quantized payloads.
-import 'package:injectable/injectable.dart';
 
 /// An industrial-grade, memory-efficient TF-IDF engine optimized for on-device personalization.
 /// 
@@ -18,7 +17,7 @@ import 'package:injectable/injectable.dart';
 ///   usage.
 /// - **IDF Cache**: Tracks document frequency locally across sessions for accurate weighing.
 /// - **Fast Similarity**: Optimized Cosine Similarity for quantized payloads.
-@lazySingleton
+
 class QuantizedTfIdfEngine {
 
   QuantizedTfIdfEngine();

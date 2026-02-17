@@ -11,9 +11,8 @@ import '../../domain/entities/news_article.dart';
 import '../persistence/news_article.dart'; 
 
 import '../../core/telemetry/structured_logger.dart';
-import 'package:injectable/injectable.dart';
 
-@lazySingleton
+
 class RssService {
 
   RssService(
@@ -43,32 +42,41 @@ class RssService {
       'bn': <String>[
         'https://news.google.com/rss?hl=bn&gl=BD&ceid=BD:bn',
         'https://feeds.bbci.co.uk/bengali/rss.xml',
-        'https://www.jugantor.com/feed/rss.xml',
-        'https://www.kalbela.com/assets/rss.xml',
         'https://www.banglanews24.com/rss/rss.xml',
+        'https://www.banglatribune.com/feed',
+        'https://www.dhakapost.com/rss/all-news',
       ],
       'en': <String>[
         'https://news.google.com/rss?hl=en-BD&gl=BD&ceid=BD:en',
         'https://feeds.bbci.co.uk/news/world/asia/rss.xml',
         'https://www.thedailystar.net/frontpage/rss.xml',
-        'https://bdnews24.com/rss',
-        'https://www.newagebd.net/rss.xml',
-        'https://thefinancialexpress.com.bd/rss/index.xml',
-        'https://www.observerbd.com/feed',
+        'https://bdnews24.com/feed',
+        'https://www.newagebd.net/rss',
+        'https://thefinancialexpress.com.bd/feed',
+        'https://www.observerbd.com/feed/',
+        'https://www.dhakatribune.com/feed/all-news/',
+        'https://www.bssnews.net/feed',
+        'https://theguardian.com/world/rss',
       ],
     },
     'national': <String, List<String>>{
       'bn': <String>[
+        'https://www.jugantor.com/feed/national/rss.xml',
         'https://www.bd-pratidin.com/rss.xml',
         'https://www.samakal.com/feed', 
         'https://www.ittefaq.com.bd/feed', 
-        'https://www.jugantor.com/feed/rss.xml',
         'https://www.jaijaidinbd.com/feed',
+        'https://somoynews.tv/rss/national',
       ],
       'en': <String>[
-        'https://bdnews24.com/en/rss/en/bangladesh/rss.xml',
-        'https://www.observerbd.com/feed', 
-        'https://www.daily-sun.com/rss/all-news',
+        'https://www.thedailystar.net/frontpage/rss.xml',
+        'https://www.newagebd.net/rss',
+        'https://thefinancialexpress.com.bd/feed',
+        'https://bdnews24.com/feed',
+        'https://www.dhakatribune.com/feed/all-news/',
+        'https://www.bssnews.net/feed',
+        'https://www.observerbd.com/feed/',
+ 
       ],
     },
     'international': <String, List<String>>{

@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart' show ProviderContainer, WidgetRef;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers.dart';
+import '../di/providers.dart';
 import 'bootstrap_task.dart';
 
 class DeviceTrustBootstrapper implements BootstrapTask {

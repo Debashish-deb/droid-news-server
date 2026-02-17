@@ -3,7 +3,7 @@ import '../../../../domain/entities/news_article.dart';
 import '../../../providers/news_providers.dart';
 import '../../../../application/ai/ai_service.dart';
 import '../../../../application/ai/ranking/user_interest_service.dart';
-import '../../../../bootstrap/di/injection_container.dart';
+import '../../../../core/di/providers.dart';
 
 class SearchIntelligenceState {
 
@@ -66,7 +66,7 @@ class SearchIntelligenceNotifier extends StateNotifier<SearchIntelligenceState> 
     }
 
     // 3. Personalized Recommendations based on UserInterest
-    final interestService = sl<UserInterestService>();
+    final interestService = _ref.read(userInterestServiceProvider);
     
     // Sort all articles by interest score
     final candidates = List<NewsArticle>.from(articles);

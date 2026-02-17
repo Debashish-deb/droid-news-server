@@ -1,6 +1,6 @@
 // lib/application/identity/entitlement_service.dart
 
-import '../../core/premium_service.dart';
+import '../../domain/repositories/premium_repository.dart';
 
 /// Enum defining all gated features in the app.
 enum AppFeature {
@@ -14,8 +14,8 @@ enum AppFeature {
 /// Service to resolve if a user has access to a specific feature.
 class EntitlementService {
 
-  EntitlementService({required PremiumService premium}) : _premium = premium;
-  final PremiumService _premium;
+  EntitlementService({required PremiumRepository premium}) : _premium = premium;
+  final PremiumRepository _premium;
 
   /// Returns true if the current user has access to the specified feature.
   bool hasAccess(AppFeature feature) {
@@ -28,9 +28,6 @@ class EntitlementService {
 
       case AppFeature.smartFeed:
         return true;
-        
-      default:
-        return false;
     }
   }
 

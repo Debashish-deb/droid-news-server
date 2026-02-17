@@ -6,11 +6,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'app_schema.dart';
 
-import 'package:injectable/injectable.dart';
 
 part 'app_database.g.dart';
 
-@lazySingleton
+
 @DriftDatabase(tables: [Articles, ReadingHistory, SyncJournal, Bookmarks, SyncSnapshots])
 class AppDatabase extends _$AppDatabase {
   

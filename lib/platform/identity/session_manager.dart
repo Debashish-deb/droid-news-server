@@ -1,7 +1,5 @@
-import 'package:injectable/injectable.dart';
 import 'dart:async';
 import 'package:uuid/uuid.dart';
-import '../../bootstrap/di/injection_container.dart' show sl;
 import 'device_registry.dart';
 import 'trust_engine.dart';
 
@@ -32,7 +30,7 @@ abstract class IdentitySessionManager {
   Stream<Session?> get sessionStream;
 }
 
-@LazySingleton(as: IdentitySessionManager)
+
 class IdentitySessionManagerImpl implements IdentitySessionManager {
 
   IdentitySessionManagerImpl(this._deviceRegistry, this._trustEngine);
@@ -54,7 +52,7 @@ class IdentitySessionManagerImpl implements IdentitySessionManager {
     }
 
     final session = Session(
-      sessionId: const Uuid().v4(),
+      sessionId: Uuid().v4(),
       userId: userId,
       deviceId: deviceId,
       createdAt: DateTime.now(),

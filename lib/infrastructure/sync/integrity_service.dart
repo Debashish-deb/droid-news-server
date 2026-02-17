@@ -3,12 +3,13 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import '../../core/security/security_service.dart';
+import '../../core/telemetry/structured_logger.dart';
 
 /// Service to handle data integrity and signing of sync payloads.
 class IntegrityService {
 
-  IntegrityService({SecurityService? security})
-      : _security = security ?? SecurityService();
+  IntegrityService({SecurityService? security, required StructuredLogger logger})
+      : _security = security ?? SecurityService(logger);
   final SecurityService _security;
   static const String _kSecretKeyPrefix = 'integrity_v1_';
 

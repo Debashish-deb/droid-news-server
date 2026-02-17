@@ -6,7 +6,7 @@ class TtsConfig {
   static const Set<String> supportedLanguages = {'en', 'bn', 'hi'};
   
 
-  static const double defaultSpeechRate = 1.0;
+  static const double defaultSpeechRate = 0.85;
   static const double defaultPitch = 1.0;
   static const double defaultVolume = 1.0;
 

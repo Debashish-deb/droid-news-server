@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:bdnewsreader/l10n/generated/app_localizations.dart';
 
 import '../services/tts_providers.dart';
 import '../../../providers/feature_providers.dart';
-import '../../../providers/premium_providers.dart' show isPremiumProvider;
+import '../../../providers/premium_providers.dart' show isPremiumProvider, isPremiumStateProvider;
 import 'package:go_router/go_router.dart';
 
 // App Bar Action for TTS Control (Headset Icon)
@@ -14,6 +15,8 @@ class AppBarAudioAction extends ConsumerWidget {
     required this.title,
     required this.content,
     this.language = 'en',
+    this.author,
+    this.imageSource,
     super.key,
   });
 
@@ -21,9 +24,12 @@ class AppBarAudioAction extends ConsumerWidget {
   final String title;
   final String content;
   final String language;
+  final String? author;
+  final String? imageSource;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final loc = AppLocalizations.of(context);
     final playbackStateAsync = ref.watch(ttsPlaybackStateProvider);
     final mediaItemAsync = ref.watch(ttsMediaItemProvider);
 
@@ -57,31 +63,31 @@ class AppBarAudioAction extends ConsumerWidget {
 
     return Semantics(
       label: effectivePlaying 
-        ? 'Stop reading article: $title'
-        : 'Listen to article with text-to-speech: $title',
+        ? loc.stopReadingArticle(title)
+        : loc.listenToArticle(title),
       button: true,
       enabled: true,
       hint: effectivePlaying 
-        ? 'Tap to stop playback'
-        : 'Tap to start reading article aloud',
+        ? loc.tapToStop
+        : loc.tapToStart,
       child: IconButton(
         icon: Icon(
           effectivePlaying ? Icons.stop_circle_outlined : Icons.headset_mic_rounded,
           size: 28,
         ),
-        tooltip: effectivePlaying ? 'Stop Reading' : 'Listen to Article',
+        tooltip: effectivePlaying ? loc.readerStop : loc.readerListen,
         onPressed: () {
           debugPrint("TTS_DEBUG: Button Pressed. EffectivePlaying=$effectivePlaying");
           if (effectivePlaying) {
             ref.read(ttsManagerProvider).stop();
           } else {
-            final bool isPremium = ref.read(isPremiumProvider);
+            final bool isPremium = ref.read(isPremiumStateProvider);
             if (!isPremium) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text('✨ Audio Listen is a Premium feature.'),
+                  content: Text(loc.audioPremiumFeature),
                   action: SnackBarAction(
-                    label: 'Upgrade',
+                    label: loc.upgrade,
                     onPressed: () => context.push('/subscription'),
                   ),
                 ),
@@ -95,6 +101,8 @@ class AppBarAudioAction extends ConsumerWidget {
               title,
               content,
               language: language,
+              author: author,
+              imageSource: imageSource,
             );
           }
         },

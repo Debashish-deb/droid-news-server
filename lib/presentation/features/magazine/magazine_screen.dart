@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,8 +38,9 @@ class _MagazineScreenState extends ConsumerState<MagazineScreen>
   late final List<GlobalKey> _chipKeys;
 
   DateTime? _lastBackPressed;
-
   static const int _categoriesCount = 8;
+
+  AppLocalizations get loc => AppLocalizations.of(context);
 
   @override
   void initState() {
@@ -61,7 +63,7 @@ class _MagazineScreenState extends ConsumerState<MagazineScreen>
     if (_lastBackPressed == null ||
         now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
       _lastBackPressed = now;
-      Fluttertoast.showToast(msg: 'Press back again to exit');
+      Fluttertoast.showToast(msg: loc.pressBackToExit);
       return false;
     }
     return true;
@@ -71,14 +73,14 @@ class _MagazineScreenState extends ConsumerState<MagazineScreen>
     final AppLocalizations loc = AppLocalizations.of(context);
 
     return <String>[
-      loc.catFashion,
-      loc.catScience,
-      loc.catFinance,
-      loc.catAffairs,
-      loc.catTech,
-      loc.catArts,
-      loc.catLifestyle,
-      loc.catSports,
+      loc.fashion,
+      loc.science,
+      loc.economics,
+      loc.worldAffairs,
+      loc.technology,
+      loc.arts,
+      loc.lifestyle,
+      loc.sports,
     ];
   }
 
@@ -145,7 +147,7 @@ class _MagazineScreenState extends ConsumerState<MagazineScreen>
       },
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        backgroundColor: scheme.surface,
+        backgroundColor: theme.scaffoldBackgroundColor,
         drawer: const AppDrawer(),
         body: Stack(
           fit: StackFit.expand,
@@ -154,8 +156,8 @@ class _MagazineScreenState extends ConsumerState<MagazineScreen>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: <Color>[
-                    colors[0].withOpacity(0.85),
-                    colors[1].withOpacity(0.85),
+                    colors[0].withOpacity(0.9),
+                    colors[1].withOpacity(0.9),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -168,10 +170,18 @@ class _MagazineScreenState extends ConsumerState<MagazineScreen>
               slivers: <Widget>[
                 SliverAppBar(
                   pinned: true,
-                  backgroundColor: theme.appBarTheme.backgroundColor,
-                  elevation: theme.appBarTheme.elevation,
+                  backgroundColor: Colors.transparent,
+                  flexibleSpace: ClipRect(
+                    child: BackdropFilter(
+                      filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        color: scheme.surface.withOpacity(0.7),
+                      ),
+                    ),
+                  ),
+                  elevation: 0,
                   centerTitle: true,
-                  toolbarHeight: 54, // Reduced from 56
+                  toolbarHeight: 54, 
                   titleTextStyle: theme.appBarTheme.titleTextStyle,
                   title: isEditMode 
                       ? Text(loc.editLayout, style: theme.appBarTheme.titleTextStyle?.copyWith(color: Colors.white, fontWeight: FontWeight.w900))
@@ -205,7 +215,7 @@ class _MagazineScreenState extends ConsumerState<MagazineScreen>
                       IconButton(
                         icon: const Icon(Icons.edit_note, size: 28),
                         onPressed: () => ref.read(editModeProvider.notifier).state = true,
-                        tooltip: 'Edit Layout',
+                        tooltip: loc.editLayout,
                       )
                   ],
                 ),
@@ -214,43 +224,52 @@ class _MagazineScreenState extends ConsumerState<MagazineScreen>
                   SliverPersistentHeader(
                     pinned: true,
                     delegate: StickyHeaderDelegate(
-                      minHeight: 48, // Reduced from 56
-                      maxHeight: 48, // Reduced from 56
-                      child: Container(
-                        height: 48, // Reduced from 56
-                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 0), // Reduced from 2
-                        decoration: BoxDecoration(
-                          color: theme.brightness == Brightness.light ? Colors.black.withOpacity(0.02) : Colors.white.withOpacity(0.04),
-                          borderRadius: BorderRadius.circular(32),
-                          border: Border.all(
-                            color: theme.brightness == Brightness.light ? Colors.black.withOpacity(0.05) : Colors.white.withOpacity(0.1),
-                            width: 0.8,
-                          ),
-                        ),
-                        child: ListView.separated(
-                          controller: _chipsController,
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemCount: categories.length,
-                          itemBuilder: (BuildContext ctx, int i) {
-                            final bool sel = i == _tabController.index;
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Bouncy3DChip(
-                                label: categories[i],
-                                selected: sel,
-                                onTap: () {
-                                  _tabController.animateTo(i);
-                                  _centerChip(i);
-                                  if (_scrollController.hasClients) {
-                                    _scrollController.jumpTo(0);
-                                  }
-                                },
-                                key: _chipKeys[i],
+                      minHeight: 48,
+                      maxHeight: 48,
+                      child: ClipRect(
+                        child: BackdropFilter(
+                          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            height: 48,
+                            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                            decoration: BoxDecoration(
+                              color: theme.brightness == Brightness.light 
+                                  ? Colors.black.withOpacity(0.05) 
+                                  : Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(32),
+                              border: Border.all(
+                                color: theme.brightness == Brightness.light 
+                                    ? Colors.black.withOpacity(0.05) 
+                                    : Colors.white.withOpacity(0.1),
+                                width: 0.8,
                               ),
-                            );
-                          },
+                            ),
+                            child: ListView.separated(
+                              controller: _chipsController,
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              separatorBuilder: (_, __) => const SizedBox(width: 8),
+                              itemCount: categories.length,
+                              itemBuilder: (BuildContext ctx, int i) {
+                                final bool sel = i == _tabController.index;
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Bouncy3DChip(
+                                    label: categories[i],
+                                    selected: sel,
+                                    onTap: () {
+                                      _tabController.animateTo(i);
+                                      _centerChip(i);
+                                      if (_scrollController.hasClients) {
+                                        _scrollController.jumpTo(0);
+                                      }
+                                    },
+                                    key: _chipKeys[i],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -295,7 +314,7 @@ class _MagazineScreenState extends ConsumerState<MagazineScreen>
                                           final url = (maybeWebsite is String && maybeWebsite.isNotEmpty) 
                                               ? maybeWebsite 
                                               : (maybeUrl is String ? maybeUrl : '');
-                                          final title = magazine['name'] ?? 'Magazine';
+                                          final title = magazine['name'] ?? loc.unknownMagazine;
 
                                           if (url.isEmpty) {
                                               ScaffoldMessenger.of(context).showSnackBar(

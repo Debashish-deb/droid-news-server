@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../bootstrap/config/feature_flags/feature_flag_service.dart';
-import '../../../bootstrap/config/feature_flags/app_features.dart';
-import '../../../bootstrap/di/injection_container.dart';
+import '../../providers/feature_providers.dart';
 import 'widgets/smart_feed_view.dart';
-// Import your existing Classic Feed widget here. 
-// Assuming it exists as 'NewsFeed' or similar in features/home/widgets/news_list.dart
-// Since I can't see the file structure perfectly for the classic feed, I will assume a placeholder or standard list.
+import '../../../l10n/generated/app_localizations.dart';
 
 class SmartFeedScreen extends ConsumerWidget {
 
@@ -15,14 +11,17 @@ class SmartFeedScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final featureFlagService = sl<IFeatureFlagService>();
-    final isThreadingEnabled = featureFlagService.isEnabled(AppFeatures.enable_news_threading);
+    final featureFlagService = ref.watch(featureFlagServiceProvider);
+    final isThreadingEnabled = featureFlagService.remoteConfig.getBool('enable_news_threading');
 
     if (isThreadingEnabled) {
       return SmartFeedView(category: category);
     } else {
-      return const Center(
-        child: Text('Classic Feed (Feature Flag OFF)\nEnable "news_threading" to see Smart UI'),
+      // The provided snippet for AppLocalizations.of(context).noUrlAvailable and restartApp
+      // seems to be for a different part of the code or a future addition.
+      // For now, I will only apply the change to the existing classicFeedLabel usage.
+      return Center(
+        child: Text(AppLocalizations.of(context).classicFeedLabel),
       );
     }
   }

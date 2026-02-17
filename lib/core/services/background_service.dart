@@ -1,14 +1,17 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../../firebase_options.dart';
+import '../../infrastructure/repositories/premium_repository_impl.dart';
 import '../security/secure_prefs.dart';
-import '../premium_service.dart';
 import '../../infrastructure/services/remote_config_service.dart';
 import '../../infrastructure/sync/sync_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../telemetry/observability_service.dart';
 import '../telemetry/structured_logger.dart';
 
@@ -58,6 +61,17 @@ void callbackDispatcher() {
 
       // 1. Initialize Flutter & Firebase
       WidgetsFlutterBinding.ensureInitialized();
+
+      // Ensure dotenv is loaded in this isolate before Firebase options access.
+      try {
+        if (!dotenv.isInitialized) {
+          await dotenv.load(fileName: '.env');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('⚠️ [Background] dotenv load failed: $e');
+        }
+      }
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
@@ -76,17 +90,25 @@ void callbackDispatcher() {
       // Note: We avoid calling remoteConfig.initialize() here to prevent excessive background fetches
       // unless strictly necessary. PremiumService falls back gracefully.
 
-      // 4. Instantiate PremiumService with manual injection
-      final premium = PremiumService(
-        prefs: prefs,
-        injectedSecurePrefs: securePrefs,
-        injectedRemoteConfig: remoteConfig,
+      // 4. Instantiate PremiumRepositoryImpl with manual injection
+      final premiumRepo = PremiumRepositoryImpl(
+        securePrefs,
+        FirebaseFirestore.instance,
+        remoteConfig,
+        logger,
       );
-      // Ensure local status is loaded (from secure storage)
-      await premium.loadStatus();
+      // Ensure local status is loaded
+      await premiumRepo.refreshStatus();
 
       // 5. Instantiate SyncService
-      final syncService = SyncService(premium, observability, logger);
+      final syncService = SyncService(
+        premiumRepo,
+        observability,
+        logger,
+        prefs,
+        FirebaseFirestore.instance,
+        FirebaseAuth.instance,
+      );
 
       // 6. Execute Task Logic
       switch (task) {

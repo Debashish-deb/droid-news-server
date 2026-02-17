@@ -335,6 +335,7 @@ class GlassContainer extends ConsumerWidget {
     this.margin,
     this.borderRadius = const BorderRadius.all(Radius.circular(20)),
     this.borderColor,
+    this.backgroundColor,
     this.blurStrength = 15.0,
     this.enableHoverEffect = true,
     this.enableBorderAnimation = true,
@@ -345,6 +346,7 @@ class GlassContainer extends ConsumerWidget {
   final EdgeInsetsGeometry? margin;
   final BorderRadiusGeometry borderRadius;
   final Color? borderColor;
+  final Color? backgroundColor;
   final double blurStrength;
   final bool enableHoverEffect;
   final bool enableBorderAnimation;
@@ -368,9 +370,9 @@ class GlassContainer extends ConsumerWidget {
       enableBorderAnimation: enableBorderAnimation && !reduceEffects,
       borderAnimationDuration: const Duration(milliseconds: 1500),
       decoration: BoxDecoration(
-        color: isDark
+        color: backgroundColor ?? (isDark
             ? Colors.white.withOpacity(reduceEffects ? 0.04 : 0.08)
-            : Colors.white.withOpacity(reduceEffects ? 0.12 : 0.25),
+            : Colors.white.withOpacity(reduceEffects ? 0.12 : 0.25)),
         borderRadius: borderRadius,
         border: Border.all(
           color: borderColor ?? selectionColor.withOpacity(reduceEffects ? 0.12 : 0.2),

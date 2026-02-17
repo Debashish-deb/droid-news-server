@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:bdnewsreader/l10n/generated/app_localizations.dart';
 import '../services/tts_providers.dart';
 import '../../../providers/feature_providers.dart';
 
@@ -15,6 +16,7 @@ class FullAudioPlayer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final manager = ref.watch(ttsManagerProvider);
     
@@ -39,7 +41,7 @@ class FullAudioPlayer extends ConsumerWidget {
               icon: const Icon(Icons.keyboard_arrow_down),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            title: const Text('Now Reading'),
+            title: Text(loc.nowReading),
             centerTitle: true,
           ),
           body: Padding(
@@ -85,7 +87,7 @@ class FullAudioPlayer extends ConsumerWidget {
                 const SizedBox(height: 8),
                 
                 Text(
-                  manager.currentSession?.articleId ?? 'Article', 
+                  manager.currentSession?.articleId ?? loc.articleLabel, 
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -104,7 +106,7 @@ class FullAudioPlayer extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('$chunkNumber / $totalChunks chunks'),
+                        Text(loc.chunkCount(chunkNumber, totalChunks)),
                         Text(
                           _formatDuration(manager.estimatedTimeRemaining),
                         ),
@@ -172,10 +174,10 @@ class FullAudioPlayer extends ConsumerWidget {
                          showDialog(
                            context: context,
                            builder: (context) => SimpleDialog(
-                             title: const Text('Playback Speed'),
+                             title: Text(loc.playbackSpeed),
                              children: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((s) => 
                                SimpleDialogOption(
-                                 child: Text('${s}x'),
+                                 child: Text(loc.speedX(s)),
                                  onPressed: () {
                                    manager.setSpeed(s);
                                    Navigator.pop(context);
@@ -185,7 +187,7 @@ class FullAudioPlayer extends ConsumerWidget {
                            ),
                          );
                       },
-                      tooltip: 'Playback Speed',
+                      tooltip: loc.playbackSpeed,
                     ),
                   ],
                 ),

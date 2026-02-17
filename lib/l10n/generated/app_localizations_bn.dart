@@ -110,10 +110,13 @@ class AppLocalizationsBn extends AppLocalizations {
   String get national => 'জাতীয়';
 
   @override
-  String get trending => 'জনপ্রিয়';
+  String get international => 'আন্তর্জাতিক';
 
   @override
   String get business => 'ব্যবসা';
+
+  @override
+  String get economics => 'অর্থনীতি';
 
   @override
   String get technology => 'প্রযুক্তি';
@@ -123,6 +126,30 @@ class AppLocalizationsBn extends AppLocalizations {
 
   @override
   String get entertainment => 'বিনোদন';
+
+  @override
+  String get science => 'বিজ্ঞান';
+
+  @override
+  String get worldAffairs => 'বৈশ্বিক বিষয়';
+
+  @override
+  String get lifestyle => 'লাইফস্টাইল ও বিলাসিতা';
+
+  @override
+  String get arts => 'কলা ও মানবিক';
+
+  @override
+  String get fashion => 'ফ্যাশন';
+
+  @override
+  String get education => 'শিক্ষা';
+
+  @override
+  String get regional => 'আঞ্চলিক';
+
+  @override
+  String get politics => 'রাজনীতি';
 
   @override
   String get noImage => 'ছবি নেই';
@@ -249,22 +276,10 @@ class AppLocalizationsBn extends AppLocalizations {
   String get favorites => 'পছন্দসমূহ';
 
   @override
-  String get fashion => 'ফ্যাশন';
-
-  @override
-  String get science => 'বিজ্ঞান';
-
-  @override
   String get finance => 'অর্থনীতি';
 
   @override
   String get global => 'বৈশ্বিক বিষয়';
-
-  @override
-  String get arts => 'কলা ও মানবিক';
-
-  @override
-  String get lifestyle => 'লাইফস্টাইল ও বিলাসিতা';
 
   @override
   String get noWebsite => 'এই ম্যাগাজিনের জন্য কোন ওয়েবসাইট নেই';
@@ -308,24 +323,6 @@ class AppLocalizationsBn extends AppLocalizations {
   String get noPapersFound => 'কোন সংবাদপত্র পাওয়া যায়নি';
 
   @override
-  String get international => 'আন্তর্জাতিক';
-
-  @override
-  String get businessFinance => 'ব্যবসা ও অর্থ';
-
-  @override
-  String get digitalTech => 'ডিজিটাল ও প্রযুক্তি';
-
-  @override
-  String get sportsNews => 'ক্রীড়া সংবাদ';
-
-  @override
-  String get entertainmentArts => 'বিনোদন ও শিল্প';
-
-  @override
-  String get worldPolitics => 'বিশ্ব ও রাজনীতি';
-
-  @override
   String get blog => 'ব্লগ';
 
   @override
@@ -362,10 +359,10 @@ class AppLocalizationsBn extends AppLocalizations {
   String get bdNewsreader => 'বিডি নিউজ রিডার';
 
   @override
-  String get noArticlesFound => 'কোন নিবন্ধ পাওয়া যায়নি';
+  String get homeTitle => 'বিডি নিউজরিডার';
 
   @override
-  String get catFashion => 'ফ্যাশন';
+  String get noArticlesFound => 'কোন নিবন্ধ পাওয়া যায়নি';
 
   @override
   String get noMagazines => 'কোন ম্যাগাজিন নেই';
@@ -455,34 +452,10 @@ class AppLocalizationsBn extends AppLocalizations {
   String get close => 'বন্ধ করুন';
 
   @override
-  String get catScience => 'বিজ্ঞান';
-
-  @override
-  String get catFinance => 'অর্থনীতি';
-
-  @override
-  String get catAffairs => 'বৈশ্বিক বিষয়';
-
-  @override
-  String get catTech => 'প্রযুক্তি';
-
-  @override
-  String get catArts => 'শিল্প';
-
-  @override
-  String get catLifestyle => 'লাইফস্টাইল';
-
-  @override
-  String get catSports => 'ক্রীড়া';
-
-  @override
   String get loadFailed => 'লোড ব্যর্থ';
 
   @override
   String get pressBackToExit => 'প্রস্থান করতে আবার ব্যাক বোতাম টিপুন';
-
-  @override
-  String get education => 'শিক্ষা';
 
   @override
   String get replaceFirst => 'প্রথমে প্রতিস্থাপন করুন';
@@ -848,15 +821,6 @@ class AppLocalizationsBn extends AppLocalizations {
       '৩০ দিন ধরে নিষ্ক্রিয় থাকা ডিভাইসগুলি স্বয়ংক্রিয়ভাবে মুছে ফেলা হবে।';
 
   @override
-  String get regional => 'আঞ্চলিক';
-
-  @override
-  String get politics => 'রাজনীতি';
-
-  @override
-  String get economics => 'অর্থনীতি';
-
-  @override
   String get all => 'সব';
 
   @override
@@ -1066,6 +1030,9 @@ class AppLocalizationsBn extends AppLocalizations {
   String get noSavedArticles => 'কোন সংরক্ষিত নিবন্ধ নেই';
 
   @override
+  String get copiedToClipboardFlat => 'ক্লিপবোর্ডে কপি করা হয়েছে';
+
+  @override
   String get editLayout => 'লেআউট সম্পাদনা করুন';
 
   @override
@@ -1270,4 +1237,189 @@ class AppLocalizationsBn extends AppLocalizations {
 
   @override
   String get fillAllFields => 'দয়া করে সব ঘর পূরণ করুন';
+
+  @override
+  String get navigatingToPremium => 'প্রিমিয়াম প্ল্যানে নেভিগেট করা হচ্ছে...';
+
+  @override
+  String get upgradeDroidPlus => 'Droid+ এ আপগ্রেড করুন';
+
+  @override
+  String get historicalEvents => 'ঐতিহাসিক ঘটনা';
+
+  @override
+  String get historicalHistory => 'ইতিহাস';
+
+  @override
+  String get noEventsFound => 'এই তারিখের জন্য কোন ইভেন্ট পাওয়া যায়নি।';
+
+  @override
+  String get noDescriptionAvailable => 'কোন বর্ণনা পাওয়া যায়নি';
+
+  @override
+  String onThisDayIn(String year, String description) {
+    return '$year সালের এই দিনে: $description';
+  }
+
+  @override
+  String get prev => 'পূর্ববর্তী';
+
+  @override
+  String get nextCaps => 'পরবর্তী';
+
+  @override
+  String get nowReading => 'এখন পড়ছি';
+
+  @override
+  String get playbackSpeed => 'প্লেব্যাক গতি';
+
+  @override
+  String chunkCount(int current, int total) {
+    return '$current / $total টি অংশ';
+  }
+
+  @override
+  String get audioPremiumFeature => '✨ অডিও শ্রবণ একটি প্রিমিয়াম ফিচার।';
+
+  @override
+  String get restartApp => 'অ্যাপ রিস্টার্ট করুন';
+
+  @override
+  String get sessionEnded => 'সেশন শেষ হয়েছে';
+
+  @override
+  String get ok => 'ঠিক আছে';
+
+  @override
+  String shareFailed(String error) {
+    return 'শেয়ার ব্যর্থ হয়েছে: $error';
+  }
+
+  @override
+  String get premiumMemberBadge => 'প্রিমিয়াম মেম্বার';
+
+  @override
+  String get thankYouPurchase =>
+      'আপনার ক্রয়ের জন্য ধন্যবাদ! বিজ্ঞাপনগুলি সরানো হয়েছে।';
+
+  @override
+  String get publishersLabel => 'প্রকাশক';
+
+  @override
+  String searchOnGoogle(String query) {
+    return 'গুগলে \"$query\" অনুসন্ধান করুন';
+  }
+
+  @override
+  String get onboardingWelcome => 'বিডি নিউজে স্বাগতম';
+
+  @override
+  String get appDescription =>
+      'লেটেস্ট নিউজ, লাইভ আপডেট এবং পার্সোনালাইজড ফিডের জন্য আপনার বিশ্বস্ত উৎস।';
+
+  @override
+  String get continueBtn => 'চালিয়ে যান';
+
+  @override
+  String get premiumArticleHint => 'এটি একটি প্রিমিয়াম নিবন্ধ';
+
+  @override
+  String get adLoading => 'বিজ্ঞাপন লোড হচ্ছে, দয়া করে অপেক্ষা করুন...';
+
+  @override
+  String get userNamePlaceholder => 'ব্যবহারকারীর নাম';
+
+  @override
+  String get exclusiveContent => 'একচেটিয়া কন্টেন্ট';
+
+  @override
+  String get droidPlusDescription =>
+      'প্রিমিয়াম বিশ্লেষণ, বিশেষজ্ঞের অন্তর্দৃষ্টি এবং বিজ্ঞাপন-মুক্ত অভিজ্ঞতা পেতে Droid+ এ যোগ দিন।';
+
+  @override
+  String get deleteOfflineArticleHint =>
+      'এটি ডাউনলোড করা নিবন্ধটি সরিয়ে দেবে এবং স্টোরেজ খালি করবে।';
+
+  @override
+  String get delete => 'মুছে ফেলুন';
+
+  @override
+  String get clearAllLabel => 'সব মুছে ফেলুন';
+
+  @override
+  String articlesCountLabel(Object count) {
+    return '$count টি নিবন্ধ';
+  }
+
+  @override
+  String eventsFound(Object count) {
+    return '$count টি ইভেন্ট পাওয়া গেছে';
+  }
+
+  @override
+  String get articleLabel => 'নিবন্ধ';
+
+  @override
+  String speedX(double speed) {
+    return '${speed}x';
+  }
+
+  @override
+  String stopReadingArticle(String title) {
+    return 'নিবন্ধ পড়া বন্ধ করুন: $title';
+  }
+
+  @override
+  String listenToArticle(String title) {
+    return 'টেক্সট-টু-স্পিচ দিয়ে নিবন্ধটি শুনুন: $title';
+  }
+
+  @override
+  String get tapToStop => 'প্লেব্যাক বন্ধ করতে ট্যাপ করুন';
+
+  @override
+  String get tapToStart => 'নিবন্ধটি জোরালোভাবে পড়া শুরু করতে ট্যাপ করুন';
+
+  @override
+  String cacheClearedCount(int count) {
+    return '($count টি ক্যাশ পরিষ্কার করা হয়েছে)';
+  }
+
+  @override
+  String errorClearingCache(Object error) {
+    return 'ক্যাশ পরিষ্কার করতে ত্রুটি হয়েছে: $error';
+  }
+
+  @override
+  String get sessionEndedDesc =>
+      'এই ডিভাইসে আপনার সেশন শেষ হয়েছে।\n\nএটি হওয়ার কারণ হতে পারে:\n• আপনি অন্য ডিভাইস থেকে লগ আউট করেছেন\n• আপনার অ্যাকাউন্ট ডিভাইসের সীমা অতিক্রম করেছে\n• নিরাপত্তা সতর্কতা\n\nঅনুগ্রহ করে চালিয়ে যেতে আবার লগইন করুন।';
+
+  @override
+  String get errorOops => 'ওহ! কিছু ভুল হয়েছে';
+
+  @override
+  String get errorUnexpected =>
+      'আমরা একটি অপ্রত্যাশিত ত্রুটির সম্মুখীন হয়েছি। অনুগ্রহ করে অ্যাপটি পুনরায় চালু করার চেষ্টা করুন।';
+
+  @override
+  String get debugInfo => 'ডিবাগ তথ্য:';
+
+  @override
+  String get classicFeedLabel =>
+      'ক্লাসিক ফিড (ফিচার ফ্ল্যাগ বন্ধ)\nস্মার্ট UI দেখতে \"news_threading\" সক্রিয় করুন';
+
+  @override
+  String get resultsLabel => 'ফলাফল';
+
+  @override
+  String get noNationalNews => 'কোনো জাতীয় সংবাদ পাওয়া যায়নি';
+
+  @override
+  String get noInternationalNews => 'কোনো আন্তর্জাতিক সংবাদ পাওয়া যায়নি';
+
+  @override
+  String get noSportsNews => 'কোনো খেলার সংবাদ পাওয়া যায়নি';
+
+  @override
+  String get noEntertainmentNews => 'কোনো বিনোদন সংবাদ পাওয়া যায়নি';
 }

@@ -4,7 +4,6 @@ import 'package:audio_service/audio_service.dart';
 import '../services/tts_providers.dart';
 import '../../../providers/feature_providers.dart';
 
-import '../../../../bootstrap/di/injection_container.dart' show sl;
 import '../services/tts_manager.dart' show TtsManager;
 
 class MiniAudioPlayer extends ConsumerWidget {
@@ -96,10 +95,11 @@ class MiniAudioPlayer extends ConsumerWidget {
          
           IconButton(
             onPressed: () {
+              final ttsManager = ref.read(ttsManagerProvider);
               if (isPlaying) {
-                sl<TtsManager>().pause();
+                ttsManager.pause();
               } else {
-                sl<TtsManager>().resume();
+                ttsManager.resume();
               }
             },
             icon: Icon(isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
@@ -134,7 +134,7 @@ class MiniAudioPlayer extends ConsumerWidget {
         
           IconButton(
             onPressed: () {
-              sl<TtsManager>().stop();
+              ref.read(ttsManagerProvider).stop();
             },
             icon: const Icon(Icons.stop_rounded),
             color: scheme.onPrimaryContainer.withOpacity(0.8),

@@ -24,14 +24,17 @@ class FeedRanker {
     double freshnessScore = 10.0 - (hoursOld * 0.1); 
     if (freshnessScore < 0) freshnessScore = 0;
 
-    
-    
     // 2. Personalization Weight using TF-IDF Engine
     final double interestScore = _interestService.getPersonalizationScore(thread.mainArticle);
 
+    // 3. Category Boosts (making previously unused methods useful)
+    double categoryBoost = 1.0;
+    if (_isTech(thread)) categoryBoost *= 1.5;
+    if (_isSports(thread)) categoryBoost *= 1.3;
+
     final double clusterBonus = thread.relatedArticles.isNotEmpty ? 1.2 : 1.0;
 
-    return freshnessScore * interestScore * clusterBonus;
+    return freshnessScore * interestScore * clusterBonus * categoryBoost;
   }
 
   bool _isSports(NewsThread thread) {

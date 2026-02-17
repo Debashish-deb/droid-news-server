@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../../../core/di/providers.dart' show securityServiceProvider;
 import '../../../core/splash_service.dart';
 import '../../../core/security/security_service.dart';
 import '../../../core/security/root_detector.dart';
@@ -126,7 +127,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _redirect() async {
-    if (!SecurityService().isDeviceSecure) {
+    final security = ref.read(securityServiceProvider);
+    if (!security.isDeviceSecure) {
       if (!mounted) return;
       context.go(AppPaths.securityLockout);
       return;

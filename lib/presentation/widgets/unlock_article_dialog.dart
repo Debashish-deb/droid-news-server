@@ -4,7 +4,9 @@ import '../../l10n/generated/app_localizations.dart';
 
 import '../../infrastructure/services/rewarded_ad_service.dart';
 
-import '../providers/subscription_providers.dart' show isPremiumProvider;
+import '../providers/premium_providers.dart' show isPremiumProvider, isPremiumStateProvider;
+import '../../../core/app_paths.dart';
+import 'package:go_router/go_router.dart';
 
 /// Dialog to show when user tries to access premium content
 class UnlockArticleDialog extends ConsumerStatefulWidget {
@@ -29,7 +31,7 @@ class _UnlockArticleDialogState extends ConsumerState<UnlockArticleDialog> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    final bool isPremium = ref.watch(isPremiumProvider);
+    final bool isPremium = ref.watch(isPremiumProvider as ProviderListenable<bool>);
     final bool isUnlocked = RewardedAdService().isArticleUnlocked(
       widget.articleUrl,
     );
@@ -54,7 +56,7 @@ class _UnlockArticleDialogState extends ConsumerState<UnlockArticleDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'This is a premium article',
+            loc.premiumArticleHint,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 16),
@@ -76,11 +78,11 @@ class _UnlockArticleDialogState extends ConsumerState<UnlockArticleDialog> {
           ),
 
           if (_adNotReady)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
               child: Text(
-                'Ad is loading, please wait...',
-                style: TextStyle(color: Colors.orange, fontSize: 12),
+                loc.adLoading,
+                style: const TextStyle(color: Colors.orange, fontSize: 12),
               ),
             ),
 
@@ -158,7 +160,7 @@ class _UnlockArticleDialogState extends ConsumerState<UnlockArticleDialog> {
 
   void _goToPremium() {
     Navigator.of(context).pop(false);
-    Navigator.of(context).pushNamed('/subscription');
+    context.push(AppPaths.subscriptionManagement);
   }
 }
 

@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:get_it/get_it.dart';
 import '../../domain/models/speech_chunk.dart';
 import '../../domain/models/tts_session.dart';
 import '../../domain/repositories/tts_repository.dart' show TtsRepository;
@@ -11,10 +10,10 @@ import '../../services/audio_cache_manager.dart';
 class TtsRepositoryImpl implements TtsRepository {
   
   TtsRepositoryImpl({
-    TtsDatabase? db,
-    AudioCacheManager? cacheManager,
-  }) : _db = db ?? GetIt.instance<TtsDatabase>(),
-       _cacheManager = cacheManager ?? GetIt.instance<AudioCacheManager>();
+    required TtsDatabase db,
+    required AudioCacheManager cacheManager,
+  }) : _db = db,
+       _cacheManager = cacheManager;
   final TtsDatabase _db;
   final AudioCacheManager _cacheManager;
 

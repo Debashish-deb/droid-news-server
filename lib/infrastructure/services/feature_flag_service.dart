@@ -1,8 +1,7 @@
 import 'remote_config_service.dart';
-import 'package:injectable/injectable.dart';
 
 /// Centralized service for feature flags and remote configuration.
-@lazySingleton
+
 class FeatureFlagService {
 
   FeatureFlagService(this._remoteConfig);

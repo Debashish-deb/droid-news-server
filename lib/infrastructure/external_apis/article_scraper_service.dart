@@ -1,12 +1,11 @@
 import '../../core/telemetry/structured_logger.dart';
-import 'package:injectable/injectable.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart';
 import 'package:flutter/foundation.dart';
 
 /// Service to extract full article content from web pages for offline reading
-@lazySingleton
+
 class ArticleScraperService {
 
   ArticleScraperService(this._client, this._logger);

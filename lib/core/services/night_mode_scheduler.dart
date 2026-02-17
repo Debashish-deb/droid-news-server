@@ -3,61 +3,65 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 
 /// Night mode scheduler service for automatic dark mode based on time
-class NightModeScheduler {
-  static const String _enabledKey = 'night_mode_schedule_enabled';
-  static const String _startTimeKey = 'night_mode_start_time';
-  static const String _endTimeKey = 'night_mode_end_time';
+const String _enabledNightModeKey = 'night_mode_schedule_enabled';
+const String _startTimeNightModeKey = 'night_mode_start_time';
+const String _endTimeNightModeKey = 'night_mode_end_time';
 
-  /// Default schedule: 8 PM to 6 AM
-  static const TimeOfDay defaultStartTime = TimeOfDay(hour: 20, minute: 0);
-  static const TimeOfDay defaultEndTime = TimeOfDay(hour: 6, minute: 0);
+/// Default schedule: 8 PM to 6 AM
+const TimeOfDay defaultNightModeStartTime = TimeOfDay(hour: 20, minute: 0);
+const TimeOfDay defaultNightModeEndTime = TimeOfDay(hour: 6, minute: 0);
+
+/// Night mode scheduler service for automatic dark mode based on time
+class NightModeScheduler {
+  NightModeScheduler._();
+  static final NightModeScheduler instance = NightModeScheduler._();
 
   /// Check if night mode schedule is enabled
-  static Future<bool> isScheduleEnabled() async {
+  Future<bool> isScheduleEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_enabledKey) ?? false;
+    return prefs.getBool(_enabledNightModeKey) ?? false;
   }
 
   /// Enable/disable night mode schedule
-  static Future<void> setScheduleEnabled(bool enabled) async {
+  Future<void> setScheduleEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_enabledKey, enabled);
+    await prefs.setBool(_enabledNightModeKey, enabled);
   }
 
   /// Get scheduled start time
-  static Future<TimeOfDay> getStartTime() async {
+  Future<TimeOfDay> getStartTime() async {
     final prefs = await SharedPreferences.getInstance();
-    final hour = prefs.getInt(_startTimeKey) ?? defaultStartTime.hour;
+    final hour = prefs.getInt(_startTimeNightModeKey) ?? defaultNightModeStartTime.hour;
     final minute =
-        prefs.getInt('${_startTimeKey}_minute') ?? defaultStartTime.minute;
+        prefs.getInt('${_startTimeNightModeKey}_minute') ?? defaultNightModeStartTime.minute;
     return TimeOfDay(hour: hour, minute: minute);
   }
 
   /// Set scheduled start time
-  static Future<void> setStartTime(TimeOfDay time) async {
+  Future<void> setStartTime(TimeOfDay time) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_startTimeKey, time.hour);
-    await prefs.setInt('${_startTimeKey}_minute', time.minute);
+    await prefs.setInt(_startTimeNightModeKey, time.hour);
+    await prefs.setInt('${_startTimeNightModeKey}_minute', time.minute);
   }
 
   /// Get scheduled end time
-  static Future<TimeOfDay> getEndTime() async {
+  Future<TimeOfDay> getEndTime() async {
     final prefs = await SharedPreferences.getInstance();
-    final hour = prefs.getInt(_endTimeKey) ?? defaultEndTime.hour;
+    final hour = prefs.getInt(_endTimeNightModeKey) ?? defaultNightModeEndTime.hour;
     final minute =
-        prefs.getInt('${_endTimeKey}_minute') ?? defaultEndTime.minute;
+        prefs.getInt('${_endTimeNightModeKey}_minute') ?? defaultNightModeEndTime.minute;
     return TimeOfDay(hour: hour, minute: minute);
   }
 
   /// Set scheduled end time
-  static Future<void> setEndTime(TimeOfDay time) async {
+  Future<void> setEndTime(TimeOfDay time) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_endTimeKey, time.hour);
-    await prefs.setInt('${_endTimeKey}_minute', time.minute);
+    await prefs.setInt(_endTimeNightModeKey, time.hour);
+    await prefs.setInt('${_endTimeNightModeKey}_minute', time.minute);
   }
 
   /// Check if current time is within night mode schedule
-  static Future<bool> shouldBeNightMode() async {
+  Future<bool> shouldBeNightMode() async {
     final enabled = await isScheduleEnabled();
     if (!enabled) return false;
 
@@ -69,7 +73,7 @@ class NightModeScheduler {
   }
 
   /// Check if time is within range (handles overnight ranges)
-  static bool _isTimeInRange(
+  bool _isTimeInRange(
     TimeOfDay current,
     TimeOfDay start,
     TimeOfDay end,
@@ -86,7 +90,7 @@ class NightModeScheduler {
   }
 
   /// Format TimeOfDay to string
-  static String formatTime(TimeOfDay time) {
+  String formatTime(TimeOfDay time) {
     final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
     final minute = time.minute.toString().padLeft(2, '0');
     final period = time.period == DayPeriod.am ? 'AM' : 'PM';
@@ -94,7 +98,7 @@ class NightModeScheduler {
   }
 
   /// Get next scheduled time for night mode
-  static Future<DateTime> getNextScheduledTime(bool isDarkMode) async {
+  Future<DateTime> getNextScheduledTime(bool isDarkMode) async {
     final now = DateTime.now();
     final start = await getStartTime();
     final end = await getEndTime();
@@ -124,8 +128,8 @@ class NightModeSchedulerNotifier extends ChangeNotifier {
     _startPeriodicCheck();
   }
   bool _isEnabled = false;
-  TimeOfDay _startTime = NightModeScheduler.defaultStartTime;
-  TimeOfDay _endTime = NightModeScheduler.defaultEndTime;
+  TimeOfDay _startTime = defaultNightModeStartTime;
+  TimeOfDay _endTime = defaultNightModeEndTime;
   Timer? _checkTimer;
 
   bool get isEnabled => _isEnabled;
@@ -133,9 +137,9 @@ class NightModeSchedulerNotifier extends ChangeNotifier {
   TimeOfDay get endTime => _endTime;
 
   Future<void> _loadSettings() async {
-    _isEnabled = await NightModeScheduler.isScheduleEnabled();
-    _startTime = await NightModeScheduler.getStartTime();
-    _endTime = await NightModeScheduler.getEndTime();
+    _isEnabled = await NightModeScheduler.instance.isScheduleEnabled();
+    _startTime = await NightModeScheduler.instance.getStartTime();
+    _endTime = await NightModeScheduler.instance.getEndTime();
     notifyListeners();
   }
 
@@ -145,7 +149,7 @@ class NightModeSchedulerNotifier extends ChangeNotifier {
     // Night mode transitions are not time-critical enough to warrant frequent checks
     _checkTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
       if (_isEnabled) {
-        final shouldBeDark = await NightModeScheduler.shouldBeNightMode();
+        await NightModeScheduler.instance.shouldBeNightMode();
         notifyListeners();
       }
     });
@@ -153,25 +157,25 @@ class NightModeSchedulerNotifier extends ChangeNotifier {
 
   Future<void> setEnabled(bool enabled) async {
     _isEnabled = enabled;
-    await NightModeScheduler.setScheduleEnabled(enabled);
+    await NightModeScheduler.instance.setScheduleEnabled(enabled);
     notifyListeners();
   }
 
   Future<void> setStartTime(TimeOfDay time) async {
     _startTime = time;
-    await NightModeScheduler.setStartTime(time);
+    await NightModeScheduler.instance.setStartTime(time);
     notifyListeners();
   }
 
   Future<void> setEndTime(TimeOfDay time) async {
     _endTime = time;
-    await NightModeScheduler.setEndTime(time);
+    await NightModeScheduler.instance.setEndTime(time);
     notifyListeners();
   }
 
   /// Check if night mode should be active right now
   Future<bool> shouldBeNightMode() async {
-    return NightModeScheduler.shouldBeNightMode();
+    return NightModeScheduler.instance.shouldBeNightMode();
   }
 
   @override

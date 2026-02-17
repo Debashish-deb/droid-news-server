@@ -1,123 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/premium_service.dart' as legacy_premium;
-import '../../domain/interfaces/subscription_repository.dart' show SubscriptionRepository;
-import '../../bootstrap/di/injection_container.dart' as di;
-import '../../core/providers.dart';
 import '../../domain/interfaces/subscription_repository.dart';
+import '../../core/di/providers.dart' as di;
 
 // ============================================================================
-// Premium/Subscription State Management
+// Premium/Subscription State Management (REFAC)
 // ============================================================================
 
-/// Premium state wrapping PremiumService for Riverpod
-class PremiumState {
-  const PremiumState({
-    this.isPremium = false,
-    this.tier = 'free',
-    this.unlockedFeatures = const [],
-  });
-  final bool isPremium;
-  final String tier;
-  final List<String> unlockedFeatures;
-
-  PremiumState copyWith({
-    bool? isPremium,
-    String? tier,
-    List<String>? unlockedFeatures,
-  }) {
-    return PremiumState(
-      isPremium: isPremium ?? this.isPremium,
-      tier: tier ?? this.tier,
-      unlockedFeatures: unlockedFeatures ?? this.unlockedFeatures,
-    );
-  }
-
-  /// Check if a specific feature is unlocked
-  bool hasFeature(String featureId) {
-    return isPremium || unlockedFeatures.contains(featureId);
-  }
-
-  bool get isFree => !isPremium;
-}
-
-/// Premium Notifier - wraps PremiumService for now
-class PremiumNotifier extends StateNotifier<PremiumState> {
-  PremiumNotifier(this._service) : super(const PremiumState()) {
-    _loadStatus();
-    _service.addListener(_onServiceChanged);
-  }
-  final legacy_premium.PremiumService _service;
-
-  void _loadStatus() {
-    state = PremiumState(
-      isPremium: _service.isPremium,
-      tier: _service.isPremium ? 'pro' : 'free',
-    );
-  }
-
-  void _onServiceChanged() {
-    _loadStatus();
-  }
-
-  Future<void> reload() async {
-    await _service.reloadStatus();
-    _loadStatus();
-  }
-
-  Future<void> setPremium(bool value) async {
-    await _service.setPremium(value);
-    _loadStatus();
-  }
-
-  @override
-  void dispose() {
-    _service.removeListener(_onServiceChanged);
-    super.dispose();
-  }
-}
-
-/// Global premium service instance (from main.dart)
-/// This is a temporary provider until we fully migrate PremiumService
-final legacyPremiumServiceProvider = Provider.autoDispose<legacy_premium.PremiumService>((ref) {
-  return di.sl<legacy_premium.PremiumService>();
-});
-
-// ============================================================================
-// Premium State Provider - Watches actual PremiumService
-// ============================================================================
-
-/// Premium state provider - bridges to legacy PremiumService until full migration
-/// This is a workaround: we watch SharedPreferences and rebuild when it changes
-final premiumStatusProvider = Provider<bool>((ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return prefs.getBool('is_premium') ?? false;
-});
-
-/// Convenience provider for premium status
-final isPremiumProvider = Provider<bool>((ref) {
-  return ref.watch(premiumStatusProvider);
-});
-
-/// Provides just the tier name
-final tierNameProvider = Provider<String>((ref) {
-  final isPremium = ref.watch(isPremiumProvider);
-  return isPremium ? 'pro' : 'free';
-});
-
-/// Provider family to check if a specific feature is available
-final hasFeatureProvider = Provider.family<bool, String>((ref, featureId) {
-  final isPremium = ref.watch(isPremiumProvider);
-  return isPremium;
-});
+// Providers here are mostly legacy wrappers or convenience re-exports.
+// Real logic is now in core/di/providers.dart and premium_providers.dart.
 
 // NOTE: This is a transitional provider setup.
-// For full clean architecture, we should:
-// 1. Create SubscriptionRepository implementation ✅ DONE
-// 2. Create CheckSubscriptionStatusUseCase
-// 3. Create proper SubscriptionNotifier with Either<Failure, Subscription>
-// 4. Remove dependency on global PremiumService
-
-// For now, this provides a Riverpod interface to the existing service
 
 // ============================================================================
 // NEW: Subscription Repository Provider
@@ -125,5 +17,5 @@ final hasFeatureProvider = Provider.family<bool, String>((ref, featureId) {
 
 /// Provider for SubscriptionRepository
 final subscriptionRepositoryProvider = Provider<SubscriptionRepository>((ref) {
-  return di.sl<SubscriptionRepository>();
+  return ref.watch(di.subscriptionRepositoryProvider);
 });

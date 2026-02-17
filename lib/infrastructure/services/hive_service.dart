@@ -1,18 +1,19 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter/foundation.dart';
 import '../network/app_network_service.dart'; 
-import '../../bootstrap/di/injection_container.dart' show sl;
+
 import '../persistence/models/publisher_layout_model.dart' show PublisherLayoutModelAdapter;
 import '../persistence/news_article.dart';
 
 class HiveService {
-  HiveService._(); 
+  HiveService(this._networkService);
+  final AppNetworkService _networkService;
 
   static bool _initialized = false;
 
   static const int _CACHE_VERSION = 2; 
 
-  static Future<void> init(List<String> categories) async {
+  Future<void> init(List<String> categories) async {
     if (_initialized) return;
 
     await Hive.initFlutter();
@@ -45,7 +46,7 @@ class HiveService {
     _initialized = true;
   }
 
-  static bool hasArticles(String key) {
+  bool hasArticles(String key) {
     try {
       if (!Hive.isBoxOpen(key)) return false;
       final Box<NewsArticleModel> box = Hive.box<NewsArticleModel>(key);
@@ -58,7 +59,7 @@ class HiveService {
     }
   }
 
-  static List<NewsArticleModel> getArticles(String key) {
+  List<NewsArticleModel> getArticles(String key) {
     try {
       if (!Hive.isBoxOpen(key)) return <NewsArticleModel>[];
       return Hive.box<NewsArticleModel>(key).values.toList();
@@ -70,7 +71,7 @@ class HiveService {
     }
   }
 
-  static bool isExpired(String key) {
+  bool isExpired(String key) {
     try {
       final String metaBoxKey = "${key}_meta";
       if (!Hive.isBoxOpen(metaBoxKey)) return true;
@@ -83,7 +84,7 @@ class HiveService {
       final int age = DateTime.now().millisecondsSinceEpoch - timestamp;
 
       
-      final Duration cacheDuration = sl<AppNetworkService>().getCacheDuration();
+      final Duration cacheDuration = _networkService.getCacheDuration();
 
       return age > cacheDuration.inMilliseconds;
     } catch (e) {
@@ -92,7 +93,7 @@ class HiveService {
     }
   }
 
-  static Future<void> saveArticles(String key, List<NewsArticleModel> data) async {
+  Future<void> saveArticles(String key, List<NewsArticleModel> data) async {
     try {
       if (data.isEmpty) return;
 
@@ -127,7 +128,7 @@ class HiveService {
   }
 
 
-  static Future<void> addFavorite(NewsArticleModel article) async {
+  Future<void> addFavorite(NewsArticleModel article) async {
     try {
       final box = Hive.box<NewsArticleModel>('favorites');
       await box.put(article.url, article);
@@ -136,7 +137,7 @@ class HiveService {
     }
   }
 
-  static Future<void> removeFavorite(String articleId) async {
+  Future<void> removeFavorite(String articleId) async {
     try {
       final box = Hive.box<NewsArticleModel>('favorites');
       await box.delete(articleId);
@@ -145,19 +146,19 @@ class HiveService {
     }
   }
 
-  static bool isFavorite(String articleId) {
+  bool isFavorite(String articleId) {
     if (!Hive.isBoxOpen('favorites')) return false;
     final box = Hive.box<NewsArticleModel>('favorites');
     return box.containsKey(articleId);
   }
 
-  static List<NewsArticleModel> getFavorites() {
+  List<NewsArticleModel> getFavorites() {
     if (!Hive.isBoxOpen('favorites')) return [];
     final box = Hive.box<NewsArticleModel>('favorites');
     return box.values.toList();
   }
 
-  static NewsArticleModel? findArticleById(String id) {
+  NewsArticleModel? findArticleById(String id) {
     if (isFavorite(id)) {
        return Hive.box<NewsArticleModel>('favorites').get(id);
     }

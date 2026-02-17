@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 
 import '../../../../core/enums/theme_mode.dart';
 import '../../../../core/theme.dart';
@@ -37,11 +38,12 @@ class _MagazineCardState extends ConsumerState<MagazineCard>
         widget.magazine['contact']?['website'] as String? ??
         widget.magazine['url'] as String? ??
         '';
-    final String title = widget.magazine['name'] as String? ?? 'Magazine';
+    final loc = AppLocalizations.of(context)!;
+    final String title = widget.magazine['name'] as String? ?? loc.unknownMagazine;
     if (url.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('No URL available')));
+      ).showSnackBar(SnackBar(content: Text(loc.noUrlAvailable)));
       return;
     }
     context.push(
@@ -55,8 +57,9 @@ class _MagazineCardState extends ConsumerState<MagazineCard>
     return id != null ? 'assets/logos/$id.png' : null;
   }
 
-  void _share() {
-    final String title = widget.magazine['name'] as String? ?? 'Magazine';
+  void _share(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final String title = widget.magazine['name'] as String? ?? loc.unknownMagazine;
     final String url = widget.magazine['contact']?['website'] as String? ?? '';
     if (url.isNotEmpty) Share.share('$title\n$url');
   }
@@ -233,7 +236,7 @@ class _MagazineCardState extends ConsumerState<MagazineCard>
                                   mode == AppThemeMode.dark
                                       ? Colors.white70
                                       : Colors.black54,
-                              onPressed: _share,
+                               onPressed: () => _share(context),
                               visualDensity: VisualDensity.compact,
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),

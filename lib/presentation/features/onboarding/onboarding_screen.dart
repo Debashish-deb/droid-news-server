@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -16,14 +17,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   int _currentIndex = 0;
 
-  final List<_OnboardingPage> _pages = const <_OnboardingPage>[
-    _OnboardingPage(
-      title: 'Welcome to BD News',
-      description:
-          'Your trusted source for latest news, live updates, and personalized feeds.',
-      animationAsset: 'assets/lottie/news.json',
-    ),
-  ];
+  List<_OnboardingPage> _getPages(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    return <_OnboardingPage>[
+      _OnboardingPage(
+        title: loc.onboardingWelcome,
+        description: loc.appDescription,
+        animationAsset: 'assets/lottie/news.json',
+      ),
+    ];
+  }
 
   Future<void> _completeOnboarding() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -31,9 +34,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (mounted) context.go('/login');
   }
 
-  void _nextPage() {
+  void _nextPage(int pagesCount) {
     HapticFeedback.lightImpact();
-    if (_currentIndex < _pages.length - 1) {
+    if (_currentIndex < pagesCount - 1) {
       _controller.nextPage(
         duration: const Duration(milliseconds: 420),
         curve: Curves.easeOutCubic,
@@ -47,6 +50,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme cs = theme.colorScheme;
+    final loc = AppLocalizations.of(context)!;
+    final pages = _getPages(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -119,12 +124,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Expanded(
                 child: PageView.builder(
                   controller: _controller,
-                  itemCount: _pages.length,
+                  itemCount: pages.length,
                   onPageChanged: (int index) {
                     setState(() => _currentIndex = index);
                   },
                   itemBuilder: (BuildContext context, int index) {
-                    final _OnboardingPage page = _pages[index];
+                    final _OnboardingPage page = pages[index];
                     return _OnboardingCard(page: page);
                   },
                 ),
@@ -135,12 +140,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 padding: const EdgeInsets.fromLTRB(32, 0, 32, 48),
                 child: Column(
                   children: <Widget>[
-                    if (_pages.length > 1)
+                    if (pages.length > 1)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 32),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(_pages.length, (int idx) {
+                          children: List.generate(pages.length, (int idx) {
                             final bool selected = idx == _currentIndex;
                             return AnimatedContainer(
                               duration: const Duration(milliseconds: 300),
@@ -164,7 +169,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: _nextPage,
+                        onPressed: () => _nextPage(pages.length),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: cs.primary,
                           foregroundColor: Colors.white,
@@ -175,9 +180,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                         ),
                         child: Text(
-                          _currentIndex == _pages.length - 1
-                              ? 'Get Started'
-                              : 'Continue',
+                          _currentIndex == pages.length - 1
+                              ? loc.getStarted
+                              : loc.continueBtn,
                           style: theme.textTheme.titleMedium?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,

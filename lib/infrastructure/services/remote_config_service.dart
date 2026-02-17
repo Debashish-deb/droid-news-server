@@ -2,16 +2,16 @@ import 'dart:convert' show jsonDecode, jsonEncode;
 
 import '../../core/telemetry/structured_logger.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart' show FirebaseRemoteConfig, RemoteConfigSettings;
-import 'package:injectable/injectable.dart';
 
 // Wrapper for Firebase Remote Config
-@lazySingleton
+
 class RemoteConfigService {
   factory RemoteConfigService() => _instance;
   RemoteConfigService._internal();
   static final RemoteConfigService _instance = RemoteConfigService._internal();
 
   final FirebaseRemoteConfig _remoteConfig = FirebaseRemoteConfig.instance;
+  FirebaseRemoteConfig get remoteConfig => _remoteConfig;
   final _logger = StructuredLogger();
   bool _initialized = false;
 
