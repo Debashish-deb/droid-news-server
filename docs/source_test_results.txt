@@ -1,0 +1,194 @@
+🧱 INTEGRATION STRATEGY (SAFE FOR PRODUCTION)
+
+We will not touch your existing business logic.
+
+We will:
+
+Add → Not Replace
+Wrap → Not Rewrite
+Extend → Not Break
+
+🏗 FINAL ARCHITECTURE ADDITIONS
+
+Add this new feature module:
+
+lib/features/publisher_layout/
+ ├── domain/
+ │    └── publisher_layout_entity.dart
+ │
+ ├── data/
+ │    ├── publisher_layout_storage.dart
+ │    └── publisher_layout_repository.dart
+ │
+ ├── state/
+ │    └── publisher_layout_controller.dart
+ │
+ ├── ui/
+ │    ├── draggable_publisher_grid.dart
+ │    ├── publisher_tile.dart
+ │    └── edit_mode_overlay.dart
+ │
+ └── animation/
+      ├── spring_config.dart
+      └── jiggle_animation.dart
+
+🧬 DOMAIN — DATA MODEL
+publisher_layout_entity.dart
+class PublisherLayoutEntity {
+  final String publisherId;
+  final int position;
+
+  PublisherLayoutEntity({
+    required this.publisherId,
+    required this.position,
+  });
+}
+
+
+We store layout separately from content — clean architecture.
+
+💾 DATA — STORAGE LAYER (USING DRIFT / HIVE / ISAR)
+
+Since you already use Drift, let's integrate cleanly.
+
+publisher_layout_storage.dart
+class PublisherLayoutStorage {
+  final AppDatabase db;
+
+  PublisherLayoutStorage(this.db);
+
+  Future<List<String>> loadOrder() async {
+    final rows = await db.publisherLayoutDao.getLayout();
+    return rows.map((e) => e.publisherId).toList();
+  }
+
+  Future<void> saveOrder(List<String> ids) async {
+    await db.publisherLayoutDao.saveLayout(ids);
+  }
+}
+
+🧠 STATE — CONTROLLER (Riverpod Compatible)
+publisher_layout_controller.dart
+class PublisherLayoutController extends StateNotifier<List<String>> {
+  final PublisherLayoutStorage storage;
+
+  PublisherLayoutController(this.storage) : super([]);
+
+  Future<void> load(List<String> defaultIds) async {
+    final saved = await storage.loadOrder();
+    state = saved.isEmpty ? defaultIds : saved;
+  }
+
+  void reorder(int from, int to) {
+    final list = [...state];
+    final item = list.removeAt(from);
+    list.insert(to, item);
+    state = list;
+    storage.saveOrder(state);
+  }
+}
+
+🎮 UI — DRAGGABLE GRID (PRODUCTION-GRADE)
+draggable_publisher_grid.dart
+class DraggablePublisherGrid extends ConsumerWidget {
+  final List<Publisher> publishers;
+
+  const DraggablePublisherGrid({super.key, required this.publishers});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final order = ref.watch(publisherLayoutProvider);
+    final controller = ref.read(publisherLayoutProvider.notifier);
+
+    final ordered = order
+        .map((id) => publishers.firstWhere((p) => p.id == id))
+        .toList();
+
+    return ReorderableWrap(
+      spacing: 12,
+      runSpacing: 12,
+      needsLongPressDraggable: true,
+      onReorder: controller.reorder,
+      children: ordered.map((p) {
+        return PublisherTile(publisher: p, key: ValueKey(p.id));
+      }).toList(),
+    );
+  }
+}
+
+
+We use reorderables package → smooth + stable + battle-tested.
+
+📦 ADD REQUIRED PACKAGES
+dependencies:
+  reorderables: ^0.6.0
+  flutter_haptic_feedback: ^1.0.1
+
+🎨 UI — TILE + JIGGLE ANIMATION
+publisher_tile.dart
+class PublisherTile extends StatefulWidget {
+  final Publisher publisher;
+
+  const PublisherTile({super.key, required this.publisher});
+
+  @override
+  State<PublisherTile> createState() => _PublisherTileState();
+}
+
+class _PublisherTileState extends State<PublisherTile>
+    with SingleTickerProviderStateMixin {
+
+  late AnimationController _jiggle;
+
+  @override
+  void initState() {
+    super.initState();
+    _jiggle = AnimationController(
+    [DEAD] Anandamela (mg-bn-1): https://bonghaat.com/books/magazines/anandamela.html -> 404
+[DEAD] Desh (mg-bn-4): https://bonghaat.com/books/magazines/desh.html -> 404
+[DEAD] Bartika (mg-bn-5): https://www.bartika.in/ -> [Errno 8] nodename nor servname provided, or not known
+[DEAD] Kali O Kolom (mg-bn-6): https://kaliokolom.com -> [Errno 8] nodename nor servname provided, or not known
+
+==============================
+Found 41 dead links:
+- [newspapers] Samakal (bd-bn-7): https://samakal.com/ (Reason: 403)
+- [newspapers] Amader Shomoy (bd-bn-9): https://dailyshomoy.com/ (Reason: timed out)
+- [newspapers] Chittagong Post (bd-bn-13): https://www.thechittagongpost.com/ (Reason: [Errno 8] nodename nor servname provided, or not known)
+- [newspapers] Bangla Tribune (bd-bn-14): https://www.banglatribune.com/ (Reason: 403)
+- [newspapers] Alokito Bangladesh (bd-bn-32): [Alokito Bangladesh](http://www.alokitobangladesh.com/) (Reason: unknown url type: [alokito bangladesh](http)
+- [newspapers] Daily Sangram (bd-bn-33): [Daily Sangram](https://www.loc.gov/item/lcwaN0032135/) (Reason: unknown url type: [daily sangram](https)
+- [newspapers] Ajker Patrika (bd-bn-34): [Ajker Patrika](https://webcatalog.io/en/apps/ajker-patrika) (Reason: unknown url type: [ajker patrika](https)
+- [newspapers] Daily Dinkal (bd-bn-37): [Daily Dinkal](https://en.wikipedia.org/wiki/The_Daily_Dinkal) (Reason: unknown url type: [daily dinkal](https)
+- [newspapers] Ajker Bazar (bd-bn-38): [Ajker Bazar](https://ajkeerbazar.com/) (Reason: unknown url type: [ajker bazar](https)
+- [newspapers] Daily Nabochatona (bd-bn-39): [Daily Nabochatona](https://dailynabochatona.com/) (Reason: unknown url type: [daily nabochatona](https)
+- [newspapers] Daily Naya Shatabdi (bd-bn-40): [India Rail Info](https://d.indiarailinfo.com/blog/post/indianrail-indian-railway-irctc-enquiry/6616963) (Reason: unknown url type: [india rail info](https)
+- [newspapers] Kalbela (bd-bn-41): https://www.dailykalbela.com/ (Reason: _ssl.c:1011: The handshake operation timed out)
+- [newspapers] GonoKantha (bd-bn-42): https://www.dailigonokantho.com/ (Reason: [Errno 8] nodename nor servname provided, or not known)
+- [newspapers] Desh Rupantor (bd-bn-43): https://www.deshrupantor.net/ (Reason: [Errno 8] nodename nor servname provided, or not known)
+- [newspapers] Daily Suprobhat (bd-bn-44): https://www.dailysuprobhat.com/ (Reason: [Errno 8] nodename nor servname provided, or not known)
+- [newspapers] Dainik Shiksha (bd-bn-45): https://www.dainikshiksha.com/ (Reason: 403)
+- [newspapers] Tritiya Matra (bd-bn-47): https://tritiyamatra.com.bd/ (Reason: [Errno 8] nodename nor servname provided, or not known)
+- [newspapers] The Wall Street Journal (biz-2): https://www.wsj.com/news/markets (Reason: 401)
+- [newspapers] Bloomberg News (biz-3): https://www.bloomberg.com/ (Reason: 403)
+- [newspapers] Business Standard (biz-6): https://www.business-standard.com/ (Reason: 403)
+- [newspapers] Nikkei Asia – Markets Section (biz-7): https://asia.nikkei.com/Markets (Reason: 500)
+- [newspapers] Amader Orthoniti (biz-10): https://www.amaderorthoniti.com/ (Reason: [Errno 8] nodename nor servname provided, or not known)
+- [newspapers] Anandabazar Patrika (in-bn-1): https://www.anandabazar.com/ (Reason: 403)
+- [newspapers] The Washington Post (int-2): https://www.washingtonpost.com/world (Reason: Timeout)
+- [newspapers] Indian Express – World (int-7): https://indianexpress.com/section/world/ (Reason: 403)
+- [newspapers] Reuters World News (int-11): https://www.reuters.com/world (Reason: 401)
+- [newspapers] Gadgets 360 (tech-12): https://gadgets.ndtv.com/ (Reason: 403)
+- [newspapers] TechShohor (tech-13): https://techshohor.com/ (Reason: 403)
+- [newspapers] Sports Illustrated India (sport-6): https://www.si.com/in (Reason: 404)
+- [newspapers] BdCricketTalk (sport-12): https://bdcrickettalk.com/ (Reason: [Errno 8] nodename nor servname provided, or not known)
+- [newspapers] Force Magazine (pol-5): https://www.forceindia.net/ (Reason: 500)
+- [magazines] Spirituality & Health (mg-en-14): https://spiritualityhealth.com/ (Reason: 403)
+- [magazines] Bloomberg Businessweek (mg-en-30): https://www.bloomberg.com/businessweek (Reason: 403)
+- [magazines] Fast Company (mg-en-32): https://www.fastcompany.com/ (Reason: 403)
+- [magazines] Inc. (mg-en-33): https://www.inc.com/ (Reason: 403)
+- [magazines] PCMag (mg-en-36): https://www.pcmag.com/ (Reason: 403)
+- [magazines] Golf Digest (mg-en-48): https://www.golfdigest.com/ (Reason: 403)
+- [magazines] Anandamela (mg-bn-1): https://bonghaat.com/books/magazines/anandamela.html (Reason: 404)
+- [magazines] Desh (mg-bn-4): https://bonghaat.com/books/magazines/desh.html (Reason: 404)
+- [magazines] Bartika (mg-bn-5): https://www.bartika.in/ (Reason: [Errno 8] nodename nor servname provided, or not known)
+- [magazines] Kali O Kolom (mg-bn-6): https://kaliokolom.com (Reason: [Errno 8] nodename nor servname provided, or not known)

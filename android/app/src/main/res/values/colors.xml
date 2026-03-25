@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        ╔══════════════════════════════════════════════════════════════════╗
+        ║  BD Info Hub — Bangladesh Flag Color System                     ║
+        ║                                                                  ║
+        ║  Flag colors (Government of Bangladesh official spec):           ║
+        ║    Green  #006A4E  — Pantone 356 C  — the field                 ║
+        ║    Red    #F42A41  — Pantone 185 C  — the disc                  ║
+        ║                                                                  ║
+        ║  Extended palette: deep forest greens + warm crimsons +         ║
+        ║  clean off-white surfaces for a premium news feel.              ║
+        ╚══════════════════════════════════════════════════════════════════╝
+    -->
+
+
+    <!-- ─── FLAG HERO COLORS ──────────────────────────────────────── -->
+    <color name="flag_green">#006A4E</color>      <!-- ★ Official BD flag green            -->
+    <color name="flag_red">#F42A41</color>        <!-- ★ Official BD flag red disc         -->
+
+
+    <!-- ─── GREEN SCALE ───────────────────────────────────────────── -->
+    <color name="green_950">#001F17</color>       <!-- deepest forest — drawer headers     -->
+    <color name="green_900">#003D2C</color>       <!-- very dark green — app bars          -->
+    <color name="green_800">#005240</color>       <!-- dark green — active states          -->
+    <color name="green_700">#006A4E</color>       <!-- ★ flag green — primary brand        -->
+    <color name="green_600">#007D5C</color>       <!-- hover / lighter CTA                 -->
+    <color name="green_500">#009169</color>       <!-- secondary buttons                   -->
+    <color name="green_300">#4DB88A</color>       <!-- chip backgrounds, tags              -->
+    <color name="green_100">#C2E8D9</color>       <!-- tinted surfaces, success bg         -->
+    <color name="green_050">#E8F6F1</color>       <!-- subtle green wash on cards          -->
+
+
+    <!-- ─── RED SCALE ─────────────────────────────────────────────── -->
+    <color name="red_900">#8C0010</color>         <!-- deep crimson — error pressed        -->
+    <color name="red_700">#C4142A</color>         <!-- darker red — pressed CTA            -->
+    <color name="red_600">#DC2138</color>         <!-- hover state                         -->
+    <color name="red_500">#F42A41</color>         <!-- ★ flag red — breaking, badges, FAB  -->
+    <color name="red_400">#F75568</color>         <!-- lighter accent                      -->
+    <color name="red_100">#FCD4D9</color>         <!-- error tint bg                       -->
+    <color name="red_050">#FEF0F2</color>         <!-- ultra-light red wash                -->
+
+
+    <!-- ─── SPLASH & WINDOW ────────────────────────────────────────── -->
+
+    <!-- Official flag green = rich, saturated, instantly recognisable  -->
+    <color name="splash_background">#006A4E</color>
+
+    <!-- Launcher icon uses same green field + white/red logo            -->
+    <color name="ic_launcher_background">#006A4E</color>
+    <color name="ic_launcher_foreground">#FFFFFF</color>
+
+    <!-- After Flutter takes over — clean off-white, not harsh white     -->
+    <color name="window_background">#F4F8F6</color>
+
+    <!-- Transparent system bars -->
+    <color name="status_bar_transparent">#00000000</color>
+    <color name="nav_bar_transparent">#00000000</color>
+
+
+    <!-- ─── SURFACES ───────────────────────────────────────────────── -->
+    <color name="surface_primary">#FFFFFF</color>
+    <color name="surface_secondary">#F4F8F6</color>    <!-- green-tinted scaffold            -->
+    <color name="surface_tertiary">#EBF4F0</color>     <!-- section separators              -->
+    <color name="surface_overlay">#E2EFE9</color>      <!-- hover / pressed                 -->
+    <color name="dialog_background">#FFFFFF</color>
+
+
+    <!-- ─── TEXT ───────────────────────────────────────────────────── -->
+    <color name="text_primary">#0D1F18</color>         <!-- very dark green-black headlines  -->
+    <color name="text_secondary">#3D5C4D</color>       <!-- subtitles, meta                 -->
+    <color name="text_tertiary">#7A9E8E</color>        <!-- placeholders, timestamps        -->
+    <color name="text_on_dark">#F4F8F6</color>         <!-- text on green surfaces          -->
+    <color name="text_on_dark_secondary">#A8CCB8</color>
+    <color name="text_accent">#F42A41</color>          <!-- active labels, highlights       -->
+    <color name="text_link">#006A4E</color>            <!-- hyperlinks                      -->
+
+
+    <!-- ─── SEMANTIC ──────────────────────────────────────────────── -->
+    <color name="color_success">#006A4E</color>        <!-- reuse flag green for success    -->
+    <color name="color_success_bg">#E8F6F1</color>
+    <color name="color_warning">#D4870A</color>
+    <color name="color_warning_bg">#FEF5E6</color>
+    <color name="color_error">#F42A41</color>          <!-- reuse flag red for errors       -->
+    <color name="color_error_bg">#FEF0F2</color>
+    <color name="color_info">#1E67C6</color>
+    <color name="color_info_bg">#E8F0FC</color>
+
+    <!-- Badges — flag red for breaking/live, green for positive tags   -->
+    <color name="badge_breaking">#F42A41</color>
+    <color name="badge_live">#F42A41</color>
+    <color name="badge_exclusive">#006A4E</color>
+    <color name="badge_opinion">#3D5C4D</color>
+
+
+    <!-- ─── SHIMMER ────────────────────────────────────────────────── -->
+    <color name="shimmer_base">#D8EDE5</color>
+    <color name="shimmer_highlight">#EBF5F0</color>
+
+
+    <!-- ─── DIVIDERS & BORDERS ─────────────────────────────────────── -->
+    <color name="divider">#D0E8DD</color>
+    <color name="divider_strong">#A8CCBA</color>
+    <color name="border_input">#B8D9CC</color>
+    <color name="border_focus">#006A4E</color>
+
+
+    <!-- ─── RIPPLE ─────────────────────────────────────────────────── -->
+    <color name="ripple_green">#1A006A4E</color>       <!-- 10 % flag green ripple          -->
+    <color name="ripple_red">#1AF42A41</color>         <!-- 10 % flag red ripple            -->
+    <color name="ripple_light">#1A006A4E</color>
+
+
+    <!-- ─── ELEVATION OVERLAYS ─────────────────────────────────────── -->
+    <color name="elevation_01dp">#F2F9F6</color>
+    <color name="elevation_02dp">#EEF7F3</color>
+    <color name="elevation_04dp">#E8F4EE</color>
+    <color name="elevation_08dp">#E0EFE8</color>
+
+
+    <!-- ─── FALLBACKS (Required for Night Mode compatibility) ─────── -->
+    <color name="window_background_night">#F4F8F6</color>
+    <color name="dialog_background_night">#FFFFFF</color>
+
+    <!-- Brand Navy Fallbacks (mapped to standard brand palette or surface) -->
+    <color name="brand_navy_900">#0D1F18</color>
+    <color name="brand_navy_800">#1A2F28</color>
+    <color name="brand_navy_700">#006A4E</color>
+    <color name="brand_navy_600">#007D5C</color>
+    <color name="brand_navy_500">#009169</color>
+    <color name="brand_navy_400">#4DB88A</color>
+    <color name="brand_navy_100">#C2E8D9</color>
+    <color name="brand_navy_050">#E8F6F1</color>
+
+    <!-- Accent Gold Fallbacks -->
+    <color name="accent_gold_700">#A07828</color>
+    <color name="accent_gold_600">#B58C32</color>
+    <color name="accent_gold">#C9A84C</color>
+    <color name="accent_gold_400">#D9BE78</color>
+    <color name="accent_gold_200">#F7E8C4</color>
+    <color name="accent_gold_050">#FFF9E6</color>
+
+    <!-- Ripple Fallbacks -->
+    <color name="ripple_dark">#1A0D1F18</color>
+    <color name="ripple_gold">#1AC9A84C</color>
+
+</resources>

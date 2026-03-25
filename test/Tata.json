@@ -1,0 +1,433 @@
+
+{
+  "id": "bd-bn-32",
+  "name": "Alokito Bangladesh",
+  "description": null,
+  "type": "newspaper",
+  "country": "BD",
+  "language": "bn",
+  "region": "national",
+  "founded": null,
+  "headquarters": "N/A",
+  "founder": "N/A",
+  "premium": false,
+  "formats": [
+    "print",
+    "web",
+    "epaper"
+  ],
+  "coverage": {
+    "national": null
+  },
+  "contact": {
+    "website": "[Alokito Bangladesh](http://www.alokitobangladesh.com/)",
+    "email": null,
+    "phone": null
+  },
+  "social": {
+    "facebook": null,
+    "twitter": null,
+    "instagram": null,
+    "youtube": "[NEWS24](https://www.youtube.com/watch?v=7t_a99st-II)",
+    "linkedin": null
+  },
+  "media": {
+    "logo": null,
+    "logo_small": null,
+    "logo_medium": null
+  },
+  "metadata": {
+    "awards": [],
+    "circulation": "N/A",
+    "parent_company": "N/A"
+  },
+  "tags": [
+    "bangla",
+    "national",
+    "bd"
+  ]
+},
+{
+  "id": "bd-bn-34",
+  "name": "Daily Sangram",
+  "description": null,
+  "type": "newspaper",
+  "country": "BD",
+  "language": "bn",
+  "region": "national",
+  "founded": null,
+  "headquarters": "N/A",
+  "founder": "N/A",
+  "premium": false,
+  "formats": [
+    "print",
+    "web",
+    "epaper"
+  ],
+  "coverage": {
+    "national": null
+  },
+  "contact": {
+    "website": "[Daily Sangram](https://www.loc.gov/item/lcwaN0032135/)",
+    "email": null,
+    "phone": null
+  },
+  "social": {
+    "facebook": "[Facebook Page](https://www.facebook.com/dailysangram)",
+    "twitter": "[Twitter Page](https://twitter.com/dailysangram)",
+    "instagram": null,
+    "youtube": null,
+    "linkedin": null
+  },
+  "media": {
+    "logo": null,
+    "logo_small": null,
+    "logo_medium": null
+  },
+  "metadata": {
+    "awards": [],
+    "circulation": "N/A",
+    "parent_company": "N/A"
+  },
+  "tags": [
+    "bangla",
+    "national",
+    "bd"
+  ]
+},
+{
+  "id": "bd-bn-38",
+  "name": "Ajker Patrika",
+  "description": null,
+  "type": "newspaper",
+  "country": "BD",
+  "language": "bn",
+  "region": "national",
+  "founded": null,
+  "headquarters": "N/A",
+  "founder": "N/A",
+  "premium": false,
+  "formats": [
+    "print",
+    "web",
+    "epaper"
+  ],
+  "coverage": {
+    "national": null
+  },
+  "contact": {
+    "website": "[Ajker Patrika](https://webcatalog.io/en/apps/ajker-patrika)",
+    "email": null,
+    "phone": null
+  },
+ "social": {
+    "facebook": "[Facebook Page](https://www.facebook.com/ajpbd)",
+    "twitter": null,
+    "instagram": "[Instagram](https://www.instagram.com/ajkerpatrikabd)",
+    "youtube": null,
+    "linkedin": "[LinkedIn](https://www.linkedin.com/company/ajpbd/)"
+  },
+  "media": {
+    "logo": null,
+    "logo_small": null,
+    "logo_medium": null
+  },
+  "metadata": {
+    "awards": [],
+    "circulation": "N/A",
+    "parent_company": "N/A"
+  },
+  "tags": [
+    "bangla",
+    "national",
+    "bd"
+  ]
+},
+{
+  "id": "bd-bn-41",
+  "name": "Bangladesher Khabor",
+  "description": null,
+  "type": "newspaper",
+  "country": "BD",
+  "language": "bn",
+  "region": "national",
+  "founded": null,
+  "headquarters": "N/A",
+  "founder": "N/A",
+  "premium": false,
+  "formats": [
+    "print",
+    "web",
+    "epaper"
+  ],
+  "coverage": {
+    "national": null
+  },
+  "contact": {
+    "website": null,
+    "email": null,
+    "phone": null
+  },
+  "social": {
+    "facebook": null,
+    "twitter": null,
+    "instagram": null,
+     "youtube": "[ATN Bangla News](https://m.youtube.com/watch?v=_kWWw2d3Lzo)",
+    "linkedin": null
+  },
+  "media": {
+    "logo": null,
+    "logo_small": null,
+    "logo_medium": null
+  },
+  "metadata": {
+    "awards": [],
+    "circulation": "N/A",
+    "parent_company": "N/A"
+  },
+  "tags": [
+    "bangla",
+    "national",
+    "bd"
+  ]
+},
+{
+  "id": "bd-bn-45",
+  "name": "Amadar Orthoneeti",
+  "description": null,
+  "type": "newspaper",
+  "country": "BD",
+  "language": "bn",
+  "region": "national",
+  "founded": null,
+  "headquarters": "N/A",
+  "founder": "N/A",
+  "premium": false,
+  "formats": [
+    "print",
+    "web",
+    "epaper"
+  ],
+  "coverage": {
+    "national": null
+  },
+  "contact": {
+    "website": "[Patriot Global](https://patriot-global.com/about-us/)",
+    "email": null,
+    "phone": null
+  },
+  "social": {
+    "facebook": null,
+    "twitter": null,
+    "instagram": null,
+    "youtube": null,
+    "linkedin": null
+  },
+  "media": {
+    "logo": null,
+    "logo_small": null,
+    "logo_medium": null
+  },
+  "metadata": {
+    "awards": [],
+    "circulation": "N/A",
+    "parent_company": "N/A"
+  },
+  "tags": [
+    "bangla",
+    "national",
+    "bd"
+  ]
+},
+{
+  "id": "bd-bn-50",
+  "name": "Daily Dinkal",
+  "description": null,
+  "type": "newspaper",
+  "country": "BD",
+  "language": "bn",
+  "region": "national",
+  "founded": 1986,
+  "headquarters": "Tejgaon, Dhaka",
+  "founder": "Sanaulah Nuri",
+  "premium": false,
+  "formats": [
+    "print",
+    "web",
+    "epaper"
+  ],
+  "coverage": {
+    "national": null
+  },
+  "contact": {
+    "website": "[Daily Dinkal](https://en.wikipedia.org/wiki/The_Daily_Dinkal)",
+    "email": null,
+    "phone": null
+  },
+  "social": {
+    "facebook": null,
+    "twitter": null,
+    "instagram": null,
+    "youtube": null,
+    "linkedin": null
+  },
+  "media": {
+    "logo": null,
+    "logo_small": null,
+    "logo_medium": null
+  },
+  "metadata": {
+    "awards": [],
+    "circulation": "15,580",
+    "parent_company": "Tarek Rahman"
+  },
+  "tags": [
+    "bangla",
+    "national",
+    "bd"
+  ]
+},
+{
+  "id": "bd-bn-51",
+  "name": "Ajker Bazar",
+  "description": null,
+  "type": "newspaper",
+  "country": "BD",
+  "language": "bn",
+  "region": "national",
+  "founded": null,
+  "headquarters": "N/A",
+  "founder": "N/A",
+  "premium": false,
+  "formats": [
+    "print",
+    "web",
+    "epaper"
+  ],
+  "coverage": {
+    "national": null
+  },
+  "contact": {
+    "website": "[Ajker Bazar](https://ajkeerbazar.com/)",
+    "email": null,
+    "phone": null
+  },
+  "social": {
+    "facebook": null,
+    "twitter": null,
+    "instagram": null,
+    "youtube": "[NEWS24](https://www.youtube.com/watch?v=gXKsgqBmCdY)",
+    "linkedin": null
+  },
+  "media": {
+    "logo": null,
+    "logo_small": null,
+    "logo_medium": null
+  },
+  "metadata": {
+    "awards": [],
+    "circulation": "N/A",
+    "parent_company": "N/A"
+  },
+  "tags": [
+    "bangla",
+    "national",
+    "bd"
+  ]
+},
+{
+  "id": "bd-bn-53",
+  "name": "Daily Nabochatona",
+  "description": null,
+  "type": "newspaper",
+  "country": "BD",
+  "language": "bn",
+  "region": "national",
+  "founded": null,
+  "headquarters": "N/A",
+  "founder": "N/A",
+  "premium": false,
+  "formats": [
+    "print",
+    "web",
+    "epaper"
+  ],
+  "coverage": {
+    "national": null
+  },
+  "contact": {
+    "website": "[Daily Nabochatona](https://dailynabochatona.com/)",
+    "email": null,
+    "phone": null
+  },
+  "social": {
+    "facebook": null,
+    "twitter": null,
+    "instagram": null,
+    "youtube": null,
+    "linkedin": null
+  },
+  "media": {
+    "logo": null,
+    "logo_small": null,
+    "logo_medium": null
+  },
+  "metadata": {
+    "awards": [],
+    "circulation": "N/A",
+    "parent_company": "N/A"
+  },
+  "tags": [
+    "bangla",
+    "national",
+    "bd"
+  ]
+},
+{
+  "id": "bd-bn-55",
+  "name": "Daily Naya Shatabdi",
+  "description": null,
+  "type": "newspaper",
+  "country": "BD",
+  "language": "bn",
+  "region": "national",
+  "founded": null,
+  "headquarters": "N/A",
+  "founder": "N/A",
+  "premium": false,
+  "formats": [
+    "print",
+    "web",
+    "epaper"
+  ],
+  "coverage": {
+    "national": null
+  },
+  "contact": {
+    "website": "[India Rail Info](https://d.indiarailinfo.com/blog/post/indianrail-indian-railway-irctc-enquiry/6616963)",
+    "email": null,
+    "phone": null
+  },
+  "social": {
+    "facebook": null,
+    "twitter": null,
+    "instagram": null,
+    "youtube": null,
+    "linkedin": null
+  },
+  "media": {
+    "logo": null,
+    "logo_small": null,
+    "logo_medium": null
+  },
+  "metadata": {
+    "awards": [],
+    "circulation": "N/A",
+    "parent_company": "N/A"
+  },
+  "tags": [
+    "bangla",
+    "national",
+    "bd"
+  ]
+},

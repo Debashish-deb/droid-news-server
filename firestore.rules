@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ── Field validation helpers ────────────────────────────────────────────
+    function isValidString(field, maxLen) {
+      return field is string && field.size() <= maxLen;
+    }
+
+    function userProfileFieldsOnly() {
+      return request.resource.data.keys().hasOnly([
+        'name', 'email', 'phone', 'role', 'department', 'image',
+        'updated_at', 'last_login_at', 'created_at',
+        'trial_used', 'current_subscription_tier'
+      ]);
+    }
+
+    // Prevent client from escalating their own entitlement fields
+    function noEntitlementEscalation() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['is_premium', 'is_admin', 'subscription_tier']);
+    }
+    
+    // User profiles - users can only read/write their own
+    // SECURITY: Field validation + entitlement escalation prevention
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && userProfileFieldsOnly()
+        && isValidString(request.resource.data.name, 200)
+        && isValidString(request.resource.data.email, 320);
+      allow update: if isOwner(userId)
+        && userProfileFieldsOnly()
+        && isValidString(request.resource.data.name, 200)
+        && isValidString(request.resource.data.email, 320)
+        && noEntitlementEscalation();
+    }
+    
+    // User preferences
+    match /preferences/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId)
+        && request.resource.data.keys().size() <= 50
+        && request.resource.size() < 50 * 1024; // 50KB max
+    }
+    
+    // Favorites - users can only access their own
+    match /favorites/{userId}/{document=**} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId)
+        && request.resource.size() < 100 * 1024; // 100KB max
+    }
+    
+    
+    // Reading history
+    match /history/{userId}/{document=**} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId)
+        && request.resource.size() < 100 * 1024; // 100KB max
+    }
+    
+    // Device sessions - users can manage their own devices
+    // Allow both individual document access and collection queries
+    match /user_sessions/{userId}/devices/{deviceId} {
+      allow read, write, delete: if isOwner(userId);
+    }
+    
+    // Also allow collection-level queries on devices
+    match /user_sessions/{userId}/devices/{document=**} {
+      allow read: if isOwner(userId);
+    }
+    
+    // Security audit logs - WRITE-ONLY from server-side (Cloud Functions)
+    // Users can only read their own audit logs, never write directly.
+    match /security_audit_log/{document} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false; // Server-side only via Cloud Functions
+    }
+
+    // Google Pay tokenized payment intents (client write, backend processing)
+    match /payments/{paymentId} {
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.psp is string
+        && request.resource.data.currency is string
+        && request.resource.data.total is number
+        && request.resource.data.paymentToken is string;
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+    
+    // Public read-only data
+    match /public/{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

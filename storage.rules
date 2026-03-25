@@ -1,0 +1,37 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // User profile images - anyone can read, only owner can write
+    match /users/{userId}/profile/{filename} {
+      allow read: if true;
+      allow write: if request.auth != null 
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+    
+    // User uploaded content
+    match /users/{userId}/uploads/{filename} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null 
+                   && request.auth.uid == userId
+                   && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // User avatar images (used by auth_service_impl.dart → _uploadImage)
+    // SECURITY: Only owner can write, size-limited, image content type enforced
+    match /user_avatars/{filename} {
+      allow read: if true; // Avatars are public (shown in app UI)
+      allow write: if request.auth != null
+                   && filename.matches(request.auth.uid + '\\.jpg')
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+    
+    // Deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

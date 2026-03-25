@@ -1,0 +1,683 @@
+{
+  "@@locale": "en",
+  "home": "Home",
+  "settings": "Settings",
+  "manageSources": "Manage Sources",
+  "version": "Version",
+  "darkMode": "Dark Mode",
+  "theme": "Theme",
+  "language": "Language",
+  "misc": "Other",
+  "advancedSettings": "Advanced Settings",
+  "adFree": "Ad-Free Experience",
+  "adFreeHint": "Removes all ads for a clean reading experience.",
+  "offlineDownloads": "Offline Downloads",
+  "offlineReading": "Offline Reading",
+  "offlineHint": "Save content locally for offline viewing.",
+  "offlineShowingCached": "Offline — showing cached news",
+  "checkBackLater": "Check back later for the latest updates.",
+  "prioritySupport": "Priority Support",
+  "prioritySupportHint": "Get faster responses from our support team.",
+  "feedback": "Feedback",
+  "rateApp": "Rate this App",
+  "contactSupport": "Contact Support",
+  "contactEmail": "customerservice@dsmobiles.com",
+  "mailClientError": "Could not launch mail client.",
+  "storeOpenError": "Unable to open store.",
+  "bdNewsHub": "BDNews Hub 📰",
+  "viewArticle": "View Article",
+  "popular": "Popular",
+  "latest": "Latest",
+  "trending": "Trending",
+  "latestNewsUpdates": "Latest news and updates",
+  "live": "Live",
+  "now": "Now",
+  "updated": "Updated",
+  "storiesCount": "{count} stories",
+  "@storiesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "national": "National",
+  "international": "International",
+  "business": "Business",
+  "economics": "Economics",
+  "technology": "Technology",
+  "sports": "Sports",
+  "entertainment": "Entertainment",
+  "science": "Science",
+  "worldAffairs": "World Affairs",
+  "lifestyle": "Lifestyle",
+  "arts": "Arts",
+  "fashion": "Fashion",
+  "education": "Education",
+  "regional": "Regional",
+  "politics": "Politics",
+  "noImage": "No Image",
+  "profile": "Profile",
+  "editProfile": "Edit Profile",
+  "fullName": "Full Name",
+  "email": "Email",
+  "password": "Password",
+  "bio": "Bio",
+  "phone": "Phone",
+  "address": "Address",
+  "website": "Website",
+  "removeImage": "Remove Image",
+  "changeImage": "Change Image",
+  "saveChanges": "Save Changes",
+  "required": "Required",
+  "login": "Login",
+  "createAccount": "Create account",
+  "signup": "Sign Up",
+  "alreadyHaveAccount": "Already have an account? Login",
+  "forgotPassword": "Forgot Password",
+  "sendResetLink": "Send Reset Link",
+  "resetEmailSent": "📧 Password reset email sent!",
+  "enterEmailReset": "Enter your email to reset your password:",
+  "accountExists": "Account already exists. Please log in.",
+  "invalidCredentials": "Invalid email or password.",
+  "noAccountFound": "No account found. Please sign up first.",
+  "profileSaved": "Profile saved",
+  "aboutUs": "About Us",
+  "ourStory": "Our Story",
+  "ourVision": "Our Vision",
+  "contactUs": "Contact Us",
+  "copySuccess": "{label} copied to clipboard",
+  "@copySuccess": {
+    "placeholders": {
+      "label": {
+        "type": "Object"
+      }
+    }
+  },
+  "appSlogan": "Real-time News at Your Fingertips",
+  "appName": "BDNewspaper",
+  "versionPrefix": "Version",
+  "companyFooter": "© {year} DreamSD Group",
+  "@companyFooter": {
+    "placeholders": {
+      "year": {
+        "type": "Object"
+      }
+    }
+  },
+  "magazines": "Magazines",
+  "searchMagazines": "Search magazines...",
+  "noMagazinesFound": "No magazines found",
+  "favorites": "Favorites",
+  "fashion": "Fashion & Aesthetics",
+  "science": "Science & Discovery",
+  "finance": "Economics & Finance",
+  "global": "Global Affairs",
+  "arts": "Arts & Humanities",
+  "lifestyle": "Lifestyle & Luxury",
+  "noWebsite": "No website available for this magazine",
+  "failedToOpenWebsite": "Failed to open website",
+  "unknownMagazine": "Unknown Magazine",
+  "unknownCountry": "Unknown Country",
+  "unknownLanguage": "Unknown Language",
+  "share": "Share",
+  "openInBrowser": "Open in Browser",
+  "catSatire": "Satire",
+  "reload": "Reload",
+  "loadError": "Load error: {message}",
+  "@loadError": {
+    "placeholders": {
+      "message": {
+        "type": "Object"
+      }
+    }
+  },
+  "newspapers": "Newspapers",
+  "searchPapers": "Search…",
+  "noPapersFound": "No papers found",
+  "blog": "Blog",
+  "allLanguages": "All",
+  "bangla": "Bangla",
+  "english": "English",
+  "unknownNewspaper": "Unknown Newspaper",
+  "noWebsiteNewspaper": "No website available for this newspaper",
+  "shareNews": "Share News",
+  "bookmarkSuccess": "Bookmarked Successfully",
+  "readerMode": "Reader Mode",
+  "removeFromFavorites": "Remove from Favorites",
+  "addToFavorites": "Add to Favorites",
+  "syncing": "Syncing...",
+  "articles": "Articles",
+  "noFavoritesYet": "No Favorites Yet",
+  "bdNewsreader": "BD News Reader",
+  "homeTitle": "BD NewsReader",
+  "noArticlesFound": "No Articles Found",
+  "noMagazines": "No Magazines",
+  "about": "About",
+  "supports": "Supports",
+  "search": "Search",
+  "logout": "Logout",
+  "loading": "Loading",
+  "guest": "Guest",
+  "productNotAvailable": "Product Not Available",
+  "clearCacheSuccess": "Cache Cleared Successfully",
+  "lightTheme": "Light Theme",
+  "darkTheme": "Dark Theme",
+  "bangladeshTheme": "Desh Theme",
+  "adsRemoved": "Ads Removed",
+  "removeAds": "Remove Ads",
+  "paypalDonate": "Donate by Paypal",
+  "clearCache": "Clear Cache",
+  "searchHint": "Search Hint",
+  "dailyQuiz": "Daily Quiz",
+  "streak": "Streak",
+  "highScore": "HighScore",
+  "continueWithGoogle": "Continue With Google",
+  "quizSummary": "Quiz Summary",
+  "correct": "Correct",
+  "tryAgain": "Try Again",
+  "save": "Save",
+  "getStarted": "Get Started",
+  "next": "Next",
+  "fastReliable": "Fast & Reliable",
+  "close": "Close",
+  "loadFailed": "Load failed",
+  "pressBackToExit": "Press back again to exit",
+  "replaceFirst": "Replace First",
+  "personalizedExperience": "Personalized Experience",
+  "extras": "Extras",
+  "currentLanguage": "Current Language",
+  "changeLanguage": "Change Language",
+  "previous": "Previous",
+  "score": "Score",
+  "excellentScore": "Excellent Score!",
+  "goodScore": "Good Job!",
+  "keepPracticing": "Keep Practicing!",
+  "exit": "Exit",
+  "chooseCorrect": "Choose the correct answer",
+  "noData": "No Data Available",
+  "retry": "Retry",
+  "question": "Question",
+  "exploreFeatures": "Explore Features",
+  "onThisDay": "OnThisDay...",
+  "onThisDayDesc": "Historical events, birthdays & inventions",
+  "brainBuzz": "BrainBuzz",
+  "dataSaver": "Data Saver",
+  "dataSaverDesc": "Reduce image quality and background syncing",
+  "pushNotifications": "Push Notifications",
+  "pushNotificationsDesc": "Breaking news alerts",
+  "privacyData": "Privacy & Data",
+  "privacyDataDesc": "Manage your data and privacy",
+  "premiumFeature": "Premium Feature",
+  "premiumFeatureDesc": "{feature} is available for Premium users only.",
+  "@premiumFeatureDesc": {
+    "placeholders": {
+      "feature": {
+        "type": "String"
+      }
+    }
+  },
+  "goPremium": "Go Premium",
+  "brainBuzzDesc": "Test your knowledge with daily trivia",
+  "snakeCircuit": "Snake Circuit",
+  "helpSupport": "Help & Support",
+  "faqHowToUse": "How to use BD News Reader?",
+  "faqHowToUseDesc": "Navigate news categories from the homepage.",
+  "faqDataSecure": "Is my data secure?",
+  "faqDataSecureDesc": "Yes, we respect your privacy and do not store personal data.",
+  "faqUpdates": "How to get latest updates?",
+  "faqUpdatesDesc": "Updates are pushed automatically via Play Store.",
+  "visitWebsite": "Visit Website",
+  "helpInquiry": "Help & Support Inquiry",
+  "ourStoryDesc": "BD News Reader is the first mobile app by DSMobiles Group, delivering fast and reliable news updates. Our mission is to create free, high-quality apps that inform and empower.",
+  "ourVisionDesc": "We envision a world where information is free and universal. Through user-first design and innovative tools, we aim to create digital experiences that inspire.",
+  "copiedToClipboard": "{label} copied to clipboard",
+  "@copiedToClipboard": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "emailError": "Could not open email app.",
+  "snakeCircuitDesc": "Classic 90s reimagined",
+  "recentSearches": "Recent Searches",
+  "noMatchFound": "No match found for \"{query}\"",
+  "@noMatchFound": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "allSources": "All Sources",
+  "allTime": "All Time",
+  "today": "Today",
+  "thisWeek": "This Week",
+  "thisMonth": "This Month",
+  "sourceLabel": "Source",
+  "dateLabel": "Date",
+  "nameLabel": "Name",
+  "emailLabel": "Email",
+  "phoneLabel": "Phone",
+  "roleLabel": "Role",
+  "departmentLabel": "Department",
+  "enterName": "Enter your name",
+  "nameRequired": "Name required",
+  "profileUpdated": "Profile updated successfully",
+  "cancel": "Cancel",
+  "logoutConfirmation": "Are you sure you want to logout?",
+  "downloaded": "Downloaded",
+  "information": "Information",
+  "notSet": "Not set",
+  "privacyPolicy": "Privacy Policy",
+  "privacyPolicyDesc": "Read how we handle your data",
+  "termsOfService": "Terms of Service",
+  "termsOfServiceDesc": "Read our terms and conditions",
+  "dataManagement": "Data Management",
+  "exportData": "Export Your Data",
+  "exportDataDesc": "Download all your data (GDPR right)",
+  "deleteAccount": "Delete Account",
+  "deleteAccountDesc": "Permanently delete all your data",
+  "deleteAccountConfirmation": "Delete Account?",
+  "deleteAccountWarning": "This will permanently delete:\n\n• Your account\n• All favorites and history\n• All preferences\n• All synced data\n\nThis action cannot be undone.",
+  "deleteEverything": "Delete Everything",
+  "accountDeleted": "Account deleted successfully",
+  "dataExportTitle": "Your Data Export",
+  "dataExportComplete": "Data export complete",
+  "copy": "Copy",
+  "openUrlError": "Could not open link",
+  "exportError": "Export failed: {error}",
+  "@exportError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteError": "Deletion failed: {error}",
+  "@deleteError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "moreFeaturesComingSoon": "More features coming soon",
+  "whatWeCollect": "What We Collect",
+  "whatWeCollectDetails": "• Email and name (if signed in)\\n• Reading preferences and favorites\\n• App usage statistics\\n• Crash and performance data\\n• Device information",
+  "yourRights": "Your Rights",
+  "yourRightsDetails": "✓ Right to access your data\\n✓ Right to export your data\\n✓ Right to delete your data\\n✓ Right to opt-out of analytics\\n✓ Right to be forgotten",
+  "logoutDeviceTitle": "Logout Device",
+  "logoutDeviceContent": "Are you sure you want to log out {deviceName}?",
+  "@logoutDeviceContent": {
+    "placeholders": {
+      "deviceName": {
+        "type": "String"
+      }
+    }
+  },
+  "logoutSuccess": "Device logged out successfully",
+  "logoutFailed": "Failed to logout device: {error}",
+  "@logoutFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "logoutAllTitle": "Logout All Devices",
+  "logoutAll": "Logout All",
+  "logoutAllContent": "Are you sure you want to log out {count} other devices?",
+  "@logoutAllContent": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "logoutAllSuccess": "All other devices logged out successfully",
+  "logoutAllFailed": "Failed to logout all devices: {error}",
+  "@logoutAllFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "lastActiveNow": "Active now",
+  "lastActiveMinutes": "{minutes} minutes ago",
+  "@lastActiveMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "lastActiveHours": "{hours} hours ago",
+  "@lastActiveHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "lastActiveDays": "{days} days ago",
+  "@lastActiveDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "activeDevices": "Active Devices",
+  "errorLoadingDevices": "Error loading devices",
+  "activeDevicesHeader": "Active Devices ({current}/{max})",
+  "@activeDevicesHeader": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "deviceLimitInfo": "You can only have a limited number of active devices.",
+  "thisDevice": "This Device",
+  "deviceAutoLogoutInfo": "Devices that are inactive for 30 days will be automatically removed.",
+  "all": "All",
+  "news": "News",
+  "noNewspapers": "No Newspapers Found",
+  "invalidArticleData": "Error: Invalid article data",
+  "linkCopied": "Link copied to clipboard",
+  "purchaseSuccess": "✅ Purchase successful! Ads removed.",
+  "purchaseRestored": "✅ Purchase restored successfully!",
+  "noPreviousPurchases": "No previous purchases found.",
+  "removeAdsOneTime": "Remove Ads - One-time Purchase",
+  "restorePurchase": "Restore Previous Purchase",
+  "privacyPolicyError": "Could not open privacy policy",
+  "securityWarning": "Security Warning",
+  "inAppPurchases": "• In-app purchases",
+  "savedPaymentMethods": "• Saved payment methods",
+  "biometricAuth": "• Biometric authentication",
+  "continueAnyway": "Continue Anyway",
+  "webViewPlaceholder": "WebView Placeholder",
+  "articleRemovedFromDownloads": "Article removed from downloads",
+  "downloadingArticle": "Downloading article...",
+  "upgradeInitiated": "Upgrade initiated to {tier}",
+  "@upgradeInitiated": {
+    "placeholders": {
+      "tier": {
+        "type": "String"
+      }
+    }
+  },
+  "freeTrialStarted": "Free trial started! Enjoy 3 days of Pro access.",
+  "manageSubscription": "Manage Subscription",
+  "noSubscriptionInfo": "No subscription information available",
+  "current": "Current",
+  "noSemanticMatches": "No semantic matches found",
+  "savingOffline": "Saving for offline reading...",
+  "translationPremiumFeature": "✨ Translation is a Premium feature.",
+  "adsRemovedWithTick": "✅ Ads Removed!",
+  "thankYouSupport": "Thank you for supporting our app!",
+  "premiumBenefits": "Premium Benefits",
+  "adFreeExperienceBenefit": "Ad-free experience",
+  "supportAppDevelopmentBenefit": "Support app development",
+  "oneTimePaymentBenefit": "One-time payment, lifetime access",
+  "prioritySupportBenefit": "Priority customer support",
+  "rootedDeviceWarning": "This device appears to be rooted/jailbroken.",
+  "restrictedFeaturesInfo": "For your security, some features may be restricted:",
+  "articleSavedOffline": "Article saved for offline reading",
+  "failedToSaveArticle": "Failed to save article",
+  "saveOffline": "Save Offline",
+  "saveAndShare": "Save & Share",
+  "manageSubscription": "Manage Subscription",
+  "upgradeInitiated": "Upgrade initiated to {tier}",
+  "freeTrialStarted": "Free trial started! Enjoy 3 days of Pro access.",
+  "noSubscriptionInfo": "No subscription information available",
+  "currentPlan": "Current Plan",
+  "active": "Active",
+  "features": "Features",
+  "availablePlans": "Available Plans",
+  "current": "Current",
+  "startFreeTrial": "Start 3-Day Free Trial",
+  "upgradeToTier": "Upgrade to {tier}",
+  "aiTrendingTopics": "AI TRENDING TOPICS",
+  "aiRecommendations": "AI RECOMMENDATIONS",
+  "noMatchesFound": "No semantic matches found",
+  "all": "All",
+  "allTime": "All Time",
+  "today": "Today",
+  "thisWeek": "This Week",
+  "thisMonth": "This Month",
+  "webView": "Web View",
+  "premiumFeatInfo": "✨ Translation is a Premium feature.",
+  "removedFromOffline": "Removed from Offline Articles",
+  "failedToRemove": "Failed to remove",
+  "savingForOffline": "Saving for offline reading...",
+  "swipeAgainToExit": "Swipe again to exit article",
+  "premiumArticle": "Premium Article",
+  "chooseUnlockOption": "Choose an option to unlock:",
+  "watchAdFree": "Watch Ad (FREE)",
+  "unlockForSession": "Unlock for this session",
+  "goPremium": "Go Premium",
+  "unlockAllArticles": "Unlock all articles + No ads",
+  "articleUnlocked": "✨ Article unlocked! Enjoy reading.",
+  "adNotReady": "Ad is not ready yet. Please try again in a moment.",
+  "offlineArticles": "Offline Articles",
+  "clearAll": "Clear All",
+  "clearAllDownloads": "Clear All Downloads",
+  "noSavedArticles": "No saved articles",
+  "continueWithGoogle": "Continue with Google",
+  "copiedToClipboard": "Copied to clipboard",
+  "copiedToClipboardFlat": "Copied to clipboard",
+  "editLayout": "Edit Layout",
+  "done": "Done",
+  "noUrlAvailable": "No URL available",
+  "saveLayout": "Save Layout",
+  "noPersonalizedNews": "No personalized news found.",
+  "failedToLoadProfile": "Failed to load profile",
+  "profileUpdated": "Profile updated successfully",
+  "failedToSaveProfile": "Failed to save profile",
+  "deleteArticle": "Delete Article?",
+  "articleDeleted": "Article deleted",
+  "confirmClearDownloads": "This will delete all downloaded articles.",
+  "allDownloadsCleared": "All downloads cleared",
+  "downloadToReadOffline": "Download articles to read offline",
+  "offline": "Offline",
+  "error": "Error",
+  "upgrade": "Upgrade",
+  "translate": "Translate",
+  "back": "Back",
+  "removeOffline": "Remove Offline",
+  "forward": "Forward",
+  "more": "More",
+  "moreFeaturesComingSoon": "More features coming soon...",
+  "btnDonate": "Donate",
+  "btnNotifications": "Notifications",
+  "btnPrivacy": "Privacy",
+  "btnCache": "Cache",
+  "btnRate": "Rate",
+  "btnSupport": "Support",
+  "themeLightLabel": "Light",
+  "themeDarkLabel": "Dark",
+  "themeDeshLabel": "Desh",
+  "ttsLoading": "Loading...",
+  "ttsReadingArticle": "Reading Article",
+  "ttsPaused": "Paused",
+  "ttsBuffering": "Buffering...",
+  "ttsError": "Error",
+  "readerSummary": "Summary",
+  "readerStop": "Stop",
+  "readerListen": "Listen",
+  "readerFont": "Font",
+  "readerExplainWithAi": "Explain with AI",
+  "readerAiSmartSummary": "AI Smart Summary",
+  "readerTldr": "TL;DR",
+  "readerKeyPoints": "Key Points",
+  "readerDetailed": "Detailed",
+  "readerAiExplanation": "AI Explanation",
+  "readerGotIt": "Got it",
+  "readerAppearance": "Appearance",
+  "readerFontSize": "Font Size",
+  "readerTypography": "Typography",
+  "readerBackground": "Background",
+  "readerSerif": "Serif",
+  "readerSans": "Sans",
+  "readerSystem": "System",
+  "readerWhite": "White",
+  "readerSepia": "Sepia",
+  "readerNight": "Night",
+  "clearingCache": "Clearing...",
+  "yourDataOverview": "Your Data Overview",
+  "active": "Active",
+  "inactive": "Inactive",
+  "account": "Account",
+  "privacyNote": "Your privacy is our priority. We only collect essential data to improve your experience.",
+  "dataExportPreview": "Data Export Preview",
+  "checkConnection": "Please check your internet connection.",
+  "endOfNews": "You've reached the end of the news.",
+  "loginToContinue": "Login to continue",
+  "orContinueWith": "Or continue with",
+  "noAccount": "Don't have an account?",
+  "invalidEmail": "Invalid email address",
+  "fillAllFields": "Please fill all fields",
+  "navigatingToPremium": "Navigating to Premium Plans...",
+  "upgradeDroidPlus": "Upgrade to Droid+",
+  "historicalEvents": "Historical Events",
+  "historicalHistory": "HISTORY",
+  "noEventsFound": "No events found for this date.",
+  "noDescriptionAvailable": "No description available",
+  "onThisDayIn": "On this day in {year}: {description}",
+  "@onThisDayIn": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      },
+      "description": {
+        "type": "String"
+      }
+    }
+  },
+  "prev": "PREV",
+  "nextCaps": "NEXT",
+  "nowReading": "Now Reading",
+  "playbackSpeed": "Playback Speed",
+  "chunkCount": "{current} / {total} chunks",
+  "@chunkCount": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "audioPremiumFeature": "✨ Audio Listen is a Premium feature.",
+  "restartApp": "Restart App",
+  "sessionEnded": "Session Ended",
+  "ok": "OK",
+  "shareFailed": "Share failed: {error}",
+  "@shareFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "premiumMemberBadge": "PREMIUM MEMBER",
+  "thankYouPurchase": "Thank you for your purchase! Ads have been removed.",
+  "publishersLabel": "Publishers",
+  "searchOnGoogle": "Search \"{query}\" on Google",
+  "@searchOnGoogle": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardingWelcome": "Welcome to BD News",
+  "appDescription": "Your trusted source for latest news, live updates, and personalized feeds.",
+  "continueBtn": "Continue",
+  "premiumArticleHint": "This is a premium article",
+  "adLoading": "Ad is loading, please wait...",
+  "userNamePlaceholder": "User Name",
+  "exclusiveContent": "Exclusive Content",
+  "droidPlusDescription": "Join Droid+ to access premium analysis, expert insights, and ad-free experience.",
+  "deleteOfflineArticleHint": "This will remove the downloaded article and free up storage.",
+  "delete": "Delete",
+  "clearAllLabel": "Clear All",
+  "articlesCountLabel": "{count} articles",
+  "eventsFound": "{count} events found",
+  "articleLabel": "Article",
+  "speedX": "{speed}x",
+  "@speedX": {
+    "placeholders": {
+      "speed": {
+        "type": "double"
+      }
+    }
+  },
+  "stopReadingArticle": "Stop reading article: {title}",
+  "@stopReadingArticle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "listenToArticle": "Listen to article with text-to-speech: {title}",
+  "@listenToArticle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "tapToStop": "Tap to stop playback",
+  "tapToStart": "Tap to start reading article aloud",
+  "cacheClearedCount": "({count} caches cleared)",
+  "@cacheClearedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errorClearingCache": "Error clearing cache: {error}",
+  "sessionEndedDesc": "Your session on this device has been ended.\n\nThis may have happened because:\n• You logged out from another device\n• Your account exceeded device limits\n• Security precaution\n\nPlease login again to continue.",
+  "errorOops": "Oops! Something went wrong",
+  "errorUnexpected": "We encountered an unexpected error. Please try restarting the app.",
+  "debugInfo": "Debug Info:",
+  "classicFeedLabel": "Classic Feed (Feature Flag OFF)\nEnable \"news_threading\" to see Smart UI",
+  "resultsLabel": "Results",
+  "noNationalNews": "No national news found",
+  "noInternationalNews": "No international news found", 
+  "noSportsNews": "No sports news found",
+  "noEntertainmentNews": "No entertainment news found",
+  "privacyPolicyIntro": "At BD NewsReader, we are committed to protecting your privacy. This policy outlines how we handle your data to provide a seamless news experience.",
+  "privacyCollectionTitle": "1. Data Collection",
+  "privacyCollectionDesc": "We collect minimal data to improve your experience:\n• Reading Preferences: Saved favorites and layout choices.\n• Technical Data: Device model, OS version, and unique identifiers (for ads/analytics).\n• Account Info: Name and email (only if you choose to sign in).",
+  "privacyUsageTitle": "2. How We Use Data",
+  "privacyUsageDesc": "Your data helps us:\n• Synchronize your favorites across devices.\n• Personalize your news feed.\n• Analyze app performance and fix crashes.",
+  "privacyThirdPartyTitle": "3. Third-Party Services",
+  "privacyThirdPartyDesc": "We partner with trusted services:\n• Google AdMob: For personalized or non-personalized ads.\n• Firebase: For authentication and analytics.\n• RevenueCat/Google Play: For secure subscription management.\n• News Publishers: When you view articles in WebView, the publisher's own privacy policy applies.",
+  "privacySecurityTitle": "4. Data Security",
+  "privacySecurityDesc": "We use industry-standard encryption to protect your data. Profile info and favorites are securely stored via Firebase. Local caching is managed via Hive for speed and offline access.",
+  "privacyRightsTitle": "5. Your Rights",
+  "privacyRightsDesc": "You have the right to:\n• Export your data anytime from the Privacy settings.\n• Delete your account and all associated data permanently.\n• Opt-out of personalized tracking via device settings.",
+  "privacyContactTitle": "6. Contact Us",
+  "privacyContactDesc": "For any privacy-related questions, contact us at: customerservice@dsmobiles.com",
+  "privacyLastUpdated": "Last Updated: March 2026",
+  "premium": "PREMIUM",
+  "sponsored": "SPONSORED",
+  "pinned": "PINNED",
+  "justNow": "Just now",
+  "recently": "Recently",
+  "minutesAgo": "{minutes}m ago",
+  "hoursAgo": "{hours}h ago",
+  "ok": "OK"
+}

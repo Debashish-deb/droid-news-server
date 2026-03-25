@@ -1,0 +1,235 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart' as ffw;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
+import '../../core/di/providers.dart' show appNetworkServiceProvider;
+import '../../core/config/performance_config.dart';
+import '../providers/app_settings_providers.dart';
+
+/// Optimized cached image widget with consistent configuration
+class OptimizedCachedImage extends ConsumerWidget {
+
+  const OptimizedCachedImage({
+    required this.imageUrl, super.key,
+    this.width,
+    this.height,
+    this.fit = BoxFit.cover,
+    this.borderRadius,
+    this.errorWidget,
+    this.semanticLabel,
+  });
+  final String imageUrl;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final BorderRadius? borderRadius;
+  final Widget? errorWidget;
+  final String? semanticLabel;
+
+  /// Memory cache limits for optimization
+  static const int memCacheHeight = 400;
+  static const int memCacheWidth = 800;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bool dataSaver = ref.watch(dataSaverProvider);
+    final network = ref.watch(appNetworkServiceProvider);
+    final perf = PerformanceConfig.of(context);
+    final bool allowImages = network.shouldLoadImages(dataSaver: dataSaver);
+    final int adaptiveWidth = network.getImageCacheWidth(dataSaver: dataSaver);
+    final int adaptiveHeight = adaptiveWidth;
+
+    if (!allowImages) {
+      return _buildError(context);
+    }
+
+    int? safeDimension(double? value, int fallback) {
+      if (value == null || value.isNaN || value.isInfinite) return fallback;
+      return value.clamp(1, double.maxFinite).toInt();
+    }
+
+    final imageWidget = CachedNetworkImage(
+      imageUrl: imageUrl,
+      cacheKey: imageUrl,
+      width: width,
+      height: height,
+      fit: fit,
+      fadeInDuration: perf.reduceMotion
+          ? const Duration()
+          : const Duration(milliseconds: 250),
+      fadeOutDuration: perf.reduceMotion
+          ? const Duration()
+          : const Duration(milliseconds: 150),
+      memCacheHeight: safeDimension(height, adaptiveHeight),
+      memCacheWidth: safeDimension(width, adaptiveWidth),
+      maxHeightDiskCache: dataSaver ? 600 : 800,
+      maxWidthDiskCache: dataSaver ? 1200 : 1600,
+      placeholder: (context, url) =>
+          perf.reduceEffects ? _buildPlaceholder(context) : _buildShimmer(context),
+      errorWidget: (context, url, error) => errorWidget ?? _buildError(context),
+    );
+
+    final wrapped = Semantics(
+      label: semanticLabel ?? 'Network image',
+      image: true,
+      child: imageWidget,
+    );
+
+    if (borderRadius != null) {
+      return ClipRRect(borderRadius: borderRadius!, child: wrapped);
+    }
+
+    return wrapped;
+  }
+
+  Widget _buildShimmer(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Shimmer.fromColors(
+      baseColor: colorScheme.surface,
+      highlightColor: colorScheme.surfaceVariant,
+      child: Container(
+        width: width,
+        height: height,
+        color: colorScheme.surface,
+      ),
+    );
+  }
+
+  Widget _buildError(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: width,
+      height: height,
+      color: colorScheme.errorContainer,
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.broken_image_outlined,
+        color: colorScheme.onErrorContainer,
+        size: 48,
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      width: width,
+      height: height,
+      color: colorScheme.surfaceVariant,
+    );
+  }
+}
+
+/// Circular cached image for avatars
+class CircularCachedImage extends ConsumerWidget {
+
+  const CircularCachedImage({
+    required this.imageUrl, super.key,
+    this.radius = 40,
+  });
+  final String imageUrl;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bool dataSaver = ref.watch(dataSaverProvider);
+    final network = ref.watch(appNetworkServiceProvider);
+    final perf = PerformanceConfig.of(context);
+    final bool allowImages = network.shouldLoadImages(dataSaver: dataSaver);
+    final size = radius * 2;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (!allowImages) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: colorScheme.surfaceVariant,
+        child: Icon(
+          Icons.person,
+          size: radius,
+          color: colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: colorScheme.surfaceVariant,
+      child: ClipOval(
+        child: Semantics(
+          label: 'User avatar',
+          image: true,
+          child: CachedNetworkImage(
+            imageUrl: imageUrl,
+            cacheKey: imageUrl,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            fadeInDuration: perf.reduceMotion
+                ? const Duration()
+                : const Duration(milliseconds: 200),
+            memCacheHeight: size.toInt(),
+            memCacheWidth: size.toInt(),
+            placeholder:
+                (context, url) => perf.reduceEffects
+                    ? Container(
+                        width: size,
+                        height: size,
+                        color: colorScheme.surfaceVariant,
+                      )
+                    : Shimmer.fromColors(
+                        baseColor: colorScheme.surface,
+                        highlightColor: colorScheme.surfaceVariant,
+                        child: Container(
+                          width: size,
+                          height: size,
+                          color: colorScheme.surface,
+                        ),
+                      ),
+            errorWidget:
+                (context, url, error) => Icon(
+                  Icons.person,
+                  size: radius,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Image cache manager helper
+class ImageCacheHelper {
+  /// Clear all cached images
+  static Future<void> clearCache() async {
+    await CachedNetworkImage.evictFromCache('');
+  }
+
+  /// Clear specific image from cache
+  static Future<void> clearImageCache(String url) async {
+    if (url.isEmpty) return;
+    await CachedNetworkImage.evictFromCache(url);
+  }
+
+  /// Precache image for faster loading
+  static Future<void> precacheImage(String url, BuildContext context) async {
+    if (url.isEmpty) return;
+
+    final provider = CachedNetworkImageProvider(url);
+    await precacheImageFromProvider(provider, context);
+  }
+
+  /// Internal helper to avoid name collision with Flutter precacheImage()
+  static Future<void> precacheImageFromProvider(
+    ImageProvider provider,
+    BuildContext context,
+  ) async {
+    // Correctly call the global Flutter precacheImage instead of our shadowing static method
+    // which expects a String.
+    await ffw.precacheImage(provider, context);
+  }
+}
+

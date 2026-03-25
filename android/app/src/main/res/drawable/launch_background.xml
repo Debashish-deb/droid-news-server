@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ╔══════════════════════════════════════════════════════════════════╗
+    ║  BD Info Hub — Bangladesh Flag Splash / Launch Background       ║
+    ║                                                                  ║
+    ║  Palette:  Flag Green #006A4E  ·  Flag Red #F42A41              ║
+    ║                                                                  ║
+    ║  Layer stack (bottom → top):                                     ║
+    ║    1. Official flag-green solid fill   — instant, no flash       ║
+    ║    2. Deep-green radial centre glow    — depth behind logo       ║
+    ║    3. Diagonal green sweep             — premium dimensionality  ║
+    ║    4. Top & bottom edge vignettes      — frames the composition  ║
+    ║    5. Flag-red accent hairline         — disc echo / masthead    ║
+    ║    6. Centered splash logo             — crisp, perfectly placed ║
+    ╚══════════════════════════════════════════════════════════════════╝
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ── LAYER 1 · Official flag-green solid base ──────────────────
+         #006A4E fills the window the instant the Activity starts.
+         Zero white flash — the national color owns the first frame.  -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/splash_background" />
+        </shape>
+    </item>
+
+
+    <!-- ── LAYER 2 · Deep-green radial centre glow ───────────────────
+         A darker forest-green bloom radiates from just above centre,
+         creating the illusion of depth and drawing the eye toward
+         the logo. The end colour fades to fully transparent so the
+         flag green reads cleanly at the edges.                        -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="80%p"
+                android:centerX="0.5"
+                android:centerY="0.46"
+                android:startColor="#20003D2C"
+                android:endColor="#00001F17" />
+        </shape>
+    </item>
+
+
+    <!-- ── LAYER 3 · Diagonal green sweep ───────────────────────────
+         A very-low-opacity diagonal gradient (top-left → bottom-right)
+         breaks the flat single-colour look with barely perceptible
+         dimensionality — something you feel more than see.            -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="135"
+                android:startColor="#14005240"
+                android:centerColor="#00000000"
+                android:endColor="#14001F17" />
+        </shape>
+    </item>
+
+
+    <!-- ── LAYER 4 · Edge vignette — top ─────────────────────────────
+         Deep forest-green fade from the top edge inward.
+         Darkens the corners, pulls focus to the centred logo.         -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="270"
+                android:startColor="#38003D2C"
+                android:endColor="#00003D2C" />
+            <size android:height="180dp" />
+        </shape>
+    </item>
+
+    <!-- ── LAYER 4b · Edge vignette — bottom ─────────────────────── -->
+    <item android:gravity="bottom">
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="90"
+                android:startColor="#38003D2C"
+                android:endColor="#00003D2C" />
+            <size android:height="180dp" />
+        </shape>
+    </item>
+
+
+    <!-- ── LAYER 5 · Flag-red accent hairline ────────────────────────
+         Echoes the red disc of the Bangladesh flag as a refined
+         horizontal rule just below the vertical centre of the screen.
+         55 % opacity keeps it present without overpowering the green.
+         Inset 28 % each side so it never crowds the edges.           -->
+    <item
+        android:top="52%p"
+        android:left="28%p"
+        android:right="28%p"
+        android:bottom="0dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#8CF42A41" />
+            <size android:height="1dp" />
+        </shape>
+    </item>
+
+
+    <!-- ── LAYER 6 · Centered splash logo ────────────────────────────
+         Gravity=center places the logo at the exact optical centre
+         on every screen size and density — no stretching, no clipping.
+
+         Recommended export sizes for razor-sharp rendering:
+           • 288 × 288 px   res/drawable-hdpi/
+           • 384 × 384 px   res/drawable-xhdpi/
+           • 576 × 576 px   res/drawable-xxhdpi/
+           • 768 × 768 px   res/drawable-xxxhdpi/
+
+         Tip: a white or light logo reads best against flag green.
+         If your logo is dark, add a white circular bg behind it.     -->
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/splash"
+            android:tileMode="disabled" />
+    </item>
+
+</layer-list>

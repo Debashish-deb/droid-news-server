@@ -1,0 +1,209 @@
+{
+  "categories": [
+    { "id": "national", "en": "National", "bn": "জাতীয়" },
+    { "id": "international", "en": "International", "bn": "আন্তর্জাতিক" },
+    { "id": "sports", "en": "Sports", "bn": "খেলাধুলা" },
+    { "id": "entertainment", "en": "Entertainment", "bn": "বিনোদন" }
+  ],
+
+  "international_entities": [
+    { "id": "united-nations", "en": "United Nations", "bn": "জাতিসংঘ" },
+    { "id": "security-council", "en": "UN Security Council", "bn": "নিরাপত্তা পরিষদ" },
+    { "id": "nato", "en": "NATO", "bn": "ন্যাটো" },
+    { "id": "european-union", "en": "European Union", "bn": "ইউরোপীয় ইউনিয়ন" },
+    { "id": "white-house", "en": "White House", "bn": "হোয়াইট হাউস" },
+    { "id": "state-department", "en": "US State Department", "bn": "মার্কিন পররাষ্ট্র দপ্তর" },
+    { "id": "kremlin", "en": "Kremlin", "bn": "ক্রেমলিন" },
+    { "id": "pentagon", "en": "Pentagon", "bn": "পেন্টাগন" }
+  ],
+
+  "international_locations": [
+    { "id": "new-york", "en": "New York", "bn": "নিউ ইয়র্ক" },
+    { "id": "washington", "en": "Washington", "bn": "ওয়াশিংটন" },
+    { "id": "london", "en": "London", "bn": "লন্ডন" },
+    { "id": "paris", "en": "Paris", "bn": "প্যারিস" },
+    { "id": "berlin", "en": "Berlin", "bn": "বার্লিন" },
+    { "id": "brussels", "en": "Brussels", "bn": "ব্রাসেলস" },
+    { "id": "moscow", "en": "Moscow", "bn": "মস্কো" },
+    { "id": "beijing", "en": "Beijing", "bn": "বেইজিং" },
+    { "id": "tokyo", "en": "Tokyo", "bn": "টোকিও" },
+    { "id": "seoul", "en": "Seoul", "bn": "সিউল" },
+    { "id": "new-delhi", "en": "New Delhi", "bn": "নয়াদিল্লি" },
+    { "id": "islamabad", "en": "Islamabad", "bn": "ইসলামাবাদ" },
+    { "id": "cairo", "en": "Cairo", "bn": "কায়রো" },
+    { "id": "tehran", "en": "Tehran", "bn": "তেহরান" },
+    { "id": "jerusalem", "en": "Jerusalem", "bn": "জেরুজালেম" }
+  ],
+
+  "international_organizations": [
+    { "id": "who", "en": "World Health Organization", "bn": "বিশ্ব স্বাস্থ্য সংস্থা" },
+    { "id": "imf", "en": "International Monetary Fund", "bn": "আন্তর্জাতিক মুদ্রা তহবিল" },
+    { "id": "world-bank", "en": "World Bank", "bn": "বিশ্বব্যাংক" },
+    { "id": "wto", "en": "World Trade Organization", "bn": "বিশ্ব বাণিজ্য সংস্থা" },
+    { "id": "asean", "en": "ASEAN", "bn": "আসিয়ান" },
+    { "id": "g7", "en": "G7", "bn": "জি-৭" },
+    { "id": "g20", "en": "G20", "bn": "জি-২০" },
+    { "id": "oic", "en": "OIC", "bn": "ওআইসি" }
+  ],
+
+  "topics": [
+    { "id": "politics", "en": "Politics", "bn": "রাজনীতি" },
+    { "id": "government", "en": "Government", "bn": "সরকার" },
+    { "id": "parliament", "en": "Parliament", "bn": "সংসদ" },
+    { "id": "election", "en": "Election", "bn": "নির্বাচন" },
+    { "id": "economy", "en": "Economy", "bn": "অর্থনীতি" },
+    { "id": "banking", "en": "Banking", "bn": "ব্যাংকিং" },
+    { "id": "finance", "en": "Finance", "bn": "অর্থায়ন" },
+    { "id": "business", "en": "Business", "bn": "ব্যবসা" },
+    { "id": "industry", "en": "Industry", "bn": "শিল্প" },
+    { "id": "trade", "en": "Trade", "bn": "বাণিজ্য" },
+    { "id": "tax", "en": "Tax", "bn": "কর" },
+    { "id": "budget", "en": "Budget", "bn": "বাজেট" },
+    { "id": "inflation", "en": "Inflation", "bn": "মূল্যস্ফীতি" },
+    { "id": "education", "en": "Education", "bn": "শিক্ষা" },
+    { "id": "university", "en": "University", "bn": "বিশ্ববিদ্যালয়" },
+    { "id": "health", "en": "Health", "bn": "স্বাস্থ্য" },
+    { "id": "hospital", "en": "Hospital", "bn": "হাসপাতাল" },
+    { "id": "technology", "en": "Technology", "bn": "প্রযুক্তি" },
+    { "id": "ai", "en": "Artificial Intelligence", "bn": "কৃত্রিম বুদ্ধিমত্তা" },
+    { "id": "cybersecurity", "en": "Cybersecurity", "bn": "সাইবার নিরাপত্তা" },
+    { "id": "science", "en": "Science", "bn": "বিজ্ঞান" },
+    { "id": "space", "en": "Space", "bn": "মহাকাশ" },
+    { "id": "environment", "en": "Environment", "bn": "পরিবেশ" },
+    { "id": "climate", "en": "Climate Change", "bn": "জলবায়ু পরিবর্তন" },
+    { "id": "agriculture", "en": "Agriculture", "bn": "কৃষি" },
+    { "id": "crime", "en": "Crime", "bn": "অপরাধ" },
+    { "id": "murder", "en": "Murder", "bn": "হত্যা" },
+    { "id": "fraud", "en": "Fraud", "bn": "প্রতারণা" },
+    { "id": "cybercrime", "en": "Cybercrime", "bn": "সাইবার অপরাধ" },
+    { "id": "corruption", "en": "Corruption", "bn": "দুর্নীতি" },
+    { "id": "court", "en": "Court", "bn": "আদালত" },
+    { "id": "law", "en": "Law", "bn": "আইন" },
+    { "id": "transport", "en": "Transport", "bn": "পরিবহন" },
+    { "id": "road", "en": "Road", "bn": "সড়ক" },
+    { "id": "railway", "en": "Railway", "bn": "রেলওয়ে" },
+    { "id": "airport", "en": "Airport", "bn": "বিমানবন্দর" },
+    { "id": "energy", "en": "Energy", "bn": "জ্বালানি" },
+    { "id": "electricity", "en": "Electricity", "bn": "বিদ্যুৎ" },
+    { "id": "gas", "en": "Gas", "bn": "গ্যাস" },
+    { "id": "tourism", "en": "Tourism", "bn": "পর্যটন" },
+    { "id": "culture", "en": "Culture", "bn": "সংস্কৃতি" },
+    { "id": "religion", "en": "Religion", "bn": "ধর্ম" }
+  ],
+
+  "divisions": [
+    { "id": "dhaka-division", "en": "Dhaka Division", "bn": "ঢাকা বিভাগ" },
+    { "id": "chattogram-division", "en": "Chattogram Division", "bn": "চট্টগ্রাম বিভাগ" },
+    { "id": "khulna-division", "en": "Khulna Division", "bn": "খুলনা বিভাগ" },
+    { "id": "rajshahi-division", "en": "Rajshahi Division", "bn": "রাজশাহী বিভাগ" },
+    { "id": "barishal-division", "en": "Barishal Division", "bn": "বরিশাল বিভাগ" },
+    { "id": "sylhet-division", "en": "Sylhet Division", "bn": "সিলেট বিভাগ" },
+    { "id": "rangpur-division", "en": "Rangpur Division", "bn": "রংপুর বিভাগ" },
+    { "id": "mymensingh-division", "en": "Mymensingh Division", "bn": "ময়মনসিংহ বিভাগ" }
+  ],
+
+  "districts": [
+    { "id": "dhaka", "en": "Dhaka", "bn": "ঢাকা" },
+    { "id": "gazipur", "en": "Gazipur", "bn": "গাজীপুর" },
+    { "id": "narayanganj", "en": "Narayanganj", "bn": "নারায়ণগঞ্জ" },
+    { "id": "tangail", "en": "Tangail", "bn": "টাঙ্গাইল" },
+    { "id": "kishoreganj", "en": "Kishoreganj", "bn": "কিশোরগঞ্জ" },
+
+    { "id": "chattogram", "en": "Chattogram", "bn": "চট্টগ্রাম" },
+    { "id": "coxsbazar", "en": "Cox's Bazar", "bn": "কক্সবাজার" },
+    { "id": "rangamati", "en": "Rangamati", "bn": "রাঙামাটি" },
+    { "id": "bandarban", "en": "Bandarban", "bn": "বান্দরবান" },
+
+    { "id": "rajshahi", "en": "Rajshahi", "bn": "রাজশাহী" },
+    { "id": "bogura", "en": "Bogura", "bn": "বগুড়া" },
+    { "id": "naogaon", "en": "Naogaon", "bn": "নওগাঁ" },
+    { "id": "pabna", "en": "Pabna", "bn": "পাবনা" },
+
+    { "id": "khulna", "en": "Khulna", "bn": "খুলনা" },
+    { "id": "satkhira", "en": "Satkhira", "bn": "সাতক্ষীরা" },
+    { "id": "jessore", "en": "Jessore", "bn": "যশোর" },
+
+    { "id": "sylhet", "en": "Sylhet", "bn": "সিলেট" },
+    { "id": "moulvibazar", "en": "Moulvibazar", "bn": "মৌলভীবাজার" },
+
+    { "id": "rangpur", "en": "Rangpur", "bn": "রংপুর" },
+    { "id": "dinajpur", "en": "Dinajpur", "bn": "দিনাজপুর" },
+
+    { "id": "mymensingh", "en": "Mymensingh", "bn": "ময়মনসিংহ" },
+    { "id": "jamalpur", "en": "Jamalpur", "bn": "জামালপুর" }
+  ],
+
+  "organizations": [
+    { "id": "awami-league", "en": "Awami League", "bn": "আওয়ামী লীগ" },
+    { "id": "bnp", "en": "Bangladesh Nationalist Party", "bn": "বিএনপি" },
+    { "id": "jamaat", "en": "Jamaat-e-Islami", "bn": "জামায়াতে ইসলামী" },
+    { "id": "jatiya-party", "en": "Jatiya Party", "bn": "জাতীয় পার্টি" },
+    { "id": "bangladesh-government", "en": "Bangladesh Government", "bn": "বাংলাদেশ সরকার" },
+    { "id": "parliament", "en": "Parliament", "bn": "সংসদ" },
+    { "id": "election-commission", "en": "Election Commission", "bn": "নির্বাচন কমিশন" },
+    { "id": "supreme-court", "en": "Supreme Court", "bn": "সুপ্রিম কোর্ট" },
+    { "id": "bangladesh-bank", "en": "Bangladesh Bank", "bn": "বাংলাদেশ ব্যাংক" },
+    { "id": "police", "en": "Bangladesh Police", "bn": "বাংলাদেশ পুলিশ" },
+    { "id": "rab", "en": "Rapid Action Battalion", "bn": "র‍্যাব" },
+    { "id": "army", "en": "Bangladesh Army", "bn": "বাংলাদেশ সেনাবাহিনী" },
+    { "id": "navy", "en": "Bangladesh Navy", "bn": "বাংলাদেশ নৌবাহিনী" },
+    { "id": "air-force", "en": "Bangladesh Air Force", "bn": "বাংলাদেশ বিমান বাহিনী" }
+  ],
+
+  "people": [
+    { "id": "sheikh-hasina", "en": "Sheikh Hasina", "bn": "শেখ হাসিনা" },
+    { "id": "khaleda-zia", "en": "Khaleda Zia", "bn": "খালেদা জিয়া" },
+    { "id": "tareq-rahman", "en": "Tareq Rahman", "bn": "তারেক রহমান" },
+    { "id": "obaidul-quader", "en": "Obaidul Quader", "bn": "ওবায়দুল কাদের" },
+    { "id": "mirza-fakhrul", "en": "Mirza Fakhrul Islam Alamgir", "bn": "মির্জা ফখরুল ইসলাম আলমগীর" },
+    { "id": "gm-quader", "en": "GM Quader", "bn": "জিএম কাদের" },
+    { "id": "nurul-haque-nur", "en": "Nurul Haque Nur", "bn": "নূরুল হক নূর" },
+
+    { "id": "shakib-al-hasan", "en": "Shakib Al Hasan", "bn": "সাকিব আল হাসান" },
+    { "id": "tamim-iqbal", "en": "Tamim Iqbal", "bn": "তামিম ইকবাল" },
+    { "id": "liton-das", "en": "Liton Das", "bn": "লিটন দাস" },
+    { "id": "mushfiqur-rahim", "en": "Mushfiqur Rahim", "bn": "মুশফিকুর রহিম" }
+  ],
+
+  "sports": [
+    { "id": "cricket", "en": "Cricket", "bn": "ক্রিকেট" },
+    { "id": "football", "en": "Football", "bn": "ফুটবল" },
+    { "id": "tennis", "en": "Tennis", "bn": "টেনিস" },
+    { "id": "badminton", "en": "Badminton", "bn": "ব্যাডমিন্টন" },
+    { "id": "olympics", "en": "Olympics", "bn": "অলিম্পিক" },
+    { "id": "world-cup", "en": "World Cup", "bn": "বিশ্বকাপ" },
+    { "id": "bpl", "en": "Bangladesh Premier League", "bn": "বিপিএল" },
+    { "id": "icc", "en": "ICC", "bn": "আইসিসি" },
+    { "id": "fifa", "en": "FIFA", "bn": "ফিফা" }
+  ],
+
+  "entertainment": [
+    { "id": "film", "en": "Film", "bn": "চলচ্চিত্র" },
+    { "id": "cinema", "en": "Cinema", "bn": "সিনেমা" },
+    { "id": "television", "en": "Television", "bn": "টেলিভিশন" },
+    { "id": "drama", "en": "Drama", "bn": "নাটক" },
+    { "id": "web-series", "en": "Web Series", "bn": "ওয়েব সিরিজ" },
+    { "id": "music", "en": "Music", "bn": "সঙ্গীত" },
+    { "id": "concert", "en": "Concert", "bn": "কনসার্ট" },
+    { "id": "celebrity", "en": "Celebrity", "bn": "তারকা" },
+    { "id": "actor", "en": "Actor", "bn": "অভিনেতা" },
+    { "id": "actress", "en": "Actress", "bn": "অভিনেত্রী" },
+    { "id": "director", "en": "Director", "bn": "পরিচালক" },
+    { "id": "bollywood", "en": "Bollywood", "bn": "বলিউড" },
+    { "id": "hollywood", "en": "Hollywood", "bn": "হলিউড" },
+    { "id": "dhallywood", "en": "Dhallywood", "bn": "ঢালিউড" }
+  ],
+
+  "formats": [
+    { "id": "breaking", "en": "Breaking News", "bn": "ব্রেকিং নিউজ" },
+    { "id": "live", "en": "Live Update", "bn": "লাইভ আপডেট" },
+    { "id": "analysis", "en": "Analysis", "bn": "বিশ্লেষণ" },
+    { "id": "opinion", "en": "Opinion", "bn": "মতামত" },
+    { "id": "editorial", "en": "Editorial", "bn": "সম্পাদকীয়" },
+    { "id": "interview", "en": "Interview", "bn": "সাক্ষাৎকার" },
+    { "id": "feature", "en": "Feature", "bn": "ফিচার" },
+    { "id": "investigation", "en": "Investigation", "bn": "অনুসন্ধান" },
+    { "id": "fact-check", "en": "Fact Check", "bn": "ফ্যাক্ট চেক" },
+    { "id": "timeline", "en": "Timeline", "bn": "সময়রেখা" }
+  ]
+}

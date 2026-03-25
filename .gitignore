@@ -1,0 +1,55 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub/
+build/
+coverage/
+
+# Generated platform/tooling files
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/google-services.json
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+macos/Flutter/ephemeral/
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# Firebase / environment secrets
+.env
+.env.*
+!.env.example
+firebase-debug.log
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Logs and scratch artifacts
+*.log
+*.tmp
+*.bak
+analysis*.txt
+analyze*.txt
+build_*.log
+flutter_*.log
+test_results*.txt
+
+# Node/npm artifacts (if scripts are used)
+node_modules/
+
+# Python cache (repo utility scripts)
+__pycache__/
+*.py[cod]
+
+# Local generated clutter
+.runtime/
+.pytest_cache/

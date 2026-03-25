@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ═══ APP IDENTITY ═════════════════════════════════════════════ -->
+    <string name="app_name">BD Info Hub</string>
+    <string name="app_tagline">Bangladesh at Your Fingertips</string>
+    <string name="app_short_name">BDInfoHub</string>
+
+    <!-- ═══ ONBOARDING ═══════════════════════════════════════════════ -->
+    <string name="onboarding_welcome_title">Stay Ahead of the Story</string>
+    <string name="onboarding_welcome_body">Real-time news, live updates, and deep analysis — all in one premium experience.</string>
+    <string name="onboarding_personalise_title">Your Feed, Your Way</string>
+    <string name="onboarding_personalise_body">Choose topics and sources that matter to you.</string>
+    <string name="onboarding_notify_title">Never Miss a Breaking Story</string>
+    <string name="onboarding_notify_body">Instant alerts for the stories that shape Bangladesh.</string>
+    <string name="btn_get_started">Get Started</string>
+    <string name="btn_next">Next</string>
+    <string name="btn_skip">Skip</string>
+
+    <!-- ═══ NAVIGATION ═══════════════════════════════════════════════ -->
+    <string name="nav_home">Home</string>
+    <string name="nav_discover">Discover</string>
+    <string name="nav_bookmarks">Saved</string>
+    <string name="nav_notifications">Alerts</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- ═══ SECTION LABELS ═══════════════════════════════════════════ -->
+    <string name="section_breaking">Breaking News</string>
+    <string name="section_top_stories">Top Stories</string>
+    <string name="section_trending">Trending</string>
+    <string name="section_latest">Latest</string>
+    <string name="section_exclusive">Exclusive</string>
+    <string name="section_analysis">Analysis &amp; Opinion</string>
+    <string name="section_business">Business</string>
+    <string name="section_politics">Politics</string>
+    <string name="section_sports">Sports</string>
+    <string name="section_tech">Technology</string>
+    <string name="section_entertainment">Entertainment</string>
+    <string name="section_world">World</string>
+
+    <!-- ═══ ARTICLE / READER ════════════════════════════════════════ -->
+    <string name="action_read_more">Read Full Story</string>
+    <string name="action_save">Save Article</string>
+    <string name="action_saved">Saved</string>
+    <string name="action_share">Share</string>
+    <string name="action_listen">Listen</string>
+    <string name="label_min_read">min read</string>
+    <string name="label_updated">Updated</string>
+    <string name="label_live">LIVE</string>
+    <string name="label_exclusive_tag">EXCLUSIVE</string>
+    <string name="label_breaking_tag">BREAKING</string>
+    <string name="label_opinion_tag">OPINION</string>
+
+    <!-- ═══ SEARCH ════════════════════════════════════════════════════ -->
+    <string name="search_hint">Search stories, topics, sources…</string>
+    <string name="search_no_results_title">No results found</string>
+    <string name="search_no_results_body">Try different keywords or browse our top categories.</string>
+    <string name="search_recent_title">Recent Searches</string>
+    <string name="search_trending_title">Trending Now</string>
+
+    <!-- ═══ NOTIFICATIONS ════════════════════════════════════════════ -->
+    <string name="notification_channel_breaking">Breaking News</string>
+    <string name="notification_channel_breaking_desc">Instant alerts for major breaking stories</string>
+    <string name="notification_channel_daily">Daily Digest</string>
+    <string name="notification_channel_daily_desc">Your morning and evening summary</string>
+    <string name="notification_channel_personalized">Your Topics</string>
+    <string name="notification_channel_personalized_desc">Updates from the categories you follow</string>
+    <string name="notifications_empty_title">You\'re all caught up!</string>
+    <string name="notifications_empty_body">Check back soon for the latest updates.</string>
+
+    <!-- ═══ BOOKMARKS ════════════════════════════════════════════════ -->
+    <string name="bookmarks_empty_title">Nothing saved yet</string>
+    <string name="bookmarks_empty_body">Tap the bookmark icon on any story to read it later — even offline.</string>
+    <string name="bookmarks_offline_badge">Available offline</string>
+
+    <!-- ═══ SETTINGS ═════════════════════════════════════════════════ -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_display">Display</string>
+    <string name="settings_theme">App Theme</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_system">Follow System</string>
+    <string name="settings_text_size">Text Size</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_data_usage">Data Usage</string>
+    <string name="settings_low_data">Reduce Data Usage</string>
+    <string name="settings_cache_clear">Clear Cache</string>
+    <string name="settings_about">About BD Info Hub</string>
+    <string name="settings_privacy">Privacy Policy</string>
+    <string name="settings_terms">Terms of Service</string>
+    <string name="settings_rate">Rate the App</string>
+    <string name="settings_feedback">Send Feedback</string>
+    <string name="settings_version">Version</string>
+
+    <!-- ═══ ERRORS &amp; EMPTY STATES ══════════════════════════════════ -->
+    <string name="error_generic_title">Something went wrong</string>
+    <string name="error_generic_body">We\'re working on it. Please try again in a moment.</string>
+    <string name="error_no_internet_title">No Connection</string>
+    <string name="error_no_internet_body">Check your internet connection and try again.</string>
+    <string name="error_timeout_title">Taking too long</string>
+    <string name="error_timeout_body">The server is taking a while to respond. Please retry.</string>
+    <string name="btn_retry">Try Again</string>
+    <string name="btn_go_home">Go to Home</string>
+
+    <!-- ═══ ACCESSIBILITY CONTENT DESCRIPTIONS ══════════════════════ -->
+    <string name="cd_app_logo">BD Info Hub logo</string>
+    <string name="cd_article_image">Article thumbnail image</string>
+    <string name="cd_bookmark_button">Bookmark this article</string>
+    <string name="cd_share_button">Share this article</string>
+    <string name="cd_back_button">Go back</string>
+    <string name="cd_close_button">Close</string>
+    <string name="cd_search_button">Open search</string>
+    <string name="cd_notification_button">Open notifications</string>
+    <string name="cd_menu_button">Open menu</string>
+    <string name="cd_source_logo">News source logo</string>
+
+</resources>

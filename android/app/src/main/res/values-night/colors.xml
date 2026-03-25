@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        ╔══════════════════════════════════════════════════════════════════╗
+        ║  BD Info Hub — Night Color System                               ║
+        ║                                                                  ║
+        ║  Palette: True Black · Deep Ink · Warm Gold · Muted Ivory       ║
+        ║  Feel   : AMOLED-optimised · Refined · Zero eye-strain          ║
+        ║                                                                  ║
+        ║  Strategy: true-black base (#080C18) saves battery on AMOLED,   ║
+        ║  layered ink surfaces create depth without harsh contrast,       ║
+        ║  gold accent stays warm against cold-dark backgrounds.           ║
+        ╚══════════════════════════════════════════════════════════════════╝
+    -->
+
+
+    <!-- ─── SPLASH & WINDOW ────────────────────────────────────────── -->
+
+    <!-- Deepest possible dark — AMOLED pixels stay off = zero energy   -->
+    <color name="splash_background">#080C18</color>
+
+    <!-- Flutter scaffold bg in dark mode — one step up from pure black  -->
+    <color name="window_background_night">#0D1120</color>
+
+    <!-- System bars stay fully transparent; Flutter controls them       -->
+    <color name="status_bar_transparent">#00000000</color>
+    <color name="nav_bar_transparent">#00000000</color>
+
+
+    <!-- ─── LAUNCHER ICON ──────────────────────────────────────────── -->
+    <color name="ic_launcher_background">#080C18</color>
+    <color name="ic_launcher_foreground">#C9A84C</color>
+
+
+    <!-- ─── BRAND CORE (dark-adapted) ─────────────────────────────────
+         The day palette's deep navy becomes near-black ink in dark mode.
+         Gold accent remains identical — it reads beautifully on dark.    -->
+
+    <color name="brand_navy_900">#03060F</color>   <!-- deepest ink — bottom sheets        -->
+    <color name="brand_navy_800">#080C18</color>   <!-- ★ splash / true dark bg            -->
+    <color name="brand_navy_700">#0D1120</color>   <!-- scaffold / screen background       -->
+    <color name="brand_navy_600">#121726</color>   <!-- card / tile backgrounds            -->
+    <color name="brand_navy_500">#1A2035</color>   <!-- elevated card / sheet surface      -->
+    <color name="brand_navy_400">#242C42</color>   <!-- pressed state, input fill          -->
+    <color name="brand_navy_100">#3A4460</color>   <!-- disabled icons, muted dividers     -->
+    <color name="brand_navy_050">#2A3250</color>   <!-- subtle row hover                   -->
+
+    <!-- Gold stays warm and punchy across both themes                   -->
+    <color name="accent_gold_700">#A07828</color>
+    <color name="accent_gold_600">#B58C32</color>
+    <color name="accent_gold">#C9A84C</color>      <!-- ★ unchanged — CTAs, badges, icons  -->
+    <color name="accent_gold_400">#D9BE78</color>
+    <color name="accent_gold_200">#3D2E10</color>  <!-- gold tint bg (dark-adapted)        -->
+    <color name="accent_gold_050">#1F1708</color>  <!-- ultra-subtle gold wash on dark     -->
+
+
+    <!-- ─── SURFACES ───────────────────────────────────────────────── -->
+    <color name="surface_primary">#121726</color>      <!-- cards, sheets, dialogs           -->
+    <color name="surface_secondary">#0D1120</color>   <!-- scaffold / screen background     -->
+    <color name="surface_tertiary">#0A0E1A</color>    <!-- recessed sections / code blocks  -->
+    <color name="surface_overlay">#1E2540</color>     <!-- hover / pressed state overlay    -->
+    <color name="dialog_background_night">#151C30</color>
+
+
+    <!-- ─── TEXT ───────────────────────────────────────────────────── -->
+    <color name="text_primary">#EDF0FA</color>        <!-- headlines, primary body          -->
+    <color name="text_secondary">#9BA5C0</color>      <!-- subtitles, meta, captions        -->
+    <color name="text_tertiary">#5A6480</color>       <!-- placeholders, timestamps         -->
+    <color name="text_on_dark">#EDF0FA</color>        <!-- text on any dark surface         -->
+    <color name="text_on_dark_secondary">#7A87A8</color>
+    <color name="text_accent">#D9BE78</color>         <!-- highlighted / active labels      -->
+    <color name="text_link">#7A9FE0</color>           <!-- hyperlinks (accessible on dark)  -->
+
+
+    <!-- ─── SEMANTIC / FUNCTIONAL (dark-adapted) ───────────────────── -->
+    <color name="color_success">#2DD4A0</color>
+    <color name="color_success_bg">#0A2820</color>
+    <color name="color_warning">#F5A623</color>
+    <color name="color_warning_bg">#2A1E08</color>
+    <color name="color_error">#FF6B70</color>
+    <color name="color_error_bg">#2A0E10</color>
+    <color name="color_info">#5B9CF6</color>
+    <color name="color_info_bg">#0C1E3A</color>
+
+    <!-- Breaking/live/exclusive badges stay vivid on dark backgrounds   -->
+    <color name="badge_breaking">#FF6B70</color>
+    <color name="badge_live">#2DD4A0</color>
+    <color name="badge_exclusive">#C9A84C</color>
+
+
+    <!-- ─── SHIMMER / SKELETON LOADER (dark) ───────────────────────── -->
+    <color name="shimmer_base">#161D30</color>
+    <color name="shimmer_highlight">#222C44</color>
+
+
+    <!-- ─── DIVIDERS & BORDERS ─────────────────────────────────────── -->
+    <color name="divider">#1E2540</color>
+    <color name="divider_strong">#2A3254</color>
+    <color name="border_input">#2A3254</color>
+    <color name="border_focus">#7A9FE0</color>
+
+
+    <!-- ─── RIPPLE / TOUCH FEEDBACK ────────────────────────────────── -->
+    <color name="ripple_light">#1AEDF0FA</color>      <!-- 10 % ivory ripple on dark        -->
+    <color name="ripple_dark">#1AEDF0FA</color>
+    <color name="ripple_gold">#1AC9A84C</color>       <!-- gold ripple for accent buttons   -->
+
+
+    <!-- ─── ELEVATION OVERLAYS (Material dark spec +white overlay) ─── -->
+    <!-- Each dp level adds ~5 % white to simulate raised surfaces       -->
+    <color name="elevation_01dp">#0F1422</color>
+    <color name="elevation_02dp">#121828</color>
+    <color name="elevation_04dp">#161E30</color>
+    <color name="elevation_08dp">#1C263C</color>
+
+</resources>

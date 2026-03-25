@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        ╔══════════════════════════════════════════════════════════╗
+        ║  BD Info Hub — Night / Dark Mode Themes                 ║
+        ║  Edge-to-edge · Hardware Accelerated · Zero Flicker     ║
+        ╚══════════════════════════════════════════════════════════╝
+    -->
+
+    <!-- ═══ DARK LAUNCH / SPLASH THEME ══════════════════════════════
+         Shown while the Flutter engine cold-starts in dark mode.
+         True black base eliminates any white-flash artifact on
+         AMOLED displays and matches the Flutter dark scaffold.    -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+
+        <!-- Deep brand-dark fill — pure splash color, no drawable needed -->
+        <item name="android:windowBackground">@color/splash_background</item>
+
+        <!-- GPU rendering active from the very first frame -->
+        <item name="android:hardwareAccelerated">true</item>
+
+        <!-- Never let the OS invert our carefully chosen dark palette -->
+        <item name="android:forceDarkAllowed">false</item>
+
+        <!-- True edge-to-edge: extend behind both system bars -->
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@color/status_bar_transparent</item>
+        <item name="android:navigationBarColor">@color/nav_bar_transparent</item>
+
+        <!-- Light icons are wrong on dark — use white/light icon tints -->
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+
+        <!-- Render behind notch / punch-hole camera -->
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+
+        <!-- Strip all title/action bar chrome -->
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+
+        <!-- Allow activity transitions to start immediately -->
+        <item name="android:windowActivityTransitions">true</item>
+        <item name="android:windowDisablePreview">false</item>
+
+    </style>
+
+
+    <!-- ═══ DARK NORMAL / FLUTTER RUNTIME THEME ══════════════════════
+         Applied the instant Flutter takes over from the dark splash.
+         Transparent bars + dark scaffold = seamless handoff with
+         zero color pop between the two phases.                    -->
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+
+        <!-- Dark scaffold background — matches Flutter's dark surface -->
+        <item name="android:windowBackground">@color/window_background_night</item>
+
+        <!-- Keep GPU acceleration throughout the session -->
+        <item name="android:hardwareAccelerated">true</item>
+
+        <!-- Edge-to-edge: Flutter owns all padding via
+             SystemChrome.setEnabledSystemUIMode                   -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+
+        <!-- White/light icon tints for dark backgrounds -->
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+
+        <!-- Continue rendering behind display cutout -->
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+
+        <!-- Smooth shared-element and page transitions -->
+        <item name="android:windowActivityTransitions">true</item>
+        <item name="android:windowContentTransitions">true</item>
+        <item name="android:windowAllowEnterTransitionOverlap">true</item>
+        <item name="android:windowAllowReturnTransitionOverlap">true</item>
+
+        <!-- Prevent layout jank on soft-keyboard appear/dismiss -->
+        <item name="android:windowSoftInputMode">adjustResize</item>
+
+        <!-- No title bar chrome -->
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+
+        <!-- Prevent OS from auto-darkening our already-dark UI -->
+        <item name="android:forceDarkAllowed">false</item>
+
+    </style>
+
+
+    <!-- ═══ DARK DIALOG THEME ════════════════════════════════════════
+         Consistent premium dark feel for native dialogs /
+         permission prompts surfacing above Flutter in dark mode.  -->
+    <style name="PremiumDialog" parent="@android:style/Theme.Material.Dialog">
+        <item name="android:windowBackground">@color/dialog_background_night</item>
+        <item name="android:windowElevation">24dp</item>
+        <item name="android:colorAccent">@color/accent_gold</item>
+        <item name="android:textColorPrimary">@color/text_on_dark</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:hardwareAccelerated">true</item>
+    </style>
+
+</resources>
