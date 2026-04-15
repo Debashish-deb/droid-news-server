@@ -1,4 +1,8 @@
+// ignore_for_file: avoid_classes_with_only_static_members
+
 import '../domain/models/speech_chunk.dart';
+import '../core/bangla_tts_normalizer.dart';
+import 'speech_delivery_intelligence.dart';
 
 enum ChunkTone { statement, question, exclamation, reflective, listing, quote }
 
@@ -52,110 +56,47 @@ class TtsProsodyBuilder {
     final raw = chunk.text.trim();
     final hasBanglaGlyph = RegExp(r'[\u0980-\u09FF]').hasMatch(raw);
     final isBangla = chunk.language.startsWith('bn') || hasBanglaGlyph;
+    final pauseAnalysis = SpeechDeliveryIntelligence.analyzeChunk(chunk);
+    final deliveryProfile = SpeechDeliveryIntelligence.profileForCategory(
+      chunk.articleCategory,
+    );
     final normalized = _normalizeChunkText(raw, isBangla: isBangla);
     final tone = _detectTone(normalized, isBangla: isBangla);
     final role = _detectRole(normalized, chunkId: chunk.id);
     final isUrgent = _isUrgentTopic(normalized, isBangla: isBangla);
     final isSolemn = _isSolemnTopic(normalized, isBangla: isBangla);
 
-    var rate = baseSynthesisRate;
-    var pitch = baseSynthesisPitch;
-
-    // Apply style-based multipliers
+    // Keep pitch/rate stable for the whole article. Earlier versions applied
+    // role, tone, topic, and punctuation shaping directly to setRate/setPitch
+    // for each chunk, which made adjacent chunks sound like different voices.
     final rateStyleMult = switch (preset) {
-      TtsPreset.anchor => 1.02,   // Authoritative, brisk
-      TtsPreset.natural => 1.0,   // Balanced
-      TtsPreset.story => 0.94,    // Deliberate, narratory
+      TtsPreset.anchor => 1.0, // Authoritative, steady
+      TtsPreset.natural => 1.0, // Balanced
+      TtsPreset.story => 0.97, // Deliberate, warm
     };
     final pitchStyleMult = switch (preset) {
-      TtsPreset.anchor => 0.94,   // Solemn, authoritative
-      TtsPreset.natural => 1.0,   // Default
-      TtsPreset.story => 1.08,    // Expressive, emotive
+      TtsPreset.anchor => 0.98, // Solemn, authoritative
+      TtsPreset.natural => 1.0, // Default
+      TtsPreset.story => 1.03, // Expressive, emotive
     };
-
-    rate *= rateStyleMult;
-    pitch *= pitchStyleMult;
-
-    switch (role) {
-      case ChunkRole.lead:
-        rate -= 0.04;
-        pitch -= 0.01;
-        break;
-      case ChunkRole.pivot:
-        rate -= 0.02;
-        break;
-      case ChunkRole.attribution:
-        rate -= 0.02;
-        pitch -= 0.02;
-        break;
-      case ChunkRole.closing:
-        rate -= 0.03;
-        pitch -= 0.01;
-        break;
-      case ChunkRole.context:
-        break;
-    }
-
-    switch (tone) {
-      case ChunkTone.question:
-        rate -= 0.02;
-        pitch += isBangla ? 0.07 : 0.04;
-        break;
-      case ChunkTone.exclamation:
-        rate += 0.02;
-        pitch += 0.06;
-        break;
-      case ChunkTone.reflective:
-        rate -= 0.04;
-        pitch -= 0.03;
-        break;
-      case ChunkTone.listing:
-        rate -= 0.015;
-        pitch += 0.01;
-        break;
-      case ChunkTone.quote:
-        rate -= 0.03;
-        pitch -= 0.04;
-        break;
-      case ChunkTone.statement:
-        break;
-    }
-
-    // Style-specific variances
-    if (preset == TtsPreset.story) {
-      if (tone == ChunkTone.quote || tone == ChunkTone.exclamation) {
-        pitch += 0.02;
-      }
-    } else if (preset == TtsPreset.anchor) {
-      pitch = (pitch * 0.92 + baseSynthesisPitch * 0.08);
-    }
-
-    if (isUrgent && !isSolemn) {
-      rate += 0.01;
-      pitch += 0.02;
-    }
-    if (isSolemn) {
-      rate -= 0.05;
-      pitch -= 0.04;
-    }
-
-    if (normalized.length > 260) {
-      rate -= 0.02;
-    } else if (normalized.length < 70) {
-      rate += 0.012;
-    }
-
-    if (_containsLongClause(normalized, isBangla: isBangla)) {
-      rate -= 0.01;
-    }
-
-    if (isBangla) {
-      pitch += 0.015;
-      rate -= 0.008;
-    }
+    final languageRateBias = isBangla ? -0.012 : 0.0;
+    final languagePitchBias = isBangla ? 0.014 : 0.0;
+    final rate =
+        (baseSynthesisRate * rateStyleMult +
+                deliveryProfile.rateBias +
+                languageRateBias)
+            .clamp(0.38, 0.58)
+            .toDouble();
+    final pitch =
+        (baseSynthesisPitch * pitchStyleMult +
+                deliveryProfile.pitchBias +
+                languagePitchBias)
+            .clamp(0.9, 1.1)
+            .toDouble();
 
     final shapedText = _injectPauseHints(
       normalized,
+      pauseAnalysis: pauseAnalysis,
       isBangla: isBangla,
       tone: tone,
       role: role,
@@ -166,8 +107,8 @@ class TtsProsodyBuilder {
 
     return ChunkProsody(
       text: shapedText,
-      rate: rate.clamp(0.35, 0.65),
-      pitch: pitch.clamp(0.78, 1.22),
+      rate: rate,
+      pitch: pitch,
       tone: tone,
       role: role,
       isBangla: isBangla,
@@ -247,13 +188,6 @@ class TtsProsodyBuilder {
     return englishMatch || banglaMatch;
   }
 
-  static bool _containsLongClause(String text, {required bool isBangla}) {
-    final punctuation = isBangla ? RegExp(r'[,;:।!?]') : RegExp(r'[,;:!?]');
-    if (punctuation.hasMatch(text)) return false;
-    final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
-    return words > 20;
-  }
-
   static String _normalizeChunkText(String text, {required bool isBangla}) {
     var out = text
         .replaceAllMapped(
@@ -266,7 +200,7 @@ class TtsProsodyBuilder {
         .replaceAll(RegExp(r'\[(?:BREATH|BREAK)\]', caseSensitive: false), ', ')
         .replaceAll(
           RegExp(
-            r'\[(?:EMPHASIS\s+\w+|PITCH\s+[^\]]+|RATE\s+[^\]]+|WHISPER|NEUTRAL|LEAD[^\]]*|BODY[^\]]*|QUOTE[^\]]*|OUTRO[^\]]*|NEWS\s+TONE:[^\]]+)\]',
+            r'\[(?:EMPHASIS\s+\w+|PITCH\s+[^\]]+|RATE\s+[^\]]+|WHISPER|NEUTRAL|LEAD[^\]]*|BODY[^\]]*|QUOTE[^\]]*|OUTRO[^\]]*|NEWS\s+TONE:[^\]]+|ARTICLE_START|PARAGRAPH_START|PARAGRAPH_END)\]',
             caseSensitive: false,
           ),
           ' ',
@@ -295,7 +229,10 @@ class TtsProsodyBuilder {
         .replaceAll('\r', '\n')
         .replaceAll(RegExp(r'\n{2,}'), isBangla ? '। ' : '. ')
         .replaceAll('\n', ', ')
-        .replaceAll(RegExp(r'([,;:।!?])(?=\S)'), r'$1 ')
+        .replaceAllMapped(
+          RegExp(r'([,;:।!?])(?=\S)'),
+          (match) => '${match.group(1)} ',
+        )
         .replaceAll(RegExp(r'\.{4,}'), '...')
         .replaceAll(RegExp(r'\s+"'), ' "')
         .replaceAll(RegExp(r'\s+'), ' ')
@@ -303,6 +240,10 @@ class TtsProsodyBuilder {
 
     if (!isBangla) {
       out = _normalizeBroadcastNumbers(out);
+    }
+
+    if (isBangla) {
+      out = BanglaTtsNormalizer.normalize(out);
     }
 
     out = _insertBreathingCommaForLongClauses(
@@ -314,7 +255,9 @@ class TtsProsodyBuilder {
 
     final terminal = isBangla ? RegExp(r'[।!?]$') : RegExp(r'[.!?]$');
     if (!terminal.hasMatch(out)) {
-      out = isBangla ? '$out। ' : '$out. ';
+      out = isBangla
+          ? '${BanglaTtsNormalizer.withBanglaTerminal(out)} '
+          : '$out. ';
     }
     return out;
   }
@@ -562,6 +505,7 @@ class TtsProsodyBuilder {
 
   static String _injectPauseHints(
     String text, {
+    required SpeechPauseAnalysis pauseAnalysis,
     required bool isBangla,
     required ChunkTone tone,
     required ChunkRole role,
@@ -573,16 +517,20 @@ class TtsProsodyBuilder {
         .replaceAll('—', ', ')
         .replaceAll('–', ', ')
         .replaceAll(RegExp(r'(?<=\d),(?=\d)'), '')
-        .replaceAll(RegExp(r'([,;:])\s*'), r'$1 ');
+        .replaceAllMapped(
+          RegExp(r'([,;:])\s*'),
+          (match) => '${match.group(1)} ',
+        );
 
-    final isFastStyle = preset == TtsPreset.anchor || preset == TtsPreset.natural;
+    final isFastStyle =
+        preset == TtsPreset.anchor || preset == TtsPreset.natural;
 
     if (role == ChunkRole.pivot &&
         _pivotCuePattern.hasMatch(out) &&
         !RegExp(r'^[^,]+,').hasMatch(out)) {
       out = out.replaceFirstMapped(
         _pivotCuePattern,
-        (match) => '${match.group(0)}${isFastStyle ? "" : ","}',
+        (match) => '${match.group(0)},',
       );
     }
 
@@ -607,6 +555,10 @@ class TtsProsodyBuilder {
     if (role == ChunkRole.closing &&
         !out.endsWith('...') &&
         !out.endsWith('…')) {
+      out = isFastStyle ? '$out.' : '$out ...';
+    }
+
+    if (pauseAnalysis.isParagraphEnd && !RegExp(r'[.!?।…]$').hasMatch(out)) {
       out = isFastStyle ? '$out.' : '$out ...';
     }
 

@@ -1,15 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../application/identity/entitlement_policy.dart';
 import '../../core/architecture/either.dart';
 import '../../core/architecture/failure.dart';
 import '../../core/config/premium_plans.dart';
 import '../../domain/entities/subscription.dart';
+import '../../domain/entities/tts_quota_status.dart';
 import '../../domain/facades/auth_facade.dart';
 import '../../domain/interfaces/subscription_repository.dart';
 import '../../domain/repositories/premium_repository.dart';
+import '../../core/utils/url_identity.dart';
 import '../services/payment/payment_service.dart';
 import '../services/payment/receipt_verification_service.dart'
     show ReceiptVerificationResult;
@@ -33,8 +38,10 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
   static const String _startDateKey = 'subscription_start_date';
   static const String _endDateKey = 'subscription_end_date';
   static const String _isPremiumKey = 'is_premium';
-  static const String _ttsUsageKey = 'tts_usage_count';
+  static const String _ttsDayKey = 'tts_usage_day';
   static const String _ttsMonthKey = 'tts_usage_month';
+  static const String _ttsDailyArticlesKey = 'tts_usage_daily_articles';
+  static const String _ttsMonthlyArticlesKey = 'tts_usage_monthly_articles';
   static const String _trialSubscriptionId = 'trial_sub';
 
   @override
@@ -52,8 +59,9 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
 
         if (!isPremium) {
           // Only wipe if we are absolutely sure (not just during initial bootstrap)
-          if (subscription.tier.isPremium && _premiumRepository.isStatusResolved) {
-             // await _persistFreeState(); // Removed aggressive wiping
+          if (subscription.tier.isPremium &&
+              _premiumRepository.isStatusResolved) {
+            // await _persistFreeState(); // Removed aggressive wiping
           }
           return Right(_createFreeSubscription(userId: userId));
         }
@@ -89,29 +97,19 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
     try {
       final tiers = <SubscriptionTier, List<String>>{
         SubscriptionTier.free: [
-          'Basic news feed',
-          'Limited articles',
-          'TTS (5/month)',
+          'All articles and sources',
+          'Reader mode',
+          'TTS on 5 articles per week',
+          'Auto and Dark themes',
+          'Ads enabled',
         ],
         SubscriptionTier.pro: [
           'Ad-free experience',
-          'Unlimited articles',
+          'All articles and sources',
           'Unlimited TTS',
-          'Offline reading',
-          'Dark mode themes',
-          'Premium sources',
-          'One-time purchase',
-        ],
-        SubscriptionTier.proPlus: [
-          'Ad-free experience',
-          'Unlimited articles',
-          'Unlimited TTS',
-          'Offline reading',
-          'Dark mode themes',
-          'Premium sources',
-          'AI summaries',
-          'Priority support',
-          'Yearly plan',
+          'Offline saving',
+          'Light, AMOLED, and Desh themes',
+          'Lifetime and yearly billing options',
         ],
       };
 
@@ -141,6 +139,19 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
   Future<Either<AppFailure, Subscription>> upgradeSubscription(
     SubscriptionTier newTier,
   ) async {
+    final productId = _getProductIdForTier(newTier);
+    if (productId == null) {
+      return Left(
+        SubscriptionFailure('No purchasable product is mapped for $newTier'),
+      );
+    }
+    return purchasePremiumProduct(productId);
+  }
+
+  @override
+  Future<Either<AppFailure, Subscription>> purchasePremiumProduct(
+    String productId,
+  ) async {
     try {
       if (!_paymentService.isPurchaseActivationAvailable) {
         return const Left(
@@ -155,11 +166,9 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
         return const Left(StoreNotAvailableFailure());
       }
 
-      final productId = _getProductIdForTier(newTier);
-      if (productId == null) {
-        return Left(
-          SubscriptionFailure('No purchasable product is mapped for $newTier'),
-        );
+      final tier = _getTierFromProductId(productId);
+      if (!tier.isPremium) {
+        return Left(PurchaseFailure('Unknown product "$productId".'));
       }
 
       final productResponse = await _paymentService.queryProductDetails({
@@ -186,7 +195,7 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
 
       return Right(
         _createPendingSubscription(
-          newTier,
+          tier,
           userId: _authService.currentUser?.uid ?? 'anonymous',
         ),
       );
@@ -199,64 +208,27 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
   }
 
   @override
-  Future<Either<AppFailure, void>> upgradeWithGooglePay({
-    required SubscriptionTier tier,
-    required String paymentToken,
-  }) async {
+  Future<Either<AppFailure, Subscription>> cancelSubscription() async {
     try {
-      if (!_paymentService.isPurchaseActivationAvailable) {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final uri = Uri.https('play.google.com', '/store/account/subscriptions', {
+        if (packageInfo.packageName.trim().isNotEmpty)
+          'package': packageInfo.packageName.trim(),
+      });
+
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
         return const Left(
           StoreNotAvailableFailure(
-            'Premium purchases are temporarily unavailable while verification backend is offline.',
+            'Unable to open Play Store subscription management.',
           ),
         );
       }
-      final user = _authService.currentUser;
-      if (user == null) {
-        return const Left(AuthFailure('User not authenticated'));
-      }
 
-      await _paymentService.processGooglePayPayment(
-        psp: 'stripe',
-        total: tier == SubscriptionTier.proPlus ? 1.99 : 6.99,
-        currency: 'EUR',
-        paymentToken: paymentToken,
-        userId: user.uid,
-      );
-
-      final prefs = _prefs;
-      if (prefs != null) {
-        await prefs.setString(_currentTierKey, tier.name);
-        await prefs.setBool(_isPremiumKey, true); // Changed from false to true
-        await prefs.setString(
-          _subscriptionIdKey,
-          'gpay_pending_${DateTime.now().millisecondsSinceEpoch}',
-        );
-        await prefs.setString(_startDateKey, DateTime.now().toIso8601String());
-        await prefs.remove(_endDateKey);
-      }
-      // Fixed: Actually set to true in Firestore instead of refreshing and getting back 'false'
-      await _premiumRepository.setPremium(true);
-
-      return const Right(null);
-    } on AppFailure catch (e) {
-      return Left(e);
-    } catch (e, stackTrace) {
-      debugPrint('Error upgrading with Google Pay: $e');
-      return Left(PurchaseFailure(e.toString(), null, stackTrace));
-    }
-  }
-
-  @override
-  Future<Either<AppFailure, Subscription>> cancelSubscription() async {
-    try {
-      await _persistFreeState();
-      await _premiumRepository.setPremium(false);
-      return Right(
-        _createFreeSubscription(
-          userId: _authService.currentUser?.uid ?? 'anonymous',
-        ),
-      );
+      return getCurrentSubscription();
     } catch (e, stackTrace) {
       debugPrint('Error cancelling subscription: $e');
       return Left(SubscriptionFailure(e.toString(), stackTrace));
@@ -346,6 +318,10 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
               _premiumRepository.isPremium || _hasLocallyEntitledTier();
           if (purchase.status == PurchaseStatus.restored && alreadyEntitled) {
             // Grace path: preserve existing entitlement without granting new one.
+            await _completePendingPurchaseIfNeeded(
+              purchase,
+              swallowErrors: true,
+            );
             return getCurrentSubscription();
           }
           return const Left(
@@ -369,6 +345,8 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
         }
       }
 
+      await _completePendingPurchaseIfNeeded(purchase);
+
       final prefs = _prefs;
       if (prefs != null) {
         await prefs.setString(_currentTierKey, tier.name);
@@ -382,10 +360,6 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
       }
 
       await _premiumRepository.setPremium(true);
-
-      if (purchase.pendingCompletePurchase) {
-        await _paymentService.completePurchase(purchase);
-      }
 
       return getCurrentSubscription();
     } on AppFailure catch (e) {
@@ -459,69 +433,73 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
   }
 
   SubscriptionTier _parseTier(String tierString) {
-    final normalized = tierString.trim().toLowerCase().replaceAll('_', '').replaceAll(' ', '');
-    if (normalized.contains('proplus') || normalized.contains('yearly')) {
-      return SubscriptionTier.proPlus;
+    final normalized = tierString
+        .trim()
+        .toLowerCase()
+        .replaceAll('_', '')
+        .replaceAll(' ', '');
+    switch (normalized) {
+      case 'pro':
+      case 'premium':
+      case 'paid':
+      case 'yearly':
+        return SubscriptionTier.pro;
+      case 'free':
+      default:
+        return SubscriptionTier.free;
     }
-    if (normalized.contains('pro') || normalized.contains('premium') || normalized.contains('paid')) {
-      return SubscriptionTier.pro;
+  }
+
+  Future<void> _completePendingPurchaseIfNeeded(
+    PurchaseDetails purchase, {
+    bool swallowErrors = false,
+  }) async {
+    if (!purchase.pendingCompletePurchase) {
+      return;
     }
-    return SubscriptionTier.free;
+
+    try {
+      await _paymentService.completePurchase(purchase);
+    } catch (e, stackTrace) {
+      if (swallowErrors) {
+        debugPrint('Non-fatal purchase completion failure: $e');
+        return;
+      }
+      throw PurchaseFailure(
+        'Failed to acknowledge purchase with the store.',
+        null,
+        stackTrace,
+      );
+    }
   }
 
   String? _getProductIdForTier(SubscriptionTier tier) {
     switch (tier) {
       case SubscriptionTier.pro:
         return PremiumPlanConfig.proLifetimeProductId;
-      case SubscriptionTier.proPlus:
-        return PremiumPlanConfig.proYearlyProductId;
       case SubscriptionTier.free:
         return null;
     }
   }
 
   SubscriptionTier _getTierFromProductId(String productId) {
-    switch (productId) {
-      case PremiumPlanConfig.proLifetimeProductId:
-      case PremiumPlanConfig.legacyRemoveAdsProductId:
-      case PremiumPlanConfig.legacyProProductId:
-        return SubscriptionTier.pro;
-      case PremiumPlanConfig.proYearlyProductId:
-      case PremiumPlanConfig.legacyProPlusProductId:
-        return SubscriptionTier.proPlus;
-      default:
-        return SubscriptionTier.free;
+    if (PremiumPlanConfig.primaryProductIds.contains(productId) ||
+        PremiumPlanConfig.retiredPremiumProductIds.contains(productId)) {
+      return SubscriptionTier.pro;
     }
+    return SubscriptionTier.free;
   }
 
   List<String> _getFeaturesForTier(SubscriptionTier tier) {
-    switch (tier) {
-      case SubscriptionTier.free:
-        return ['basic_feed', 'limited_articles', 'tts_limit_5'];
-      case SubscriptionTier.pro:
-        return [
-          'ad_free',
-          'offline_reading',
-          'unlimited_articles',
-          'unlimited_tts',
-          'premium_sources',
-        ];
-      case SubscriptionTier.proPlus:
-        return [
-          'ad_free',
-          'offline_reading',
-          'unlimited_articles',
-          'unlimited_tts',
-          'premium_sources',
-          'ai_summaries',
-          'bulk_export',
-        ];
-    }
+    return EntitlementPolicy.featuresForTier(tier);
   }
 
   @override
   Future<Either<AppFailure, bool>> isTrialEligible() async {
     try {
+      if (_authService.currentUser == null) {
+        return const Right(false);
+      }
       final hasUsed = await _authService.hasUsedTrial();
       return Right(!hasUsed);
     } catch (e, stackTrace) {
@@ -533,15 +511,19 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
   @override
   Future<Either<AppFailure, Subscription>> startTrial() async {
     try {
+      if (_authService.currentUser == null) {
+        return const Left(
+          SubscriptionFailure('Please sign in to start your free trial.'),
+        );
+      }
       final hasUsedTrial = await _authService.hasUsedTrial();
       if (hasUsedTrial) {
-        return const Left(SubscriptionFailure('Trial already used'));
+        return const Left(SubscriptionFailure('Trial already used.'));
       }
-
-      await _authService.markTrialUsed();
 
       final startDate = DateTime.now();
       final endDate = startDate.add(const Duration(days: 3));
+      await _authService.markTrialUsed(startedAt: startDate, endsAt: endDate);
       final prefs = _prefs;
       if (prefs != null) {
         await prefs.setString(_currentTierKey, 'pro');
@@ -553,6 +535,8 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
 
       await _premiumRepository.setPremium(true);
       return getCurrentSubscription();
+    } on StateError catch (e, stackTrace) {
+      return Left(SubscriptionFailure(e.message.toString(), stackTrace));
     } catch (e, stackTrace) {
       debugPrint('Error starting trial: $e');
       return Left(SubscriptionFailure(e.toString(), stackTrace));
@@ -561,86 +545,252 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
 
   @override
   Future<Either<AppFailure, int>> getTtsUsageMonth() async {
-    try {
-      final user = _authService.currentUser;
-      final now = DateTime.now();
-      final currentMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
-
-      if (user != null && !user.isAnonymous) {
-        final doc = await FirebaseFirestore.instance.collection('user_usage').doc(user.uid).get();
-        if (doc.exists) {
-          final data = doc.data()!;
-          if (data['ttsMonth'] == currentMonth) {
-             return Right((data['ttsUsage'] as num?)?.toInt() ?? 0);
-          }
-        }
-        return const Right(0);
-      }
-
-      final prefs = _prefs;
-      if (prefs == null) return const Right(0);
-      final storedMonth = prefs.getString(_ttsMonthKey);
-
-      if (storedMonth != currentMonth) {
-        await prefs.setString(_ttsMonthKey, currentMonth);
-        await prefs.setInt(_ttsUsageKey, 0);
-        return const Right(0);
-      }
-
-      return Right(prefs.getInt(_ttsUsageKey) ?? 0);
-    } catch (e, stackTrace) {
-      return Left(SubscriptionFailure(e.toString(), stackTrace));
-    }
+    final quota = await getTtsQuotaStatus();
+    return quota.fold(
+      (failure) => Left(failure),
+      (status) => Right(status.usedMonthlyUniqueArticles),
+    );
   }
 
   @override
   Future<Either<AppFailure, void>> incrementTtsUsage() async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<AppFailure, bool>> canUseTts() async {
+    final quota = await getTtsQuotaStatus();
+    return quota.fold(
+      (failure) => Left(failure),
+      (status) => Right(status.canStartTts),
+    );
+  }
+
+  @override
+  Future<Either<AppFailure, TtsQuotaStatus>> getTtsQuotaStatus({
+    String? articleUrl,
+  }) async {
     try {
-      final user = _authService.currentUser;
-      final now = DateTime.now();
-      final currentMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
-
-      if (user != null && !user.isAnonymous) {
-         final docRef = FirebaseFirestore.instance.collection('user_usage').doc(user.uid);
-         await FirebaseFirestore.instance.runTransaction((tx) async {
-           final doc = await tx.get(docRef);
-           if (doc.exists && doc.data()?['ttsMonth'] == currentMonth) {
-             final currentUsage = (doc.data()?['ttsUsage'] as num?)?.toInt() ?? 0;
-             tx.update(docRef, {'ttsUsage': currentUsage + 1});
-           } else {
-             tx.set(docRef, {'ttsMonth': currentMonth, 'ttsUsage': 1});
-           }
-         });
-         return const Right(null);
-      }
-
-      final prefs = _prefs;
-      if (prefs == null) return const Right(null);
-      final usageResult = await getTtsUsageMonth();
-      final usage = usageResult.fold((_) => 0, (r) => r);
-      await prefs.setInt(_ttsUsageKey, usage + 1);
-      return const Right(null);
+      final subscriptionResult = await getCurrentSubscription();
+      return await subscriptionResult.fold((failure) async => Left(failure), (
+        subscription,
+      ) async {
+        final canonicalArticleId = _canonicalArticleId(articleUrl);
+        final usage = await _loadTtsUsage();
+        final articleAlreadyCounted =
+            canonicalArticleId.isNotEmpty &&
+            (usage.dailyArticleIds.contains(canonicalArticleId) ||
+                usage.monthlyArticleIds.contains(canonicalArticleId));
+        return Right(
+          TtsQuotaStatus(
+            dayKey: usage.dayKey,
+            monthKey: usage.monthKey,
+            usedDailyUniqueArticles: usage.dailyArticleIds.length,
+            usedMonthlyUniqueArticles: usage.monthlyArticleIds.length,
+            dailyLimit: EntitlementPolicy.freeTtsDailyArticleLimit,
+            monthlyLimit: EntitlementPolicy.freeTtsMonthlyArticleLimit,
+            isPremium: subscription.tier.isPremium,
+            articleAlreadyCounted: articleAlreadyCounted,
+          ),
+        );
+      });
     } catch (e, stackTrace) {
       return Left(SubscriptionFailure(e.toString(), stackTrace));
     }
   }
 
   @override
-  Future<Either<AppFailure, bool>> canUseTts() async {
+  Future<Either<AppFailure, void>> recordTtsArticleUsage(
+    String articleUrl,
+  ) async {
     try {
-      final subResult = await getCurrentSubscription();
-
-      return subResult.fold((l) => Left(l), (sub) async {
-        if (sub.features.contains('unlimited_tts')) {
-          return const Right(true);
+      final quotaResult = await getTtsQuotaStatus(articleUrl: articleUrl);
+      return await quotaResult.fold((failure) async => Left(failure), (
+        status,
+      ) async {
+        if (status.isPremium || status.articleAlreadyCounted) {
+          return const Right(null);
         }
-
-        final usageResult = await getTtsUsageMonth();
-        return usageResult.fold((l) => Left(l), (usage) => Right(usage < 5));
+        if (!status.canStartTts) {
+          return const Left(
+            SubscriptionFailure(
+              'Free TTS limit reached for today or this month.',
+            ),
+          );
+        }
+        final canonicalArticleId = _canonicalArticleId(articleUrl);
+        await _persistTtsArticleId(
+          dayKey: status.dayKey,
+          monthKey: status.monthKey,
+          canonicalArticleId: canonicalArticleId,
+        );
+        return const Right(null);
       });
     } catch (e, stackTrace) {
       return Left(SubscriptionFailure(e.toString(), stackTrace));
     }
+  }
+
+  Future<
+    ({
+      String dayKey,
+      String monthKey,
+      Set<String> dailyArticleIds,
+      Set<String> monthlyArticleIds,
+    })
+  >
+  _loadTtsUsage() async {
+    final now = DateTime.now();
+    final dayKey = _dayKey(now);
+    final monthKey = _monthKey(now);
+    final user = _authService.currentUser;
+
+    if (user != null && !user.isAnonymous) {
+      final doc = await FirebaseFirestore.instance
+          .collection('user_usage')
+          .doc(user.uid)
+          .get();
+      if (!doc.exists) {
+        return (
+          dayKey: dayKey,
+          monthKey: monthKey,
+          dailyArticleIds: <String>{},
+          monthlyArticleIds: <String>{},
+        );
+      }
+      final data = doc.data() ?? const <String, dynamic>{};
+      final storedDay = (data['ttsDay'] as String?) ?? '';
+      final storedMonth = (data['ttsMonth'] as String?) ?? '';
+      final dailyArticles = storedDay == dayKey
+          ? _stringSetFromDynamicList(data['ttsDailyArticleIds'])
+          : <String>{};
+      final monthlyArticles = storedMonth == monthKey
+          ? _stringSetFromDynamicList(data['ttsMonthlyArticleIds'])
+          : <String>{};
+      return (
+        dayKey: dayKey,
+        monthKey: monthKey,
+        dailyArticleIds: dailyArticles,
+        monthlyArticleIds: monthlyArticles,
+      );
+    }
+
+    final prefs = _prefs;
+    if (prefs == null) {
+      return (
+        dayKey: dayKey,
+        monthKey: monthKey,
+        dailyArticleIds: <String>{},
+        monthlyArticleIds: <String>{},
+      );
+    }
+
+    final storedDay = prefs.getString(_ttsDayKey);
+    final storedMonth = prefs.getString(_ttsMonthKey);
+    if (storedDay != dayKey) {
+      await prefs.setString(_ttsDayKey, dayKey);
+      await prefs.setStringList(_ttsDailyArticlesKey, const <String>[]);
+    }
+    if (storedMonth != monthKey) {
+      await prefs.setString(_ttsMonthKey, monthKey);
+      await prefs.setStringList(_ttsMonthlyArticlesKey, const <String>[]);
+    }
+
+    final dailyArticles = storedDay == dayKey
+        ? _stringSetFromList(prefs.getStringList(_ttsDailyArticlesKey))
+        : <String>{};
+    final monthlyArticles = storedMonth == monthKey
+        ? _stringSetFromList(prefs.getStringList(_ttsMonthlyArticlesKey))
+        : <String>{};
+    return (
+      dayKey: dayKey,
+      monthKey: monthKey,
+      dailyArticleIds: dailyArticles,
+      monthlyArticleIds: monthlyArticles,
+    );
+  }
+
+  Future<void> _persistTtsArticleId({
+    required String dayKey,
+    required String monthKey,
+    required String canonicalArticleId,
+  }) async {
+    if (canonicalArticleId.isEmpty) {
+      return;
+    }
+
+    final user = _authService.currentUser;
+    if (user != null && !user.isAnonymous) {
+      final docRef = FirebaseFirestore.instance
+          .collection('user_usage')
+          .doc(user.uid);
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final snapshot = await tx.get(docRef);
+        final data = snapshot.data() ?? const <String, dynamic>{};
+        final storedDay = (data['ttsDay'] as String?) ?? '';
+        final storedMonth = (data['ttsMonth'] as String?) ?? '';
+        final dailyIds = storedDay == dayKey
+            ? _stringSetFromDynamicList(data['ttsDailyArticleIds'])
+            : <String>{};
+        final monthlyIds = storedMonth == monthKey
+            ? _stringSetFromDynamicList(data['ttsMonthlyArticleIds'])
+            : <String>{};
+        dailyIds.add(canonicalArticleId);
+        monthlyIds.add(canonicalArticleId);
+        tx.set(docRef, <String, dynamic>{
+          'ttsDay': dayKey,
+          'ttsMonth': monthKey,
+          'ttsDailyArticleIds': dailyIds.toList(),
+          'ttsMonthlyArticleIds': monthlyIds.toList(),
+        }, SetOptions(merge: true));
+      });
+      return;
+    }
+
+    final prefs = _prefs;
+    if (prefs == null) {
+      return;
+    }
+    final usage = await _loadTtsUsage();
+    final nextDailyIds = Set<String>.from(usage.dailyArticleIds)
+      ..add(canonicalArticleId);
+    final nextMonthlyIds = Set<String>.from(usage.monthlyArticleIds)
+      ..add(canonicalArticleId);
+    await prefs.setString(_ttsDayKey, dayKey);
+    await prefs.setString(_ttsMonthKey, monthKey);
+    await prefs.setStringList(_ttsDailyArticlesKey, nextDailyIds.toList());
+    await prefs.setStringList(_ttsMonthlyArticlesKey, nextMonthlyIds.toList());
+  }
+
+  String _canonicalArticleId(String? articleUrl) {
+    final normalized = UrlIdentity.canonicalize(articleUrl ?? '');
+    return normalized.isEmpty ? '' : normalized;
+  }
+
+  Set<String> _stringSetFromDynamicList(Object? rawList) {
+    return (rawList as List<dynamic>? ?? const [])
+        .whereType<String>()
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+  }
+
+  Set<String> _stringSetFromList(List<String>? rawList) {
+    return (rawList ?? const <String>[])
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+  }
+
+  String _dayKey(DateTime date) {
+    return '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  String _monthKey(DateTime date) {
+    return '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}';
   }
 
   Future<void> _syncPremiumFromTrialState() async {

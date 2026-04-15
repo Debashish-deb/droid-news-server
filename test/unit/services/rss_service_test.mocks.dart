@@ -3,16 +3,16 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i4;
+import 'dart:async' as _i5;
 import 'dart:ui' as _i6;
 
-import 'package:bdnewsreader/core/config/performance_config.dart' as _i5;
+import 'package:bdnewsreader/core/config/performance_config.dart' as _i3;
 import 'package:bdnewsreader/core/telemetry/structured_logger.dart' as _i7;
 import 'package:bdnewsreader/infrastructure/network/app_network_service.dart'
     as _i2;
 import 'package:logger/logger.dart' as _i8;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i3;
+import 'package:mockito/src/dummies.dart' as _i4;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -58,6 +58,12 @@ class MockAppNetworkService extends _i1.Mock implements _i2.AppNetworkService {
       ) as _i2.NetworkQuality);
 
   @override
+  _i3.DevicePerformanceTier get performanceTier => (super.noSuchMethod(
+        Invocation.getter(#performanceTier),
+        returnValue: _i3.DevicePerformanceTier.flagship,
+      ) as _i3.DevicePerformanceTier);
+
+  @override
   bool get isDebugOverrideActive => (super.noSuchMethod(
         Invocation.getter(#isDebugOverrideActive),
         returnValue: false,
@@ -78,7 +84,7 @@ class MockAppNetworkService extends _i1.Mock implements _i2.AppNetworkService {
   @override
   String get qualityDescription => (super.noSuchMethod(
         Invocation.getter(#qualityDescription),
-        returnValue: _i3.dummyValue<String>(
+        returnValue: _i4.dummyValue<String>(
           this,
           Invocation.getter(#qualityDescription),
         ),
@@ -91,14 +97,14 @@ class MockAppNetworkService extends _i1.Mock implements _i2.AppNetworkService {
       ) as bool);
 
   @override
-  _i4.Future<void> initialize() => (super.noSuchMethod(
+  _i5.Future<void> initialize() => (super.noSuchMethod(
         Invocation.method(
           #initialize,
           [],
         ),
-        returnValue: _i4.Future<void>.value(),
-        returnValueForMissingStub: _i4.Future<void>.value(),
-      ) as _i4.Future<void>);
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
 
   @override
   void registerRequestLatency(Duration? duration) => super.noSuchMethod(
@@ -187,7 +193,7 @@ class MockAppNetworkService extends _i1.Mock implements _i2.AppNetworkService {
       ) as bool);
 
   @override
-  void updatePerformanceTier(_i5.DevicePerformanceTier? tier) =>
+  void updatePerformanceTier(_i3.DevicePerformanceTier? tier) =>
       super.noSuchMethod(
         Invocation.method(
           #updatePerformanceTier,

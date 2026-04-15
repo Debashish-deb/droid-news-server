@@ -3,55 +3,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/theme.dart';
 import '../../../core/utils/source_logos.dart';
 import '../../providers/source_providers.dart';
+import '../../providers/theme_providers.dart';
+import '../../widgets/app_drawer.dart';
+import '../../widgets/premium_screen_header.dart';
 
 class SourceManagementScreen extends ConsumerWidget {
   const SourceManagementScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sourcesAsync = ref.watch(sourcesProvider);
+    final groupedAsync = ref.watch(groupedSourcesProvider);
+    final sourcesCount = ref.watch(sourcesProvider).valueOrNull?.length ?? 0;
+    final themeMode = ref.watch(currentThemeModeProvider);
     final theme = Theme.of(context);
     final appColors = theme.extension<AppColorsExtension>()!;
+    final backgroundGradient = AppGradients.getBackgroundGradient(themeMode);
 
     return Scaffold(
-      backgroundColor: appColors.bg,
-      appBar: AppBar(
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        backgroundColor: appColors.surface,
-        centerTitle: false,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'News Sources',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                letterSpacing: -0.5,
-                color: appColors.textPrimary,
-              ),
-            ),
-            Text(
-              'Customize your feed',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: appColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
+      backgroundColor: Colors.transparent,
+      drawer: const AppDrawer(),
+      appBar: PremiumScreenHeader(
+        title: 'News Sources',
+        subtitle: 'Customize your feed',
+        leading: PremiumHeaderLeading.menu,
         actions: [
-          IconButton(
-            icon: Icon(Icons.restart_alt_rounded, color: appColors.proBlue),
+          PremiumHeaderIconButton(
+            icon: Icons.restart_alt_rounded,
+            iconColor: appColors.proBlue,
             tooltip: 'Reset to defaults',
             onPressed: () {
               ref.read(sourcesProvider.notifier).resetToDefault();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: const Text('Sources reset to defaults'),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
                   action: SnackBarAction(
                     label: 'Undo',
                     onPressed: () {
@@ -62,134 +46,165 @@ class SourceManagementScreen extends ConsumerWidget {
               );
             },
           ),
-          const SizedBox(width: 8),
         ],
       ),
-      body: sourcesAsync.when(
-        loading: () => _buildShimmerLoading(context),
-        error: (err, stack) => _buildErrorState(context, ref, err),
-        data: (sources) {
-          if (sources.isEmpty) {
-            return _buildEmptyState(context);
-          }
-
-          // Group sources by category
-          final Map<String, List<dynamic>> groupedInfo = {};
-          for (final source in sources) {
-            groupedInfo.putIfAbsent(source.category, () => []).add(source);
-          }
-          final sortedCategories = groupedInfo.keys.toList()..sort();
-
-          return CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          appColors.proBlue.withOpacity(0.15),
-                          appColors.proBlue.withOpacity(0.05),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.tips_and_updates_rounded,
-                          color: appColors.proBlue,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Active: ${sources.where((s) => s.isEnabled).length} of ${sources.length} sources',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: appColors.proBlue,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  backgroundGradient[0].withValues(alpha: 0.96),
+                  backgroundGradient[1].withValues(alpha: 0.96),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              ...sortedCategories.expand((category) {
-                final categorySources = groupedInfo[category]!..sort(
-                  (a, b) => a.name.compareTo(b.name),
-                );
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(-0.35, -0.95),
+                radius: 1.3,
+                colors: [
+                  theme.colorScheme.primary.withValues(
+                    alpha: theme.brightness == Brightness.dark ? 0.08 : 0.05,
+                  ),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+          groupedAsync.when(
+            loading: () => _buildShimmerLoading(context),
+            error: (err, stack) => _buildErrorState(context, ref, err),
+            data: (groupedInfo) {
+              if (groupedInfo.isEmpty) {
+                return _buildEmptyState(context);
+              }
 
-                return [
+              final sortedCategories = groupedInfo.keys.toList()..sort();
+              final activeCount = groupedInfo.values
+                  .expand((l) => l)
+                  .where((s) => s.isEnabled)
+                  .length;
+
+              return CustomScrollView(
+                slivers: [
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 4,
-                            height: 20,
-                            decoration: BoxDecoration(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              appColors.proBlue.withValues(alpha: 0.15),
+                              appColors.proBlue.withValues(alpha: 0.05),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: appColors.cardBorder.withValues(alpha: 0.45),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.tips_and_updates_rounded,
                               color: appColors.proBlue,
-                              borderRadius: BorderRadius.circular(2),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            category.toUpperCase(),
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              color: appColors.proBlue,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.2,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Active: $activeCount of $sourcesCount sources',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: appColors.proBlue,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Divider(
-                              color: appColors.cardBorder.withOpacity(0.5),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final source = categorySources[index];
-                          return _SourceListTile(
-                            source: source,
-                            onToggle: (value) {
-                              ref.read(sourcesProvider.notifier).toggleSource(
-                                source.id,
-                                value,
-                              );
-                            },
-                          );
-                        },
-                        childCount: categorySources.length,
+                  ...sortedCategories.expand((category) {
+                    final categorySources = groupedInfo[category]!;
+
+                    return [
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 4,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: appColors.proBlue,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                category.toUpperCase(),
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: appColors.proBlue,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Divider(
+                                  color: appColors.cardBorder.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ];
-              }).toList(),
-              const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
-            ],
-          );
-        },
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            final source = categorySources[index];
+                            return _SourceListTile(
+                              source: source,
+                              onToggle: (value) {
+                                ref
+                                    .read(sourcesProvider.notifier)
+                                    .toggleSource(source.id, value);
+                              },
+                            );
+                          }, childCount: categorySources.length),
+                        ),
+                      ),
+                    ];
+                  }),
+                  const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildShimmerLoading(BuildContext context) {
     final appColors = Theme.of(context).extension<AppColorsExtension>()!;
-    
+
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: 6,
@@ -253,7 +268,7 @@ class SourceManagementScreen extends ConsumerWidget {
 
   Widget _buildErrorState(BuildContext context, WidgetRef ref, Object err) {
     final appColors = Theme.of(context).extension<AppColorsExtension>()!;
-    
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -284,9 +299,9 @@ class SourceManagementScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(
               '$err',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: appColors.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: appColors.textSecondary),
               textAlign: TextAlign.center,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -311,7 +326,7 @@ class SourceManagementScreen extends ConsumerWidget {
 
   Widget _buildEmptyState(BuildContext context) {
     final appColors = Theme.of(context).extension<AppColorsExtension>()!;
-    
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -334,9 +349,9 @@ class SourceManagementScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(
               'Check back later for new content sources',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: appColors.textHint,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: appColors.textHint),
               textAlign: TextAlign.center,
             ),
           ],
@@ -347,13 +362,9 @@ class SourceManagementScreen extends ConsumerWidget {
 }
 
 class _SourceListTile extends StatelessWidget {
+  const _SourceListTile({required this.source, required this.onToggle});
   final dynamic source;
   final ValueChanged<bool> onToggle;
-
-  const _SourceListTile({
-    required this.source,
-    required this.onToggle,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -380,8 +391,8 @@ class _SourceListTile extends StatelessWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: hasLogo 
-                          ? Colors.white 
+                      color: hasLogo
+                          ? Colors.white
                           : appColors.proBlue.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
@@ -407,8 +418,8 @@ class _SourceListTile extends StatelessWidget {
                             )
                           : Center(
                               child: Text(
-                                source.name.isNotEmpty 
-                                    ? source.name[0].toUpperCase() 
+                                source.name.isNotEmpty
+                                    ? source.name[0].toUpperCase()
                                     : '?',
                                 style: theme.textTheme.titleLarge?.copyWith(
                                   color: appColors.proBlue,
@@ -420,7 +431,7 @@ class _SourceListTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
-                
+
                 // Content
                 Expanded(
                   child: Column(
@@ -430,8 +441,8 @@ class _SourceListTile extends StatelessWidget {
                         source.name,
                         style: theme.textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: source.isEnabled 
-                              ? appColors.textPrimary 
+                          color: source.isEnabled
+                              ? appColors.textPrimary
                               : appColors.textSecondary,
                         ),
                       ),
@@ -449,7 +460,7 @@ class _SourceListTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 // Modern Switch
                 Transform.scale(
                   scale: 0.9,

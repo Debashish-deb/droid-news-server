@@ -1,37 +1,38 @@
+import 'dart:async' show unawaited;
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/theme/design_tokens.dart';
+import '../../../core/theme/theme_skeleton.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
-
+import '../../widgets/premium_scaffold.dart';
 import '../../../core/enums/theme_mode.dart';
+import '../../../core/config/performance_config.dart';
 import '../../../l10n/generated/app_localizations.dart';
-import '../../../core/theme/theme.dart' show AppGradients;
+import '../../widgets/platform_surface_treatment.dart';
 import '../../providers/favorites_providers.dart'
     show
-        favoriteArticlesProvider,
-        favoriteMagazinesProvider,
-        favoriteNewspapersProvider,
-        favoritesProvider;
+        favoriteCategoryFilterProvider,
+        favoriteTimeFilterProvider,
+        favoritesProvider,
+        filteredFavoritesProvider;
 import '../../providers/theme_providers.dart'
     show
         borderColorProvider,
         currentThemeModeProvider,
         glassColorProvider,
-        navIconColorProvider;
+        navIconColorProvider,
+        themeSkeletonProvider;
 import '../../widgets/app_drawer.dart';
-import '../../widgets/glass_icon_button.dart';
-import '../common/app_bar.dart';
-import '../home/widgets/news_card.dart';
+import '../../widgets/premium_screen_header.dart';
 import '../../../core/navigation/app_paths.dart';
+import '../../../core/navigation/navigation_helper.dart';
 import '../home/widgets/news_card.dart' show NewsCard;
 import '../magazine/widgets/magazine_card.dart';
 import '../../../domain/entities/news_article.dart';
-
-import '../../widgets/unlock_article_dialog.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
   const FavoritesScreen({super.key});
@@ -41,56 +42,33 @@ class FavoritesScreen extends ConsumerStatefulWidget {
 }
 
 class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
-  String _filter = 'All';
-  String _timeFilter = 'All';
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  List<Map<String, dynamic>> _applyTimeFilter(List<Map<String, dynamic>> list) {
-    if (_timeFilter == 'All') return list;
-    final DateTime now = DateTime.now();
-    return list.where((Map<String, dynamic> item) {
-      final DateTime savedAt =
-          DateTime.tryParse(item['savedAt'] ?? '') ?? DateTime(2000);
-      final Duration diff = now.difference(savedAt);
-      switch (_timeFilter) {
-        case 'Today':
-          return diff.inDays == 0;
-        case 'This Week':
-          return diff.inDays <= 7;
-        case 'Older':
-          return diff.inDays > 7;
-        default:
-          return true;
-      }
-    }).toList();
-  }
-
   Future<void> _handleArticleTap(NewsArticle article) async {
-    final bool isPremiumContent = article.tags?.contains('premium') == true;
-
-    if (isPremiumContent) {
-      final bool unlocked = await showUnlockDialog(
-        context,
-        article.url,
-        article.title,
-      );
-      if (!unlocked) return;
-    }
-
     // Trigger ad logic (respects premium status internally)
-    ref.read(interstitialAdServiceProvider).onArticleViewed();
+    unawaited(ref.read(interstitialAdServiceProvider).onArticleViewed());
 
     if (!mounted) return;
-    context.push(AppPaths.newsDetail, extra: article);
+    await NavigationHelper.openNewsDetail<void>(context, article);
   }
+
+  String _categoryToLabel(String cat, AppLocalizations loc) {
+    if (cat == 'Articles') return loc.articles;
+    if (cat == 'Magazines') return loc.magazines;
+    if (cat == 'Newspapers') return loc.newspapers;
+    return 'All';
+  }
+
+  String _labelToCategory(String label, AppLocalizations loc) {
+    if (label == loc.articles) return 'Articles';
+    if (label == loc.magazines) return 'Magazines';
+    if (label == loc.newspapers) return 'Newspapers';
+    return 'All';
+  }
+
+  // ... (existing imports updated via replace_file_content block)
 
   @override
   Widget build(BuildContext context) {
     final AppLocalizations loc = AppLocalizations.of(context);
-
     final ThemeData theme = Theme.of(context);
     final Color textColor = theme.textTheme.bodyLarge?.color ?? Colors.white;
     final List<String> categories = <String>[
@@ -102,37 +80,33 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     final List<String> filters = <String>['All', 'Today', 'This Week', 'Older'];
 
     final AppThemeMode mode = ref.watch(currentThemeModeProvider);
+    final skeleton = ref.watch(themeSkeletonProvider);
     final bool isDark = theme.brightness == Brightness.dark;
-    final List<Color> colors = AppGradients.getBackgroundGradient(mode);
-    final Color start = colors[0], end = colors[1];
+    final perf = PerformanceConfig.of(context);
+    final preferMaterialChrome = preferAndroidMaterialSurfaceChrome(context);
+    final bool lowEffects =
+        perf.reduceEffects ||
+        perf.lowPowerMode ||
+        perf.isLowEndDevice ||
+        perf.performanceTier != DevicePerformanceTier.flagship;
 
-    final favoriteArticles = ref.watch(favoriteArticlesProvider);
-    final favoriteMagazines = ref.watch(favoriteMagazinesProvider);
-    final favoriteNewspapers = ref.watch(favoriteNewspapersProvider);
+    final filtered = ref.watch(filteredFavoritesProvider);
+    final catFilter = ref.watch(favoriteCategoryFilterProvider);
+    final timeFilter = ref.watch(favoriteTimeFilterProvider);
 
-    final List<Map<String, dynamic>> allItems = <Map<String, dynamic>>[
-      ...favoriteArticles.map((NewsArticle a) => a.toMap()),
-      ...favoriteMagazines,
-      ...favoriteNewspapers,
-    ];
-
-    List<Map<String, dynamic>> filtered = allItems;
-
-    if (_filter != 'All') {
-      if (_filter == loc.articles) {
-        filtered = favoriteArticles.map((NewsArticle a) => a.toMap()).toList();
-      } else if (_filter == loc.magazines) {
-        filtered = favoriteMagazines;
-      } else if (_filter == loc.newspapers) {
-        filtered = favoriteNewspapers;
-      }
-    }
-
-    filtered = _applyTimeFilter(filtered);
-
-    final glassColor = ref.watch(glassColorProvider);
-    final borderColor = ref.watch(borderColorProvider);
+    final glassColor = preferMaterialChrome
+        ? materialSurfaceOverlayColor(
+            theme.colorScheme,
+            tone: MaterialSurfaceTone.highest,
+            surfaceAlpha: isDark ? 0.94 : 0.98,
+            tintAlpha: isDark ? 0.06 : 0.04,
+          )
+        : ref.watch(glassColorProvider);
+    final borderColor = preferMaterialChrome
+        ? theme.colorScheme.outlineVariant.withValues(alpha: 0.70)
+        : ref.watch(borderColorProvider);
     final navIconColor = ref.watch(navIconColorProvider);
+    final cheapComposite = lowEffects || preferMaterialChrome;
 
     return PopScope(
       canPop: false,
@@ -140,164 +114,70 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
         if (didPop) return;
         context.go(AppPaths.home);
       },
-      child: Scaffold(
-        extendBodyBehindAppBar: true,
+      child: PremiumScaffold(
+        useBackground: false, // Hosted in MainNavigationScreen
+        showBackgroundParticles: false,
         drawer: const AppDrawer(),
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          centerTitle: true,
-          toolbarHeight: 64,
-          title: AppBarTitle(loc.favorites),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: Builder(
-            builder: (context) => Center(
-              child: GlassIconButton(
-                icon: Icons.menu_rounded,
-                onPressed: () => Scaffold.of(context).openDrawer(),
-                isDark: isDark,
-              ),
-            ),
-          ),
-          leadingWidth: 64,
-        ),
-        body: Stack(
-          fit: StackFit.expand,
+        title: loc.favorites,
+        headerLeading: PremiumHeaderLeading.menu,
+        body: Column(
           children: <Widget>[
-            // 1. Gradient Background
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [start.withValues(alpha: 0.85), end.withValues(alpha: 0.85)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-              ),
-            ),
-            // 2. Content
-            SafeArea(
-              child: Column(
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: BackdropFilter(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: cheapComposite
+                    ? _buildFilterPanel(
+                        isDark: isDark,
+                        glassColor: glassColor,
+                        borderColor: borderColor,
+                        navIconColor: navIconColor,
+                        textColor: textColor,
+                        categories: categories,
+                        filters: filters,
+                        currentCategory: _categoryToLabel(catFilter, loc),
+                        currentTime: timeFilter,
+                      )
+                    : BackdropFilter(
                         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: glassColor,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: borderColor),
-                          ),
-                          child: Row(
-                            children: <Widget>[
-                              Icon(Icons.tune, color: navIconColor, size: 20),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    value: _filter,
-                                    isExpanded: true,
-                                    dropdownColor: isDark
-                                        ? const Color(0xFF1C1C1E)
-                                        : Colors.white,
-                                    icon: Icon(
-                                      Icons.expand_more,
-                                      color: textColor.withValues(alpha: 0.5),
-                                    ),
-                                    style: TextStyle(
-                                      color: textColor,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14,
-                                      fontFamily: AppTypography.fontFamily,
-                                    ),
-                                    items: categories
-                                        .map(
-                                          (String cat) => DropdownMenuItem(
-                                            value: cat,
-                                            child: Text(cat),
-                                          ),
-                                        )
-                                        .toList(),
-                                    onChanged: (String? val) =>
-                                        setState(() => _filter = val!),
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                width: 1,
-                                height: 20,
-                                color: borderColor,
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                              ),
-                              DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: _timeFilter,
-                                  dropdownColor: isDark
-                                      ? const Color(0xFF1C1C1E)
-                                      : Colors.white,
-                                  icon: Icon(
-                                    Icons.calendar_month,
-                                    color: textColor.withValues(alpha: 0.5),
-                                    size: 18,
-                                  ),
-                                  style: TextStyle(
-                                    color: textColor,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14,
-                                    fontFamily: AppTypography.fontFamily,
-                                  ),
-                                  items: filters
-                                      .map(
-                                        (String f) => DropdownMenuItem(
-                                          value: f,
-                                          child: Text(f),
-                                        ),
-                                      )
-                                      .toList(),
-                                  onChanged: (String? val) =>
-                                      setState(() => _timeFilter = val!),
-                                ),
-                              ),
-                            ],
-                          ),
+                        child: _buildFilterPanel(
+                          isDark: isDark,
+                          glassColor: glassColor,
+                          borderColor: borderColor,
+                          navIconColor: navIconColor,
+                          textColor: textColor,
+                          categories: categories,
+                          filters: filters,
+                          currentCategory: _categoryToLabel(catFilter, loc),
+                          currentTime: timeFilter,
                         ),
                       ),
-                    ),
-                  ),
-                  Expanded(
-                    child: RefreshIndicator(
-                      onRefresh: () async {
-                        setState(() {});
-                      },
-                      child: filtered.isEmpty
-                          ? _buildEmpty(loc, textColor)
-                          : ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                              itemCount: filtered.length,
-                              itemBuilder: (context, index) {
-                                return _buildCard(
-                                  context,
-                                  filtered[index],
-                                  isDark,
-                                );
-                              },
-                            ),
-                    ),
-                  ),
-                ],
+              ),
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  setState(() {});
+                },
+                child: filtered.isEmpty
+                    ? _buildEmpty(loc, textColor)
+                    : ListView.builder(
+                        cacheExtent: lowEffects ? 240 : 520,
+                        physics: lowEffects
+                            ? const ClampingScrollPhysics()
+                            : const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          return _buildCard(
+                            context,
+                            filtered[index],
+                            isDark,
+                            mode,
+                            skeleton,
+                          );
+                        },
+                      ),
               ),
             ),
           ],
@@ -333,11 +213,103 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     );
   }
 
+  Widget _buildFilterPanel({
+    required bool isDark,
+    required Color glassColor,
+    required Color borderColor,
+    required Color navIconColor,
+    required Color textColor,
+    required List<String> categories,
+    required List<String> filters,
+    required String currentCategory,
+    required String currentTime,
+  }) {
+    final loc = AppLocalizations.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: glassColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(Icons.tune, color: navIconColor, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: currentCategory,
+                isExpanded: true,
+                dropdownColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+                icon: Icon(
+                  Icons.expand_more,
+                  color: textColor.withValues(alpha: 0.5),
+                ),
+                style: TextStyle(
+                  color: textColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  fontFamily: AppTypography.fontFamily,
+                ),
+                items: categories
+                    .map(
+                      (String cat) =>
+                          DropdownMenuItem(value: cat, child: Text(cat)),
+                    )
+                    .toList(),
+                onChanged: (String? val) =>
+                    ref.read(favoriteCategoryFilterProvider.notifier).state =
+                        _labelToCategory(val!, loc),
+              ),
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 20,
+            color: borderColor,
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: currentTime,
+              dropdownColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+              icon: Icon(
+                Icons.calendar_month,
+                color: textColor.withValues(alpha: 0.5),
+                size: 18,
+              ),
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                fontFamily: AppTypography.fontFamily,
+              ),
+              items: filters
+                  .map((String f) => DropdownMenuItem(value: f, child: Text(f)))
+                  .toList(),
+              onChanged: (String? val) =>
+                  ref.read(favoriteTimeFilterProvider.notifier).state = val!,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCard(
     BuildContext context,
     Map<String, dynamic> item,
     bool isDark,
+    AppThemeMode mode,
+    ThemeSkeleton skeleton,
   ) {
+    final perf = PerformanceConfig.of(context);
+    final bool lowEffects =
+        perf.reduceEffects ||
+        perf.lowPowerMode ||
+        perf.isLowEndDevice ||
+        perf.performanceTier != DevicePerformanceTier.flagship;
     final DateTime savedAt =
         DateTime.tryParse(item['savedAt'] ?? '') ?? DateTime.now();
     final String subtitle = 'Saved on ${DateFormat.yMMMd().format(savedAt)}';
@@ -370,6 +342,8 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     } else if (item.containsKey('tags')) {
       content = MagazineCard(
         magazine: item,
+        mode: mode,
+        skeleton: skeleton,
         isFavorite: true,
         onFavoriteToggle: () async {
           await ref.read(favoritesProvider.notifier).toggleMagazine(item);
@@ -403,21 +377,25 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     final borderColor = ref.watch(borderColorProvider);
 
     // Wrap in Glass Container
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: glassColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+    return RepaintBoundary(
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: glassColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: borderColor),
+          boxShadow: lowEffects
+              ? const <BoxShadow>[]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+        ),
+        child: content,
       ),
-      child: content,
     );
   }
 }

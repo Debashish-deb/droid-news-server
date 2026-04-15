@@ -1,5 +1,5 @@
 // lib/infrastructure/auth/auth_service_impl.dart
-import 'dart:async' show TimeoutException, unawaited;
+import 'dart:async' show StreamSubscription, TimeoutException, unawaited;
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
@@ -9,38 +9,50 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 
 import '../../domain/facades/auth_facade.dart';
 import '../../domain/repositories/premium_repository.dart';
+import '../../core/config/premium_plans.dart';
 import '../../core/errors/security_exception.dart';
 import '../../core/security/secure_prefs.dart';
 import '../../core/telemetry/structured_logger.dart';
+import 'google_sign_in_warmup_coordinator.dart';
 import '../persistence/auth/device_session.dart';
 import '../services/auth/device_session_service.dart';
+import '../services/payment/payment_service.dart';
+import '../services/payment/receipt_verification_service.dart'
+    show ReceiptVerificationResult;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/di/providers.dart';
+
+enum _VerificationEmailSendResult { sent, cooldown, failed }
 
 class AuthService implements AuthFacade {
   AuthService(this._ref);
 
   final Ref _ref;
+  static const Duration _googleDeviceRegistrationTimeout = Duration(
+    milliseconds: 1200,
+  );
+  static const Duration _startupPurchaseRestoreTimeout = Duration(seconds: 8);
+  static const Duration _authRestoreTimeout = Duration(seconds: 4);
+  static const Duration _verificationEmailCooldown = Duration(minutes: 2);
+  static const Duration _emailUserReloadTimeout = Duration(seconds: 5);
+  static const Duration _emailProfileFetchTimeout = Duration(seconds: 4);
+  static const Duration _startupUserReloadTimeout = Duration(seconds: 2);
+  static const Duration _postAuthSettingsHydrationTimeout = Duration(
+    seconds: 2,
+  );
+  static const Duration _startupPremiumRefreshDelay = Duration(seconds: 6);
+  static const Duration _startupPurchaseRestoreDelay = Duration(seconds: 12);
+  static const Duration _startupPendingProfileSyncDelay = Duration(seconds: 24);
 
   // ─── Rate Limiting ────────────────────────────────────────────────────────
   static const int _maxAuthAttempts = 5;
   static const Duration _rateLimitWindow = Duration(seconds: 60);
-  final List<DateTime> _authAttempts = [];
-
-  /// Returns true if the user has exceeded the auth rate limit.
-  bool _isRateLimited() {
-    final now = DateTime.now();
-    _authAttempts.removeWhere((t) => now.difference(t) > _rateLimitWindow);
-    return _authAttempts.length >= _maxAuthAttempts;
-  }
-
-  void _recordAuthAttempt() {
-    _authAttempts.add(DateTime.now());
-  }
+  static const String _authRateLimitKeyPrefix = 'auth_attempts_v1';
 
   FirebaseAuth get _auth => _ref.read(firebaseAuthProvider);
   FirebaseFirestore get _firestore => _ref.read(firestoreProvider);
@@ -49,9 +61,15 @@ class AuthService implements AuthFacade {
   PremiumRepository get _premiumRepository =>
       _ref.read(premiumRepositoryProvider);
   GoogleSignIn get _googleSignIn => _ref.read(googleSignInProvider);
+  GoogleSignInWarmupCoordinator get _googleSignInWarmup =>
+      _ref.read(googleSignInWarmupProvider);
   SecurePrefs get _securePrefs => _ref.read(securePrefsProvider);
   DeviceSessionService get _deviceSessions =>
       _ref.read(deviceSessionServiceProvider);
+  SharedPreferences? get _prefs => _ref.read(sharedPreferencesProvider);
+
+  StreamSubscription<List<PurchaseDetails>>? _purchaseReconciliationSub;
+  final Set<String> _activePurchaseKeys = <String>{};
 
   @override
   User? get currentUser => _auth.currentUser;
@@ -75,8 +93,14 @@ class AuthService implements AuthFacade {
   Future<void> init() async {
     _logger.info('AuthService.init() STARTED');
     try {
-      final String? loggedStatus = await _securePrefs.getString('isLoggedIn');
-      final bool hadLocalLoggedInMarker = loggedStatus == 'true';
+      final prefs = _prefs ?? await SharedPreferences.getInstance();
+      final String? secureLoggedStatus = await _securePrefs.getString(
+        'isLoggedIn',
+      );
+      final bool hadSecureLoggedInMarker = secureLoggedStatus == 'true';
+      final bool hadSharedLoggedInMarker = prefs.getBool('isLoggedIn') ?? false;
+      final bool hadLocalLoggedInMarker =
+          hadSecureLoggedInMarker || hadSharedLoggedInMarker;
 
       User? restoredUser = _auth.currentUser;
       if (restoredUser == null && hadLocalLoggedInMarker) {
@@ -84,17 +108,17 @@ class AuthService implements AuthFacade {
         restoredUser = await _auth
             .authStateChanges()
             .firstWhere((user) => user != null)
-            .timeout(
-              const Duration(seconds: 2),
-              onTimeout: () => _auth.currentUser,
-            );
+            .timeout(_authRestoreTimeout, onTimeout: () => _auth.currentUser);
       }
 
       if (restoredUser == null) {
         if (hadLocalLoggedInMarker) {
-          _logger.warning(
-            'AuthService.init() detected stale local login marker. '
-            'Clearing local auth session non-destructively.',
+          _logger.info(
+            'AuthService.init() cleared stale local login markers',
+            <String, dynamic>{
+              'secureMarker': hadSecureLoggedInMarker,
+              'sharedMarker': hadSharedLoggedInMarker,
+            },
           );
           await _markLoggedOutLocallyNonDestructive();
         } else {
@@ -106,36 +130,79 @@ class AuthService implements AuthFacade {
       if (!hadLocalLoggedInMarker) {
         await _persistLoggedInState();
         _logger.info('AuthService.init() repaired missing local login marker');
+      } else if (hadSecureLoggedInMarker != hadSharedLoggedInMarker) {
+        await _persistLoggedInState();
+        _logger.info('AuthService.init() repaired inconsistent login markers');
       }
 
-      // Non-fatal: premium can resolve later; don't block auth init.
-      try {
-        await _premiumRepository.refreshStatus();
-      } catch (e) {
-        _logger.warning('Premium refresh failed during init (non-fatal)', e);
+      _ensureStorePurchaseReconciliation();
+      restoredUser = await _reloadUser(restoredUser) ?? restoredUser;
+      if (_requiresEmailVerification(restoredUser) &&
+          !restoredUser.emailVerified) {
+        _logger.warning(
+          'AuthService.init() detected an unverified email/password session. '
+          'Signing out until verification is completed.',
+        );
+        await _auth.signOut();
+        await _markLoggedOutLocallyNonDestructive();
+        return;
       }
-      await _syncCloudSettingsAfterAuth();
-      try {
-        await _flushPendingProfileSync();
-      } catch (e) {
-        _logger.warning('Profile sync flush failed during init (non-fatal)', e);
-      }
+      await _hydrateCloudSettingsAfterAuth();
+      _scheduleStartupPostAuthWarmups();
     } catch (e, stack) {
       _logger.error('AuthService.init() ERROR', e, stack);
       // Don't rethrow — auth init failure should not crash the app.
     }
   }
 
+  void _scheduleStartupPostAuthWarmups() {
+    unawaited(
+      _runStartupWarmupAfterDelay(_startupPremiumRefreshDelay, () async {
+        try {
+          await _premiumRepository.refreshStatus();
+        } catch (e) {
+          _logger.warning('Premium refresh failed during init (non-fatal)', e);
+        }
+      }),
+    );
+
+    unawaited(
+      _runStartupWarmupAfterDelay(
+        _startupPurchaseRestoreDelay,
+        _reconcileStorePurchasesAfterAuth,
+      ),
+    );
+    unawaited(
+      _runStartupWarmupAfterDelay(
+        _startupPendingProfileSyncDelay,
+        _flushPendingProfileSync,
+      ),
+    );
+  }
+
+  Future<void> _runStartupWarmupAfterDelay(
+    Duration delay,
+    Future<void> Function() action,
+  ) async {
+    await Future<void>.delayed(delay);
+    if (_auth.currentUser == null) {
+      return;
+    }
+    await action();
+  }
+
   Future<void> _markLoggedOutLocallyNonDestructive() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
     await _clearCachedProfile();
     await _securePrefs.clearLastSuccessfulSessionValidationAt();
     await _securePrefs.delete(_pendingProfileSyncKey);
+    await _securePrefs.delete('isLoggedIn');
     await prefs.setBool('isLoggedIn', false);
   }
 
   Future<void> _ensureLoggedOutMarker() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    await _securePrefs.delete('isLoggedIn');
     if (prefs.getBool('isLoggedIn') != false) {
       await prefs.setBool('isLoggedIn', false);
     }
@@ -143,96 +210,246 @@ class AuthService implements AuthFacade {
 
   @override
   Future<String?> signUp(String name, String email, String password) async {
-    if (_isRateLimited()) {
-      return 'Too many attempts. Please try again later.';
+    final normalizedEmail = email.trim().toLowerCase();
+    final rateLimitMessage = await _checkAndRecordRateLimit(normalizedEmail);
+    if (rateLimitMessage != null) {
+      return rateLimitMessage;
     }
-    _recordAuthAttempt();
+    User? createdUser;
     try {
       final UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(
-            email: email.trim(),
+            email: normalizedEmail,
             password: password,
           );
-      final String uid = userCredential.user!.uid;
+      final User? user = userCredential.user;
+      if (user == null) {
+        return 'Unable to create your account right now. Please try again.';
+      }
+      createdUser = user;
 
-      await _firestore.collection('users').doc(uid).set(<String, dynamic>{
-        'name': name,
-        'email': email,
-        'phone': '',
-        'role': '',
-        'department': '',
-        'image': '',
-        'is_premium': false,
-      });
+      await user.updateDisplayName(name);
 
-      final registration = await _registerCurrentDevice();
-      if (!registration.success) {
-        await logout();
-        return _deviceRegistrationMessage(registration);
+      if (_requiresEmailVerification(user) && !user.emailVerified) {
+        await user.sendEmailVerification();
       }
 
-      await _cacheProfile(name: name, email: email);
-      await _persistLoggedInState();
-      await _premiumRepository.refreshStatus();
-      await _syncCloudSettingsAfterAuth();
-
+      await _clearRateLimit(normalizedEmail);
       return null;
     } on FirebaseAuthException catch (e) {
       return e.message;
+    } finally {
+      if (createdUser != null) {
+        await _auth.signOut();
+        await _markLoggedOutLocallyNonDestructive();
+      }
     }
   }
 
   @override
   Future<String?> login(String email, String password) async {
-    if (_isRateLimited()) {
-      return 'Too many attempts. Please try again later.';
+    final normalizedEmail = email.trim().toLowerCase();
+    final rateLimitMessage = await _checkAndRecordRateLimit(normalizedEmail);
+    if (rateLimitMessage != null) {
+      return rateLimitMessage;
     }
-    _recordAuthAttempt();
     try {
       final UserCredential userCredential = await _auth
-          .signInWithEmailAndPassword(email: email.trim(), password: password);
-
-      final String uid = userCredential.user!.uid;
-      final DocumentSnapshot<Map<String, dynamic>> doc = await _firestore
-          .collection('users')
-          .doc(uid)
-          .get();
-      final registration = await _registerCurrentDevice();
-      if (!registration.success) {
-        await logout();
-        return _deviceRegistrationMessage(registration);
+          .signInWithEmailAndPassword(
+            email: normalizedEmail,
+            password: password,
+          );
+      final User? signedInUser = await _reloadUser(userCredential.user).timeout(
+        _emailUserReloadTimeout,
+        onTimeout: () => _auth.currentUser ?? userCredential.user,
+      );
+      if (signedInUser == null) {
+        await _markLoggedOutLocallyNonDestructive();
+        return 'Unable to complete sign in. Please try again.';
+      }
+      if (_requiresEmailVerification(signedInUser) &&
+          !signedInUser.emailVerified) {
+        return _handleUnverifiedEmailLogin(signedInUser);
       }
 
-      if (doc.exists) {
-        await _cacheProfileMap(doc.data() ?? <String, dynamic>{});
+      await _ensureUserDocument(signedInUser);
+
+      final String uid = signedInUser.uid;
+      Map<String, dynamic>? cachedProfile;
+      try {
+        final doc = await _firestore
+            .collection('users')
+            .doc(uid)
+            .get()
+            .timeout(_emailProfileFetchTimeout);
+        if (doc.exists) {
+          cachedProfile = doc.data();
+        }
+      } on TimeoutException catch (_) {
+        _logger.warning('Profile fetch timed out during email sign-in');
+      } catch (e, stack) {
+        _logger.warning('Profile fetch failed during email sign-in', e, stack);
       }
 
-      await _persistLoggedInState();
-      await _premiumRepository.refreshStatus();
-      await _syncCloudSettingsAfterAuth();
+      try {
+        final registration = await _awaitDeviceRegistrationWithinBudget(
+          flowLabel: 'email sign-in',
+        );
+        if (registration == null) {
+          // Continue the sign-in path while the best-effort registration
+          // finishes in the background.
+        } else if (!registration.success) {
+          if (registration.failureCode !=
+              DeviceRegistrationFailureCode.sessionStoreUnavailable) {
+            await logout();
+            return _deviceRegistrationMessage(registration);
+          }
+          _logger.warning(
+            'Proceeding without device registration because the session store is unavailable.',
+          );
+        }
+      } catch (e, stack) {
+        _logger.warning(
+          'Device registration failed during email sign-in',
+          e,
+          stack,
+        );
+      }
+
+      await Future.wait([
+        if (cachedProfile != null)
+          _cacheProfileMap(cachedProfile)
+        else
+          _cacheProfile(
+            name: signedInUser.displayName ?? 'User',
+            email: signedInUser.email ?? normalizedEmail,
+            imagePath:
+                signedInUser.photoURL ??
+                _getGravatarUrl(signedInUser.email ?? normalizedEmail),
+          ),
+        _persistLoggedInState(),
+      ]);
+      _ensureStorePurchaseReconciliation();
+      await _hydrateCloudSettingsAfterAuth();
+
+      unawaited(_refreshEntitlementAfterGoogleSignIn());
+      unawaited(_reconcileStorePurchasesAfterAuth());
+      unawaited(_flushPendingProfileSync());
+      await _clearRateLimit(normalizedEmail);
 
       return null;
+    } on TimeoutException catch (e) {
+      final recoveredUser = await _reloadUser(
+        _auth.currentUser,
+      ).timeout(_emailUserReloadTimeout, onTimeout: () => _auth.currentUser);
+      if (recoveredUser != null) {
+        _logger.warning(
+          'Email sign-in timed out after Firebase auth completed; recovering signed-in state',
+          e,
+        );
+        if (_requiresEmailVerification(recoveredUser) &&
+            !recoveredUser.emailVerified) {
+          return _handleUnverifiedEmailLogin(recoveredUser);
+        }
+
+        await _recoverCompletedSignInAfterTimeout(
+          user: recoveredUser,
+          fallbackEmail: normalizedEmail,
+          flowLabel: 'email sign-in',
+        );
+        await _clearRateLimit(normalizedEmail);
+        return null;
+      }
+      return 'Connection timed out. Please try again.';
     } on FirebaseAuthException catch (e) {
       return e.message;
+    } catch (e, stack) {
+      _logger.error('Email sign-in failed unexpectedly', e, stack);
+      return 'Unable to sign in right now. Please try again.';
+    }
+  }
+
+  @override
+  Future<String?> resendEmailVerification(String email, String password) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail.isEmpty || password.isEmpty) {
+      return 'Please enter your email and password first.';
+    }
+
+    final rateLimitScope = 'verification_resend:$normalizedEmail';
+    final rateLimitMessage = await _checkAndRecordRateLimit(rateLimitScope);
+    if (rateLimitMessage != null) {
+      return rateLimitMessage;
+    }
+
+    var shouldSignOut = false;
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: normalizedEmail,
+        password: password,
+      );
+      shouldSignOut = true;
+
+      final user = await _reloadUser(credential.user).timeout(
+        _emailUserReloadTimeout,
+        onTimeout: () => _auth.currentUser ?? credential.user,
+      );
+      if (user == null) {
+        return 'Unable to load account. Please try again.';
+      }
+
+      if (!_requiresEmailVerification(user)) {
+        return 'This account does not require email verification.';
+      }
+
+      if (user.emailVerified) {
+        return 'Your email is already verified. Please sign in.';
+      }
+
+      final sendResult = await _sendVerificationEmailIfAllowed(
+        user,
+        logContext: 'explicit resend',
+      );
+      switch (sendResult) {
+        case _VerificationEmailSendResult.sent:
+          await _clearRateLimit(rateLimitScope);
+          return null;
+        case _VerificationEmailSendResult.cooldown:
+          return 'Verification email was sent recently. Please wait before requesting another one.';
+        case _VerificationEmailSendResult.failed:
+          return 'Failed to send verification email. Please try again.';
+      }
+    } on FirebaseAuthException catch (e) {
+      return e.message ?? 'Unable to resend verification email.';
+    } catch (e, stack) {
+      _logger.warning(
+        'Verification email resend failed unexpectedly',
+        e,
+        stack,
+      );
+      return 'Unable to resend verification email right now.';
+    } finally {
+      if (shouldSignOut) {
+        await _auth.signOut();
+        await _markLoggedOutLocallyNonDestructive();
+      }
     }
   }
 
   @override
   Future<String?> signInWithGoogle() async {
-    if (_isRateLimited()) {
-      return 'Too many attempts. Please try again later.';
+    const rateLimitScope = 'google_sign_in';
+    final rateLimitMessage = await _checkAndRecordRateLimit(rateLimitScope);
+    if (rateLimitMessage != null) {
+      return rateLimitMessage;
     }
-    _recordAuthAttempt();
     try {
       _logger.info('Starting Google Sign-in flow');
       final flowWatch = Stopwatch()..start();
       final googleUser =
           _googleSignIn.currentUser ??
-          await _googleSignIn.signInSilently().timeout(
-            const Duration(milliseconds: 1200),
-            onTimeout: () => null,
-          ) ??
-          await _googleSignIn.signIn().timeout(const Duration(seconds: 30));
+          await _googleSignInWarmup.takePrewarmedUser() ??
+          await _googleSignIn.signIn();
 
       if (googleUser == null) {
         _logger.info('Google sign-in cancelled by user');
@@ -241,9 +458,7 @@ class AuthService implements AuthFacade {
 
       // SECURITY: Do NOT log user email or serverClientId (PII)
       _logger.info('Google user obtained, fetching authentication tokens');
-      final googleAuth = await googleUser.authentication.timeout(
-        const Duration(seconds: 20),
-      );
+      final googleAuth = await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
@@ -251,9 +466,7 @@ class AuthService implements AuthFacade {
       );
 
       _logger.info('Signing into Firebase with Google credential');
-      final userCredential = await _auth
-          .signInWithCredential(credential)
-          .timeout(const Duration(seconds: 20));
+      final userCredential = await _auth.signInWithCredential(credential);
       final user = userCredential.user!;
 
       _logger.info('Firebase login successful, registering device');
@@ -263,11 +476,13 @@ class AuthService implements AuthFacade {
       // This solves the 'hot restart works but login fails' issue where registration
       // was likely the part timing out.
       try {
-        final registration = await _registerCurrentDevice().timeout(
-          const Duration(seconds: 6),
+        final registration = await _awaitDeviceRegistrationWithinBudget(
+          flowLabel: 'google sign-in',
         );
-
-        if (!registration.success) {
+        if (registration == null) {
+          // Background completion has already been scheduled; do not block the
+          // interactive sign-in transition on a slow session-store write.
+        } else if (!registration.success) {
           _logger.warning(
             'Device registration failed during sign-in: ${registration.errorMessage}',
           );
@@ -287,11 +502,12 @@ class AuthService implements AuthFacade {
         } else {
           _logger.info('Device registered successfully');
         }
-      } catch (e) {
+      } catch (e, stack) {
         _logger.warning(
-          'Device registration timed out or failed during sign-in: $e',
+          'Device registration failed during Google sign-in',
+          e,
+          stack,
         );
-        // Non-blocking on timeout/generic error
       }
 
       await Future.wait([
@@ -303,10 +519,13 @@ class AuthService implements AuthFacade {
         _persistLoggedInState(),
       ]);
 
+      _ensureStorePurchaseReconciliation();
+      await _hydrateCloudSettingsAfterAuth();
+
       // Non-critical post-auth tasks run in background so the UI can
       // transition immediately after core auth succeeds.
       unawaited(_refreshEntitlementAfterGoogleSignIn());
-      unawaited(_syncCloudSettingsAfterAuth());
+      unawaited(_reconcileStorePurchasesAfterAuth());
 
       // These do not need to block the sign-in completion path.
       unawaited(_ensureUserDocument(user));
@@ -317,8 +536,23 @@ class AuthService implements AuthFacade {
         'Google Sign-in flow completed successfully',
         <String, dynamic>{'durationMs': flowWatch.elapsedMilliseconds},
       );
+      await _clearRateLimit(rateLimitScope);
       return null;
     } on TimeoutException catch (e) {
+      final recoveredUser = _auth.currentUser;
+      if (recoveredUser != null) {
+        _logger.warning(
+          'Google sign-in timed out after Firebase auth completed; recovering signed-in state',
+          e,
+        );
+        await _recoverCompletedSignInAfterTimeout(
+          user: recoveredUser,
+          fallbackEmail: recoveredUser.email,
+          flowLabel: 'google sign-in',
+        );
+        await _clearRateLimit(rateLimitScope);
+        return null;
+      }
       _logger.error('Google sign-in timed out', e);
       return 'Google sign-in timed out. Please try again.';
     } catch (e, stack) {
@@ -343,40 +577,98 @@ class AuthService implements AuthFacade {
   Future<void> _ensureUserDocument(User user) async {
     try {
       final userRef = _firestore.collection('users').doc(user.uid);
-      final snapshot = await userRef.get();
+      final snapshot = await userRef.get().timeout(_emailProfileFetchTimeout);
+      final data = snapshot.data() ?? const <String, dynamic>{};
+      final normalizedEmail = (user.email ?? '').trim().toLowerCase();
+      final displayName = (user.displayName ?? '').trim();
+      final existingName = (data['name'] as String? ?? '').trim();
+      final photoUrl = (user.photoURL ?? '').trim();
+      final existingImage = (data['image'] as String? ?? '').trim();
 
       final profilePatch = <String, dynamic>{
-        'name': user.displayName ?? 'User',
-        'email': user.email ?? '',
-        if ((user.photoURL ?? '').trim().isNotEmpty) 'image': user.photoURL,
+        'email': normalizedEmail,
+        'email_verified': user.emailVerified,
+        if (displayName.isNotEmpty && existingName.isEmpty) 'name': displayName,
+        if (photoUrl.isNotEmpty && existingImage.isEmpty) 'image': photoUrl,
         'last_login_at': FieldValue.serverTimestamp(),
       };
 
       if (!snapshot.exists) {
-        await userRef.set(<String, dynamic>{
-          ...profilePatch,
-          'phone': '',
-          'role': '',
-          'department': '',
-          'is_premium': false,
-          'current_subscription_tier': 'free',
-          'created_at': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        await userRef
+            .set(<String, dynamic>{
+              ...profilePatch,
+              'name': displayName.isNotEmpty ? displayName : 'User',
+              'image': photoUrl,
+              'phone': '',
+              'role': '',
+              'department': '',
+              'is_premium': false,
+              'current_subscription_tier': 'free',
+              'created_at': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true))
+            .timeout(_emailProfileFetchTimeout);
         return;
       }
 
       // Existing users: never overwrite entitlement fields here.
-      await userRef.set(profilePatch, SetOptions(merge: true));
+      await userRef
+          .set(profilePatch, SetOptions(merge: true))
+          .timeout(_emailProfileFetchTimeout);
+    } on TimeoutException catch (_) {
+      _logger.warning('Timed out while ensuring user document');
     } catch (e, stack) {
-      _logger.warning('Failed to ensure Google user document', e, stack);
+      _logger.warning('Failed to ensure user document', e, stack);
     }
+  }
+
+  Future<void> _recoverCompletedSignInAfterTimeout({
+    required User user,
+    required String flowLabel,
+    String? fallbackEmail,
+  }) async {
+    await _ensureUserDocument(user);
+
+    try {
+      final normalizedEmail = (user.email ?? fallbackEmail ?? '')
+          .trim()
+          .toLowerCase();
+      await Future.wait([
+        _cacheProfile(
+          name: user.displayName ?? 'User',
+          email: normalizedEmail,
+          imagePath: user.photoURL ?? _getGravatarUrl(normalizedEmail),
+        ),
+        _persistLoggedInState(),
+      ]).timeout(const Duration(seconds: 2));
+    } on TimeoutException catch (_) {
+      _logger.warning(
+        'Timed out while recovering local auth state after $flowLabel',
+      );
+    } catch (e, stack) {
+      _logger.warning(
+        'Failed to recover local auth state after $flowLabel',
+        e,
+        stack,
+      );
+    }
+
+    _ensureStorePurchaseReconciliation();
+    unawaited(_hydrateCloudSettingsAfterAuth());
+    unawaited(_refreshEntitlementAfterGoogleSignIn());
+    unawaited(_reconcileStorePurchasesAfterAuth());
+    unawaited(_flushPendingProfileSync());
   }
 
   @override
   Future<void> logout() async {
+    await _purchaseReconciliationSub?.cancel();
+    _purchaseReconciliationSub = null;
+    _activePurchaseKeys.clear();
     await _auth.signOut();
     await _googleSignIn.signOut();
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    _googleSignInWarmup.clear();
+    final SharedPreferences prefs =
+        _prefs ?? await SharedPreferences.getInstance();
 
     final String? theme = prefs.getString('theme');
     final double? readerLineHeight = prefs.getDouble('reader_line_height');
@@ -427,12 +719,13 @@ class AuthService implements AuthFacade {
 
   @override
   Future<String?> resetPassword(String email) async {
-    if (_isRateLimited()) {
-      return 'Too many attempts. Please try again later.';
+    final rateLimitMessage = await _checkAndRecordRateLimit(email);
+    if (rateLimitMessage != null) {
+      return rateLimitMessage;
     }
-    _recordAuthAttempt();
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
+      await _clearRateLimit(email);
       return null;
     } on FirebaseAuthException catch (e) {
       _logger.warning('Password reset failed', e);
@@ -549,16 +842,206 @@ class AuthService implements AuthFacade {
     }
   }
 
-  Future<void> _syncCloudSettingsAfterAuth() async {
+  Future<void> _hydrateCloudSettingsAfterAuth({
+    Duration timeout = _postAuthSettingsHydrationTimeout,
+  }) async {
+    final orchestrator = _ref.read(syncOrchestratorProvider);
     try {
-      await _ref
-          .read(syncOrchestratorProvider)
-          .syncSettingsAfterAuth()
-          .timeout(const Duration(seconds: 5));
+      await orchestrator.syncSettingsAfterAuth().timeout(timeout);
     } on TimeoutException catch (_) {
-      _logger.warning('Post-auth cloud settings sync timed out');
+      _logger.info(
+        'Post-auth cloud settings hydration continuing in background',
+        {'timeoutMs': timeout.inMilliseconds},
+      );
+      orchestrator.startRealtimeSync();
     } catch (e, stack) {
-      _logger.warning('Post-auth cloud settings sync failed', e, stack);
+      _logger.warning('Post-auth cloud settings hydration failed', e, stack);
+      orchestrator.startRealtimeSync();
+    }
+  }
+
+  void _ensureStorePurchaseReconciliation() {
+    if (_purchaseReconciliationSub != null) {
+      return;
+    }
+
+    _purchaseReconciliationSub = _ref
+        .read(paymentServiceProvider)
+        .purchaseStream
+        .listen(
+          (purchases) => unawaited(_handleStorePurchaseUpdates(purchases)),
+          onError: (Object error, StackTrace stackTrace) {
+            _logger.warning(
+              'Store purchase reconciliation listener failed',
+              error,
+              stackTrace,
+            );
+          },
+        );
+  }
+
+  Future<void> _reconcileStorePurchasesAfterAuth() async {
+    try {
+      final payment = _ref.read(paymentServiceProvider);
+      final isAvailable = await payment.isAvailable().timeout(
+        const Duration(seconds: 4),
+      );
+      if (!isAvailable) {
+        return;
+      }
+      await payment.restorePurchases().timeout(_startupPurchaseRestoreTimeout);
+    } on TimeoutException catch (_) {
+      _logger.warning('Store purchase reconciliation timed out after auth');
+    } catch (e, stack) {
+      _logger.warning('Store purchase reconciliation failed', e, stack);
+    }
+  }
+
+  Future<void> _handleStorePurchaseUpdates(
+    List<PurchaseDetails> purchases,
+  ) async {
+    final user = _auth.currentUser;
+    if (user == null || user.isAnonymous || purchases.isEmpty) {
+      return;
+    }
+
+    for (final purchase in purchases) {
+      if (purchase.status != PurchaseStatus.pending &&
+          purchase.status != PurchaseStatus.purchased &&
+          purchase.status != PurchaseStatus.restored) {
+        continue;
+      }
+
+      final purchaseKey = _purchaseEventKey(purchase);
+      if (!_activePurchaseKeys.add(purchaseKey)) {
+        continue;
+      }
+
+      try {
+        await _reconcileStorePurchaseLocally(purchase);
+      } catch (e, stack) {
+        _logger.warning('Store purchase reconciliation crashed', e, stack);
+      } finally {
+        _activePurchaseKeys.remove(purchaseKey);
+      }
+    }
+  }
+
+  String _purchaseEventKey(PurchaseDetails purchase) {
+    final token = purchase.verificationData.serverVerificationData.trim();
+    if (token.isNotEmpty) {
+      return '${purchase.productID}:${purchase.status.name}:$token';
+    }
+    return '${purchase.productID}:${purchase.status.name}:${purchase.purchaseID ?? "unknown"}';
+  }
+
+  Future<void> _reconcileStorePurchaseLocally(PurchaseDetails purchase) async {
+    if (purchase.status == PurchaseStatus.pending ||
+        purchase.status == PurchaseStatus.canceled ||
+        purchase.status == PurchaseStatus.error) {
+      return;
+    }
+
+    if (purchase.status != PurchaseStatus.purchased &&
+        purchase.status != PurchaseStatus.restored) {
+      return;
+    }
+
+    if (!_isKnownPremiumProductId(purchase.productID)) {
+      _logger.warning(
+        'Ignoring unknown store purchase during reconciliation',
+        <String, dynamic>{'productId': purchase.productID},
+      );
+      return;
+    }
+
+    final userId = _auth.currentUser?.uid ?? 'anonymous';
+    final payment = _ref.read(paymentServiceProvider);
+    final verification = await payment.verifyPurchase(purchase, userId);
+
+    if (verification == ReceiptVerificationResult.backendUnavailable) {
+      if (purchase.status == PurchaseStatus.restored &&
+          _hasLocallyEntitledTier()) {
+        await _completePurchaseIfNeededForReconciliation(
+          payment,
+          purchase,
+          swallowErrors: true,
+        );
+        return;
+      }
+      _logger.warning(
+        'Store purchase reconciliation skipped because verification backend is unavailable',
+        <String, dynamic>{
+          'productId': purchase.productID,
+          'status': purchase.status.name,
+        },
+      );
+      return;
+    }
+
+    if (verification != ReceiptVerificationResult.valid) {
+      _logger.warning(
+        'Store purchase reconciliation did not grant entitlement',
+        <String, dynamic>{
+          'productId': purchase.productID,
+          'status': purchase.status.name,
+          'verification': verification.name,
+        },
+      );
+      return;
+    }
+
+    await _completePurchaseIfNeededForReconciliation(payment, purchase);
+
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    await prefs.setString('current_subscription_tier', 'pro');
+    await prefs.setBool('is_premium', true);
+    await prefs.setString(
+      'subscription_id',
+      purchase.purchaseID ?? purchase.productID,
+    );
+    await prefs.setString(
+      'subscription_start_date',
+      DateTime.now().toIso8601String(),
+    );
+    await prefs.remove('subscription_end_date');
+
+    await _premiumRepository.setPremium(true);
+  }
+
+  bool _isKnownPremiumProductId(String productId) {
+    return PremiumPlanConfig.allKnownProductIds.contains(productId);
+  }
+
+  bool _hasLocallyEntitledTier() {
+    final prefs = _prefs;
+    if (_premiumRepository.isPremium) {
+      return true;
+    }
+    return prefs?.getBool('is_premium') ?? false;
+  }
+
+  Future<void> _completePurchaseIfNeededForReconciliation(
+    PaymentService payment,
+    PurchaseDetails purchase, {
+    bool swallowErrors = false,
+  }) async {
+    if (!purchase.pendingCompletePurchase) {
+      return;
+    }
+
+    try {
+      await payment.completePurchase(purchase);
+    } catch (e, stack) {
+      if (swallowErrors) {
+        _logger.warning(
+          'Non-fatal store purchase completion failure during reconciliation',
+          e,
+          stack,
+        );
+        return;
+      }
+      rethrow;
     }
   }
 
@@ -701,7 +1184,7 @@ class AuthService implements AuthFacade {
 
   Future<void> _persistLoggedInState() async {
     await _securePrefs.setString('isLoggedIn', 'true');
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', true);
   }
 
@@ -737,6 +1220,207 @@ class AuthService implements AuthFacade {
     }
   }
 
+  Future<DeviceRegistrationResult?> _awaitDeviceRegistrationWithinBudget({
+    required String flowLabel,
+  }) async {
+    final registrationFuture = _registerCurrentDevice();
+    try {
+      return await registrationFuture.timeout(_googleDeviceRegistrationTimeout);
+    } on TimeoutException {
+      _logger.info(
+        'Device registration continuing in background after sign-in budget',
+        <String, dynamic>{
+          'flow': flowLabel,
+          'timeoutMs': _googleDeviceRegistrationTimeout.inMilliseconds,
+        },
+      );
+      unawaited(
+        _logLateDeviceRegistrationOutcome(
+          registrationFuture,
+          flowLabel: flowLabel,
+        ),
+      );
+      return null;
+    }
+  }
+
+  Future<void> _logLateDeviceRegistrationOutcome(
+    Future<DeviceRegistrationResult> registrationFuture, {
+    required String flowLabel,
+  }) async {
+    try {
+      final result = await registrationFuture;
+      if (result.success) {
+        _logger.info(
+          'Device registration completed in background after sign-in budget',
+          <String, dynamic>{'flow': flowLabel},
+        );
+        return;
+      }
+      if (result.failureCode ==
+          DeviceRegistrationFailureCode.sessionStoreUnavailable) {
+        _logger.info(
+          'Device registration finished without session-store access after sign-in budget',
+          <String, dynamic>{'flow': flowLabel},
+        );
+        return;
+      }
+      _logger.warn(
+        'Late device registration completed with a non-blocking failure',
+        <String, dynamic>{
+          'flow': flowLabel,
+          'failureCode': result.failureCode?.value,
+          'message': result.errorMessage,
+        },
+      );
+    } catch (e, stack) {
+      _logger.warning(
+        'Late device registration failed after sign-in budget',
+        e,
+        stack,
+      );
+    }
+  }
+
+  bool _requiresEmailVerification(User user) {
+    return user.providerData.any(
+      (provider) => provider.providerId == EmailAuthProvider.PROVIDER_ID,
+    );
+  }
+
+  Future<User?> _reloadUser(User? user) async {
+    if (user == null) {
+      return null;
+    }
+    try {
+      await user.reload().timeout(_startupUserReloadTimeout);
+    } on TimeoutException catch (_) {
+      _logger.warning('Firebase user reload timed out');
+    } catch (e, stack) {
+      _logger.warning('Failed to reload Firebase user', e, stack);
+    }
+    return _auth.currentUser ?? user;
+  }
+
+  Future<String> _handleUnverifiedEmailLogin(User user) async {
+    final email = (user.email ?? '').trim();
+    final sendResult = await _sendVerificationEmailIfAllowed(
+      user,
+      logContext: 'login',
+    );
+    await _auth.signOut();
+    await _markLoggedOutLocallyNonDestructive();
+
+    if (sendResult == _VerificationEmailSendResult.sent) {
+      if (email.isNotEmpty) {
+        return 'Please verify your email address before logging in. '
+            'A new verification email has been sent to $email.';
+      }
+      return 'Please verify your email address before logging in. '
+          'A new verification email has been sent.';
+    }
+
+    return 'Please verify your email address before logging in. '
+        'Check your inbox and spam folder, then try again.';
+  }
+
+  Future<_VerificationEmailSendResult> _sendVerificationEmailIfAllowed(
+    User user, {
+    required String logContext,
+  }) async {
+    final key = 'verification_email_last_sent_v1:${user.uid}';
+    final now = DateTime.now().toUtc();
+    final raw = await _securePrefs.getString(key);
+    final lastSentAt = raw == null ? null : DateTime.tryParse(raw);
+
+    if (lastSentAt != null &&
+        now.difference(lastSentAt) < _verificationEmailCooldown) {
+      return _VerificationEmailSendResult.cooldown;
+    }
+
+    try {
+      await user.sendEmailVerification();
+      await _securePrefs.setString(key, now.toIso8601String());
+      return _VerificationEmailSendResult.sent;
+    } catch (e, stack) {
+      _logger.warning(
+        'Failed to send email verification during $logContext',
+        e,
+        stack,
+      );
+      return _VerificationEmailSendResult.failed;
+    }
+  }
+
+  String _rateLimitKeyForIdentifier(String identifier) {
+    final normalized = identifier.trim().toLowerCase();
+    final material = normalized.isEmpty
+        ? 'anonymous'
+        : sha256.convert(utf8.encode(normalized)).toString();
+    return '$_authRateLimitKeyPrefix:$material';
+  }
+
+  Future<List<DateTime>> _loadAuthAttempts(String key) async {
+    final raw = await _securePrefs.getString(key);
+    if (raw == null || raw.isEmpty) {
+      return <DateTime>[];
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        return <DateTime>[];
+      }
+      return decoded
+          .map<DateTime?>((value) {
+            if (value is int) {
+              return DateTime.fromMillisecondsSinceEpoch(value);
+            }
+            if (value is String) {
+              return DateTime.tryParse(value);
+            }
+            return null;
+          })
+          .whereType<DateTime>()
+          .toList();
+    } catch (e, stack) {
+      _logger.warning('Failed to decode auth rate-limit state', e, stack);
+      return <DateTime>[];
+    }
+  }
+
+  Future<void> _persistAuthAttempts(String key, List<DateTime> attempts) async {
+    if (attempts.isEmpty) {
+      await _securePrefs.delete(key);
+      return;
+    }
+    await _securePrefs.setString(
+      key,
+      jsonEncode(
+        attempts.map((attempt) => attempt.millisecondsSinceEpoch).toList(),
+      ),
+    );
+  }
+
+  Future<String?> _checkAndRecordRateLimit(String identifier) async {
+    final key = _rateLimitKeyForIdentifier(identifier);
+    final now = DateTime.now();
+    final attempts = await _loadAuthAttempts(key);
+    attempts.removeWhere(
+      (attempt) => now.difference(attempt) > _rateLimitWindow,
+    );
+    if (attempts.length >= _maxAuthAttempts) {
+      await _persistAuthAttempts(key, attempts);
+      return 'Too many attempts. Please try again later.';
+    }
+    attempts.add(now);
+    await _persistAuthAttempts(key, attempts);
+    return null;
+  }
+
+  Future<void> _clearRateLimit(String identifier) async {
+    await _securePrefs.delete(_rateLimitKeyForIdentifier(identifier));
+  }
+
   @override
   Future<bool> hasUsedTrial() async {
     final String? uid = _auth.currentUser?.uid;
@@ -750,15 +1434,32 @@ class AuthService implements AuthFacade {
   }
 
   @override
-  Future<void> markTrialUsed() async {
+  Future<void> markTrialUsed({
+    required DateTime startedAt,
+    required DateTime endsAt,
+  }) async {
     final String? uid = _auth.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null) {
+      throw StateError('Please sign in to start your free trial.');
+    }
     try {
-      await _firestore.collection('users').doc(uid).set({
-        'trial_used': true,
-      }, SetOptions(merge: true));
+      final userRef = _firestore.collection('users').doc(uid);
+      await _firestore.runTransaction((transaction) async {
+        final snapshot = await transaction.get(userRef);
+        if (snapshot.data()?['trial_used'] == true) {
+          throw StateError('Trial already used.');
+        }
+        transaction.set(userRef, <String, dynamic>{
+          'trial_used': true,
+          'trial_started_at': Timestamp.fromDate(startedAt.toUtc()),
+          'trial_ends_at': Timestamp.fromDate(endsAt.toUtc()),
+        }, SetOptions(merge: true));
+      });
+    } on StateError {
+      rethrow;
     } catch (e) {
       _logger.warning('Failed to mark trial used', e);
+      rethrow;
     }
   }
 }

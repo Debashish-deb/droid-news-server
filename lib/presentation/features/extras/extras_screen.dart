@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/navigation/app_paths.dart';
 import '../../../l10n/generated/app_localizations.dart' show AppLocalizations;
 import '../../widgets/app_drawer.dart' show AppDrawer;
-import '../common/app_bar.dart' show AppBarTitle;
 import '../../../core/theme/design_tokens.dart';
 import '../../../core/theme/theme.dart';
 import '../../../core/enums/theme_mode.dart';
 
 import '../../providers/theme_providers.dart';
-import '../history/history_widget.dart';
-import '../quiz/daily_quiz_widget.dart';
-import '../../widgets/glass_icon_button.dart' show GlassIconButton;
+import '../../widgets/premium_screen_header.dart';
 
 class ExtrasScreen extends ConsumerStatefulWidget {
   const ExtrasScreen({super.key});
@@ -34,7 +33,6 @@ class _ExtrasScreenState extends ConsumerState<ExtrasScreen> {
     super.initState();
   }
 
-
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(currentThemeModeProvider);
@@ -46,25 +44,11 @@ class _ExtrasScreenState extends ConsumerState<ExtrasScreen> {
     final loc = AppLocalizations.of(context);
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
       backgroundColor: Colors.transparent,
       drawer: const AppDrawer(),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        toolbarHeight: 64,
-        title: AppBarTitle(loc.extras),
-        leading: Builder(
-          builder: (context) => Center(
-            child: GlassIconButton(
-              icon: Icons.menu_rounded,
-              onPressed: () => Scaffold.of(context).openDrawer(),
-              isDark: isDark,
-            ),
-          ),
-        ),
-        leadingWidth: 64,
+      appBar: PremiumScreenHeader(
+        title: loc.extras,
+        leading: PremiumHeaderLeading.menu,
       ),
       body: Stack(
         fit: StackFit.expand,
@@ -92,7 +76,6 @@ class _ExtrasScreenState extends ConsumerState<ExtrasScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-             
                   Padding(
                     padding: const EdgeInsets.only(bottom: 24),
                     child: Text(
@@ -101,14 +84,13 @@ class _ExtrasScreenState extends ConsumerState<ExtrasScreen> {
                         color: isDark ? Colors.white : Colors.black87,
                         fontWeight: FontWeight.w900,
                         fontSize: 28,
-                        fontFamily: '.SF Pro Display', 
+                        fontFamily: '.SF Pro Display',
                         letterSpacing: -0.5,
                       ),
                       textAlign: TextAlign.center,
                     ),
                   ),
 
-                  
                   _ProfessionalCard(
                     icon: Icons.calendar_today_rounded,
                     iconGradient: const <Color>[
@@ -117,17 +99,11 @@ class _ExtrasScreenState extends ConsumerState<ExtrasScreen> {
                     ],
                     title: loc.onThisDay,
                     subtitle: loc.onThisDayDesc,
-                    onTap:
-                        () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            fullscreenDialog: true,
-                            builder: (_) => const HistoryWidget(),
-                          ),
-                        ),
+                    onTap: () => context.push(AppPaths.history),
                   ),
 
-                  const SizedBox(height: AppSpacing.lg), 
-              
+                  const SizedBox(height: AppSpacing.lg),
+
                   _ProfessionalCard(
                     icon: Icons.psychology_rounded,
                     iconGradient: const <Color>[
@@ -136,20 +112,11 @@ class _ExtrasScreenState extends ConsumerState<ExtrasScreen> {
                     ],
                     title: loc.brainBuzz,
                     subtitle: loc.brainBuzzDesc,
-                    onTap:
-                        () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            fullscreenDialog: true,
-                            builder: (_) => const DailyQuizWidget(),
-                          ),
-                        ),
+                    onTap: () => context.push(AppPaths.quiz),
                   ),
-
-
 
                   const SizedBox(height: 40),
 
-       
                   Center(
                     child: Text(
                       loc.moreFeaturesComingSoon,
@@ -189,19 +156,17 @@ class _ProfessionalCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final navIconColor = ref.watch(navIconColorProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isLuminous = isDark;
 
-    // 3D Glass Pill Decoration Logic
-    final themeMode = ref.watch(currentThemeModeProvider);
-    final isBangladesh = themeMode == AppThemeMode.bangladesh;
-    final bool isLuminous = isDark || isBangladesh;
-    
     // Determining Colors (mimicking Settings3DButton unselected state)
     // OLED Luminous Dark Ash Background for Dark Mode
-    final Color baseColor = isDark 
-        ? const Color(0xFF2D3035).withValues(alpha: 0.85) 
+    final Color baseColor = isDark
+        ? const Color(0xFF2D3035).withValues(alpha: 0.85)
         : Colors.black.withValues(alpha: 0.04);
-        
-    final Color contentColor = isDark ? Colors.white.withValues(alpha: 0.95) : Colors.black.withValues(alpha: 0.9);
+
+    final Color contentColor = isDark
+        ? Colors.white.withValues(alpha: 0.95)
+        : Colors.black.withValues(alpha: 0.9);
 
     // Glassmorphic Card Container
     return InkWell(
@@ -210,16 +175,18 @@ class _ProfessionalCard extends ConsumerWidget {
       child: Container(
         decoration: BoxDecoration(
           color: baseColor,
-          borderRadius: BorderRadius.circular(24), 
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isLuminous 
+            color: isLuminous
                 ? Colors.white.withValues(alpha: 0.28)
                 : Colors.black.withValues(alpha: 0.08),
             width: 1.3,
           ),
           boxShadow: [
             BoxShadow(
-              color: isLuminous ? Colors.black.withValues(alpha: 0.7) : Colors.black.withValues(alpha: 0.12),
+              color: isLuminous
+                  ? Colors.black.withValues(alpha: 0.7)
+                  : Colors.black.withValues(alpha: 0.12),
               offset: const Offset(3, 3),
               blurRadius: 8,
             ),
@@ -234,33 +201,39 @@ class _ProfessionalCard extends ConsumerWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: isLuminous
-                ? [Colors.white.withValues(alpha: 0.30), Colors.white.withValues(alpha: 0.05)]
-                : [Colors.white.withValues(alpha: 0.98), Colors.white.withValues(alpha: 0.7)],
+                ? [
+                    Colors.white.withValues(alpha: 0.30),
+                    Colors.white.withValues(alpha: 0.05),
+                  ]
+                : [
+                    Colors.white.withValues(alpha: 0.98),
+                    Colors.white.withValues(alpha: 0.7),
+                  ],
           ),
         ),
         child: Stack(
           children: [
-             // Horizontal Lens Flare (Stretched along the top - Scaled for Card width)
-             Positioned(
-               top: 4,
-               left: 40,
-               right: 40,
-               child: Container(
-                 height: 12,
-                 decoration: BoxDecoration(
-                   borderRadius: BorderRadius.circular(20),
-                   gradient: LinearGradient(
-                     begin: Alignment.topCenter,
-                     end: Alignment.bottomCenter,
-                     colors: [
-                       Colors.white.withValues(alpha: isLuminous ? 0.28 : 0.6),
-                       Colors.white.withValues(alpha: 0.0),
-                     ],
-                   ),
-                 ),
-               ),
-             ),
-             
+            // Horizontal Lens Flare (Stretched along the top - Scaled for Card width)
+            Positioned(
+              top: 4,
+              left: 40,
+              right: 40,
+              child: Container(
+                height: 12,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withValues(alpha: isLuminous ? 0.28 : 0.6),
+                      Colors.white.withValues(alpha: 0.0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
             Padding(
               padding: const EdgeInsets.all(20),
               child: Row(
@@ -274,7 +247,7 @@ class _ProfessionalCard extends ConsumerWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(18), 
+                      borderRadius: BorderRadius.circular(18),
                       boxShadow: [
                         BoxShadow(
                           color: iconGradient.last.withValues(alpha: 0.3),
@@ -284,11 +257,7 @@ class _ProfessionalCard extends ConsumerWidget {
                       ],
                     ),
                     child: Center(
-                      child: Icon(
-                        icon,
-                        color: Colors.white,
-                        size: 30,
-                      ),
+                      child: Icon(icon, color: Colors.white, size: 30),
                     ),
                   ),
                   const SizedBox(width: 20),
@@ -324,8 +293,8 @@ class _ProfessionalCard extends ConsumerWidget {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: isDark
-                              ? Colors.white.withValues(alpha: 0.05)
-                              : Colors.black.withValues(alpha: 0.05),
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : Colors.black.withValues(alpha: 0.05),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(

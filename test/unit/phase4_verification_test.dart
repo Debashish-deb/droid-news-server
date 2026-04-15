@@ -12,6 +12,12 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 // Mock Premium Service? Not needed for this widget test if we rely on internal state for simplicity
 // or wrap in a provider. For this verification, we'll check the "Free View" logic which is internal.
 
+class MockFreeViewsNotifier extends FreeViewsNotifier {
+  @override
+  Future<int> build() async => 0;
+}
+
+
 void main() {
   group('Phase 4 Verification', () {
     testWidgets('PaywallGuard allows free views then locks', (tester) async {
@@ -20,7 +26,7 @@ void main() {
         ProviderScope(
           overrides: [
             isPremiumProvider.overrideWith((ref) => Stream.value(false)),
-            freeViewsProvider.overrideWith((ref) => 0),
+            freeViewsProvider.overrideWith(() => MockFreeViewsNotifier()),
           ],
           child: const MaterialApp(
             localizationsDelegates: [
@@ -53,7 +59,7 @@ void main() {
         ProviderScope(
           overrides: [
             isPremiumProvider.overrideWith((ref) => Stream.value(false)),
-            freeViewsProvider.overrideWith((ref) => 0),
+            freeViewsProvider.overrideWith(() => MockFreeViewsNotifier()),
           ],
           child: const MaterialApp(
             localizationsDelegates: [

@@ -1,11 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../l10n/generated/app_localizations.dart' show AppLocalizations;
 import '../../providers/feature_providers.dart' show authServiceProvider;
 import '../../../core/navigation/app_paths.dart';
-import '../common/app_bar.dart';
-import '../../widgets/glass_icon_button.dart';
+import '../../widgets/premium_screen_header.dart';
+
+const String _emailVerificationRequiredPrefix =
+    'Please verify your email address before logging in.';
+const String _verificationEmailCooldownMessage =
+    'Verification email was sent recently. Please wait before requesting another one.';
+
+bool _isEmailVerificationMessage(String msg) {
+  return msg.startsWith(_emailVerificationRequiredPrefix) ||
+      msg == _verificationEmailCooldownMessage;
+}
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -35,22 +46,72 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      final msg = await ref
-          .read(authServiceProvider)
-          .login(
-            _emailCtl.text.trim(),
-            _passCtl.text, // ✅ FIXED: Don't trim password
-          )
-          .timeout(const Duration(seconds: 15));
+      final auth = ref.read(authServiceProvider);
+      final msg = await auth.login(
+        _emailCtl.text.trim(),
+        _passCtl.text, // ✅ FIXED: Don't trim password
+      );
 
-      if (msg != null) {
-        setState(() => _error = msg);
-      } else {
-        if (!mounted) return;
+      if (!mounted) return;
+      if (msg == null || auth.currentUser != null) {
         context.go(AppPaths.home);
+      } else {
+        setState(() => _error = msg);
+      }
+    } on TimeoutException {
+      if (!mounted) return;
+      final auth = ref.read(authServiceProvider);
+      if (auth.currentUser != null) {
+        context.go(AppPaths.home);
+      } else {
+        setState(() => _error = 'Connection timed out. Please try again.');
       }
     } catch (e) {
-      setState(() => _error = 'Login timed out. Please try again.');
+      if (mounted) {
+        setState(
+          () => _error = 'Unable to sign in right now. Please try again.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _resendEmailVerification() async {
+    if (_isLoading) return;
+    if (_emailCtl.text.trim().isEmpty || _passCtl.text.isEmpty) {
+      setState(() => _error = 'Please fill in all fields');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final auth = ref.read(authServiceProvider);
+      final msg = await auth.resendEmailVerification(
+        _emailCtl.text.trim(),
+        _passCtl.text,
+      );
+      if (!mounted) return;
+      final loc = AppLocalizations.of(context);
+      final snackMessage = msg == null
+          ? loc.verificationEmailResent
+          : _localizedError(loc, msg);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(snackMessage)));
+      setState(() {
+        if (msg == null || _isEmailVerificationMessage(msg)) {
+          _error = _emailVerificationRequiredPrefix;
+        } else {
+          _error = msg;
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(
+          () => _error = 'Unable to resend verification email right now.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -64,18 +125,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      final result = await ref
-          .read(authServiceProvider)
-          .signInWithGoogle()
-          .timeout(const Duration(seconds: 15));
+      final auth = ref.read(authServiceProvider);
+      final result = await auth.signInWithGoogle();
       if (!mounted) return;
-      if (result != null) {
-        setState(() => _error = result);
-      } else {
+      if (result == null || auth.currentUser != null) {
         context.go(AppPaths.home);
+      } else {
+        setState(() => _error = result);
+      }
+    } on TimeoutException {
+      if (!mounted) return;
+      final auth = ref.read(authServiceProvider);
+      if (auth.currentUser != null) {
+        context.go(AppPaths.home);
+      } else {
+        setState(
+          () => _error = 'Google sign-in is taking longer than expected.',
+        );
       }
     } catch (e) {
-      setState(() => _error = 'Google sign-in timed out.');
+      if (mounted) {
+        setState(() => _error = 'Google sign-in failed. Please try again.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -86,21 +157,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final loc = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 64,
-        title: AppBarTitle(loc.login),
-        centerTitle: true,
-        automaticallyImplyLeading: false,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 8.0),
-          child: Center(
-            child: GlassIconButton(
-              icon: Icons.arrow_back,
-              onPressed: () => context.go(AppPaths.home),
-              isDark: Theme.of(context).brightness == Brightness.dark,
-            ),
-          ),
-        ),
+      appBar: PremiumScreenHeader(
+        title: loc.login,
+        onLeadingTap: () => context.go(AppPaths.home),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -135,8 +194,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               if (_error != null) ...[
                 Text(
                   _localizedError(loc, _error!),
-                  style: const TextStyle(color: Colors.red),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
+                if (_isEmailVerificationMessage(_error!)) ...[
+                  const SizedBox(height: 12),
+                  _VerificationRecoveryPanel(
+                    isLoading: _isLoading,
+                    onResend: _resendEmailVerification,
+                    onRetry: _login,
+                    loc: loc,
+                  ),
+                ],
                 const SizedBox(height: 16),
               ],
               TextField(
@@ -196,6 +267,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   String _localizedError(AppLocalizations loc, String msg) {
+    if (msg.startsWith(_emailVerificationRequiredPrefix)) {
+      return loc.emailNotVerified;
+    }
+    if (msg == _verificationEmailCooldownMessage) {
+      return loc.verificationEmailCooldown;
+    }
     switch (msg) {
       case 'Invalid email or password.':
         return loc.invalidCredentials;
@@ -206,5 +283,65 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       default:
         return msg;
     }
+  }
+}
+
+class _VerificationRecoveryPanel extends StatelessWidget {
+  const _VerificationRecoveryPanel({
+    required this.isLoading,
+    required this.onResend,
+    required this.onRetry,
+    required this.loc,
+  });
+
+  final bool isLoading;
+  final VoidCallback onResend;
+  final VoidCallback onRetry;
+  final AppLocalizations loc;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: colorScheme.primaryContainer.withValues(alpha: 0.22),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            loc.verifyEmailTitle,
+            style: TextStyle(
+              color: colorScheme.primary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            loc.checkInboxPrompt,
+            style: TextStyle(color: colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              OutlinedButton(
+                onPressed: isLoading ? null : onResend,
+                child: Text(loc.resendVerificationEmail),
+              ),
+              TextButton(
+                onPressed: isLoading ? null : onRetry,
+                child: Text(loc.iVerifiedTryAgain),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

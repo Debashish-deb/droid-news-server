@@ -1,5 +1,6 @@
 import 'package:bdnewsreader/core/di/providers.dart';
 import 'package:bdnewsreader/core/bootstrap/startup_controller.dart';
+import 'package:bdnewsreader/core/enums/theme_mode.dart';
 import 'package:bdnewsreader/presentation/features/news/widgets/newspaper_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,9 +13,7 @@ Future<void> _pumpCard(
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
-  final startupController = StartupController(
-    
-  );
+  final startupController = StartupController();
 
   await tester.pumpWidget(
     ProviderScope(
@@ -26,6 +25,7 @@ Future<void> _pumpCard(
         home: Scaffold(
           body: NewspaperCard(
             news: news,
+            mode: AppThemeMode.system,
             isFavorite: false,
             onFavoriteToggle: () {},
             searchQuery: '',

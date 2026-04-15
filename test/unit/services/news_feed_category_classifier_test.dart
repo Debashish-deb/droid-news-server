@@ -148,5 +148,28 @@ void main() {
 
       expect(result.category, 'national');
     });
+
+    test(
+      'guards against entertainment false positives in governance headlines',
+      () {
+        final result = classify(
+          title: 'Bangladesh parliament briefing after policy interview',
+          description:
+              'Government ministry officials addressed local implementation updates.',
+        );
+
+        expect(result.category, 'national');
+      },
+    );
+
+    test('requires international dominance when Bangladesh markers exist', () {
+      final result = classify(
+        title: 'Dhaka hosts UN-linked bilateral talks on regional trade',
+        description:
+            'Bangladesh local priorities and ministry execution were highlighted.',
+      );
+
+      expect(result.category, 'national');
+    });
   });
 }

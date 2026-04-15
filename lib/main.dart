@@ -3,11 +3,19 @@
 import 'dart:async' show FutureOr, Timer, runZonedGuarded, unawaited;
 import 'dart:ui' show PlatformDispatcher;
 
-import 'package:flutter/foundation.dart' show kDebugMode, kProfileMode;
+import 'package:flutter/foundation.dart'
+    show kDebugMode, kIsWeb, kProfileMode, kReleaseMode, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
-    show SystemChrome, SystemUiMode, SystemUiOverlayStyle, DeviceOrientation;
+    show
+        DeviceOrientation,
+        MethodChannel,
+        SystemChrome,
+        SystemUiMode,
+        SystemUiOverlayStyle;
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_localizations/flutter_localizations.dart'
     show
@@ -23,18 +31,21 @@ import 'application/lifecycle/app_state_machine.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 
 // Providers & Infrastructure
+import 'core/enums/theme_mode.dart' show AppThemeMode, normalizeThemeMode;
 import 'core/errors/error_handler.dart';
 import 'core/services/splash_service.dart' show SplashService;
 import 'presentation/providers/theme_providers.dart';
-import 'core/enums/theme_mode.dart';
 import 'core/di/providers.dart';
 import 'presentation/providers/app_settings_providers.dart';
 import 'presentation/providers/language_providers.dart';
 import 'presentation/providers/performance_providers.dart';
+import 'presentation/providers/feature_providers.dart'
+    show publisherAssetsDataProvider;
 import 'core/config/performance_config.dart';
 
 // Core Services
 import 'core/navigation/routes.dart';
+import 'core/navigation/navigation_helper.dart';
 import 'core/theme/theme.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'presentation/features/common/webview_args.dart';
@@ -61,11 +72,36 @@ import 'infrastructure/services/notifications/push_notification_service.dart';
 String _appName = 'BD News Reader';
 
 /// SharedPreferences instance for app-wide use.
-late SharedPreferences _prefs;
+SharedPreferences? _prefs;
 const bool _kEnableStartupDiagnostics = bool.fromEnvironment(
   'ENABLE_STARTUP_DIAGNOSTICS',
-  defaultValue: false,
 );
+const bool _kEnableDebugAppCheck = bool.fromEnvironment(
+  'ENABLE_DEBUG_APP_CHECK',
+);
+
+bool get _useLiteDebugFirebaseStartup => kDebugMode && !_kEnableDebugAppCheck;
+
+bool get _shouldWarmAuthBootstrap {
+  if (Firebase.apps.isEmpty) {
+    return false;
+  }
+
+  final prefs = _prefs;
+  if (prefs == null) {
+    return false;
+  }
+
+  if ((prefs.getBool('isLoggedIn') ?? false) == true) {
+    return true;
+  }
+
+  try {
+    return FirebaseAuth.instance.currentUser != null;
+  } catch (_) {
+    return false;
+  }
+}
 
 Future<void> _purgeLegacySupabasePrefs(SharedPreferences prefs) async {
   // Firebase-only policy: remove stale Supabase session/config keys that may
@@ -161,11 +197,9 @@ Future<void> _bootstrap() async {
       details.stack,
     );
 
-    // Provide a localized Material root in case the error happens outside the primary app context,
-    // or high up the widget tree preventing normal Material inheritances.
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
+    // Keep the fallback lightweight: avoid nested MaterialApp/routing trees.
+    return Material(
+      child: Scaffold(
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -191,42 +225,25 @@ Future<void> _bootstrap() async {
     );
   };
 
-  // 1. CRITICAL Security & Config Initialization (Awaited)
-  // Must complete before UI launches to prevent SecurityExceptions on early requests.
+  // 1. Minimal launch preparation.
+  // Keep pre-runApp work tiny so Android can hand off as soon as Flutter can
+  // paint the shell. Heavier config/network bootstrap continues in background.
   late final SharedPreferences prefs;
+  String initialRoute = AppPaths.splash;
   try {
-    await dotenv.load(isOptional: true);
-    AppConfig.validateConfiguration();
-    CertificatePinner.validateConfiguration();
-    await SSLPinning.initialize();
-
-    // Load SharedPreferences early to resolve initial route
+    // CertificatePinner.validateConfiguration(); // Moved to background bootstrap
     prefs = await SharedPreferences.getInstance();
     _prefs = prefs;
 
-    // Initialize Firebase app early (keep App Check off the critical path).
-    await FirebaseBootstrapper().initialize(
-      fetchRemoteConfig: false,
-      initializeAppCheck: false,
-    );
+    initialRoute = SplashService(prefs: prefs).resolveInitialRouteHint();
 
-    // Start App Check immediately after Firebase init (non-blocking) so
-    // early auth/network calls don't run before a provider is installed.
-    unawaited(
-      FirebaseBootstrapper().initializeAppCheckService().catchError((
-        Object e,
-        StackTrace s,
-      ) {
-        ErrorHandler.logError(e, s, reason: 'Early App Check init failed');
-      }),
-    );
-
-    debugPrint('🔒 Infrastructure & Security layer initialized');
+    debugPrint('🚀 Startup shell prepared');
   } catch (e, stack) {
     ErrorHandler.logError(e, stack, reason: 'Critical Bootstrap Setup Failure');
     // Fallback if prefs fail
     prefs = await SharedPreferences.getInstance();
     _prefs = prefs;
+    initialRoute = SplashService(prefs: prefs).resolveInitialRouteHint();
   }
 
   // 2. NON-BLOCKING Platform Setup
@@ -240,15 +257,7 @@ Future<void> _bootstrap() async {
   );
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  // 2. Resolve Initial Route
-  String initialRoute = AppPaths.splash;
-  try {
-    initialRoute = await SplashService(prefs: prefs).resolveInitialRoute();
-  } catch (e) {
-    debugPrint('⚠️ Initial route resolution failed: $e');
-  }
-
-  // 3. Immediate UI Launch
+  // 2. Immediate UI Launch using the locally cached route hint.
   final startupController = StartupController();
 
   final container = ProviderContainer(
@@ -262,6 +271,7 @@ Future<void> _bootstrap() async {
   // Pre-warm essential state sync (Non-blocking)
   container.read(themeProvider.notifier).initializeSync();
   container.read(languageProvider.notifier).initializeSync();
+  // prewarmThemeCaches(); // Moved to MyApp post-frame callback for smoother startup
 
   runApp(
     UncontrolledProviderScope(
@@ -273,16 +283,24 @@ Future<void> _bootstrap() async {
   // 3. BACKGROUND Initialization (Parallel)
   unawaited(
     Future(() async {
-      await _purgeLegacySupabasePrefs(_prefs);
+      try {
+        await _initializeDeferredStartupServices();
+      } catch (e, stack) {
+        ErrorHandler.logError(
+          e,
+          stack,
+          reason: 'Deferred startup services init failed',
+        );
+      }
 
-      // We already loaded prefs and initialized Firebase.
-      // Now run the remaining bootstrap runner tasks (Auth, Security etc)
+      await _purgeLegacySupabasePrefs(prefs);
+
+      // Route hint is already on screen. Now run authoritative startup checks.
       final securityService = container.read(securityServiceProvider);
 
       final startupRunner = StartupBootstrapRunner(
-        prefs: _prefs,
+        prefs: prefs,
         securityService: securityService,
-        googleSignIn: container.read(googleSignInProvider),
       );
 
       final snapshot = await startupRunner.bootstrap();
@@ -291,48 +309,89 @@ Future<void> _bootstrap() async {
   );
 }
 
+Future<void> _initializeDeferredStartupServices() async {
+  await dotenv.load(isOptional: true);
+  AppConfig.validateConfiguration();
+  CertificatePinner.validateConfiguration();
+  await SSLPinning.initialize();
+
+  final firebaseBootstrapper = FirebaseBootstrapper();
+
+  await firebaseBootstrapper.initialize(
+    fetchRemoteConfig: false,
+    initializeAppCheck: false,
+  );
+
+  if (_useLiteDebugFirebaseStartup) {
+    debugPrint(
+      'ℹ️ Lite Firebase debug startup active: deferring Remote Config, notifications, and background boot work.',
+    );
+  }
+
+  // Keep App Check off by default in debug. It adds noisy Google Play /
+  // Play Integrity churn during hot restart on some devices.
+  final shouldInitAppCheck = kReleaseMode || _kEnableDebugAppCheck;
+  if (shouldInitAppCheck) {
+    unawaited(
+      firebaseBootstrapper.initializeAppCheckService().catchError((
+        Object e,
+        StackTrace s,
+      ) {
+        ErrorHandler.logError(e, s, reason: 'Early App Check init failed');
+      }),
+    );
+  }
+}
+
 // ── Critical bootstrap ────────────────────────────────────────────────────────
 
 Future<bool> _criticalBootstrap(WidgetRef ref) async {
   final observability = ref.read(observabilityServiceProvider);
   observability.logEvent('app_start_init');
+  final deferFirebaseUserBootstrap = _useLiteDebugFirebaseStartup;
 
   if ((kDebugMode || kProfileMode) && _kEnableStartupDiagnostics) {
     ref.read(debugDiagnosticsServiceProvider).start();
   }
 
   try {
-    // Security layer already initialized in _bootstrap();
-    // If this races/duplicates, treat it as non-fatal.
-    await ref.read(securityServiceProvider).initialize();
+    final securityInit = ref
+        .read(securityServiceProvider)
+        .initialize()
+        .timeout(
+          const Duration(seconds: 3),
+          onTimeout: () {
+            debugPrint('SecurityService.initialize timed out; continuing.');
+          },
+        )
+        .catchError((Object e) {
+          debugPrint('SecurityService.initialize deferred failed: $e');
+        });
+    unawaited(securityInit);
 
-    // Run core services
-    final firebaseReady = Firebase.apps.isNotEmpty;
-
-    // Keep startup responsive: trust check can continue in background for
-    // debug/profile, strict await in release only.
     final trustInit = ref
         .read(deviceTrustControllerProvider.notifier)
-        .initialize();
-    if (kDebugMode || kProfileMode) {
-      unawaited(
-        trustInit.catchError((e) {
+        .initialize()
+        .timeout(
+          const Duration(seconds: 3),
+          onTimeout: () {
+            debugPrint('Device trust init timed out; continuing bootstrap.');
+          },
+        )
+        .catchError((Object e) {
           debugPrint('Device trust init deferred failed: $e');
-        }),
-      );
-    } else {
-      await trustInit.timeout(
-        const Duration(seconds: 3),
-        onTimeout: () {
-          debugPrint('Device trust init timed out; continuing bootstrap.');
-        },
-      );
-    }
+        });
+    unawaited(trustInit);
 
     // Keep only essential network state synchronous.
     await ref.read(appNetworkServiceProvider).initialize();
 
-    if (firebaseReady) {
+    // Run core services
+    final firebaseReady = Firebase.apps.isNotEmpty;
+
+    if (firebaseReady &&
+        !deferFirebaseUserBootstrap &&
+        _shouldWarmAuthBootstrap) {
       unawaited(
         ref
             .read(authFacadeProvider)
@@ -352,20 +411,6 @@ Future<bool> _criticalBootstrap(WidgetRef ref) async {
             }),
       );
     }
-    unawaited(
-      ref
-          .read(premiumRepositoryProvider)
-          .refreshStatus()
-          .timeout(
-            const Duration(seconds: 8),
-            onTimeout: () {
-              debugPrint('Premium refresh timed out during critical bootstrap');
-            },
-          )
-          .catchError((e) {
-            debugPrint('Premium refresh during critical bootstrap failed: $e');
-          }),
-    );
     return true;
   } catch (e, stack) {
     debugPrint('CRITICAL BOOTSTRAP FAILED: $e\n$stack');
@@ -393,58 +438,190 @@ class MyApp extends ConsumerStatefulWidget {
 }
 
 class _MyAppState extends ConsumerState<MyApp> {
+  static const MethodChannel _androidLaunchSplashChannel = MethodChannel(
+    'com.bdnews/splash',
+  );
+  // ── Startup timing constants ─────────────────────────────────────────────
+  // Lite shell: holds a stripped-down app shell while the real theme/perf data
+  // loads.  1400 ms gives enough room for SharedPreferences and theme reads
+  // without blocking dynamic-color resolution longer than needed.
+  static const Duration _kAndroidStartupLiteShellDuration = Duration(
+    milliseconds: 600,
+  );
+  // Deferred work: staggered tasks that run after the first interactive frame.
+  // Android values are deliberately higher than the defaults to give the system
+  // GC / JIT time to settle, but kept tight enough to not delay real features.
+  static const Duration _kDeferredLifecycleBridgeDelay = Duration(seconds: 4);
+  static const Duration _kDeferredThemeCacheWarmupDelay = Duration(seconds: 5);
+  static const Duration _kDeferredNetworkUtilsDelay = Duration(seconds: 4);
+  static const Duration _kDeferredAuthWarmupDelay = Duration(seconds: 5);
+  static const Duration _kDeferredRemoteConfigDelay = Duration(seconds: 20);
+  static const Duration _kDeferredNotificationPipelineDelay = Duration(
+    seconds: 6,
+  );
+  static const Duration _kDeferredNotificationRemoteSetupDelay = Duration(
+    seconds: 30,
+  );
   late final _router = createRouter(initialLocation: widget.initialRoute);
   late final PushNotificationService _pushNotificationService;
   bool _postReadyBootstrapStarted = false;
   bool _startupRouteApplied = false;
   String? _lastNotificationUrl;
   DateTime? _lastNotificationHandledAt;
-  String _themeTransitionKey = AppThemeMode.system.name;
+  bool _androidLaunchSplashReleased = false;
+  bool _androidLaunchSplashReleaseScheduled = false;
+  String _themeTransitionKey = 'system';
+  final GlobalKey<ThemeWaveTransitionState> _themeWaveKey =
+      GlobalKey<ThemeWaveTransitionState>();
+  AppThemeMode? _activeThemeMode;
+  ThemeData? _cachedLightTheme;
+  int? _cachedLightThemeSignature;
+  bool _initialNotificationPayloadPrimed = false;
+  Map<String, dynamic>? _pendingStartupNotificationPayload;
+  bool _startupLiteShellActive = false;
+  bool _themeTransitionArmed = false;
+  StartupSnapshot _latestStartupSnapshot = const StartupSnapshot.loading();
+  bool _latestDataSaver = false;
+  AsyncValue<PerformanceConfig> _latestPerfAsync =
+      const AsyncValue<PerformanceConfig>.loading();
 
   // ── Cached _appBuilder inputs ─────────────────────────────────────────────
-  // The MaterialApp `builder` fires on every route event (push/pop/replace).
-  // We track the last inputs so PerformanceConfig is only reconstructed when
-  // something actually changes, not on every navigation event.
+
   PerformanceConfig? _cachedPerfConfig;
   bool? _lastDataSaver;
   bool? _lastReduceMotion;
   bool? _lastReduceEffects;
   String? _lastPerfTierKey;
+  AppThemeMode? _lastDynamicColorMode;
+  bool? _cachedDynamicColorDecision;
+  bool? _lastDynamicColorLiteShell;
+  ColorScheme? _cachedDynamicLightScheme;
   ProviderSubscription<AsyncValue<PerformanceConfig>>? _performanceConfigSub;
+  ProviderSubscription<bool>? _dataSaverSub;
   ProviderSubscription<StartupSnapshot>? _startupSnapshotSub;
+  ProviderSubscription<AppThemeMode>? _themeModeSub;
   final Set<Timer> _startupTimers = <Timer>{};
+
+  bool get _useStartupLiteShell =>
+      _startupLiteShellActive &&
+      !kIsWeb &&
+      defaultTargetPlatform == TargetPlatform.android;
+
+  bool get _isAndroidStartupConstrained =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  // Keep the post-ready bootstrap tight so dependent services come online
+  // immediately after startup readiness transitions.
+  Duration get _criticalBootstrapQuietWindow => _isAndroidStartupConstrained
+      ? const Duration(milliseconds: 100)
+      : const Duration(milliseconds: 50);
+
+  Duration _deferredBootstrapDelay(
+    Duration defaultDelay, {
+    required Duration androidDelay,
+  }) => _isAndroidStartupConstrained ? androidDelay : defaultDelay;
+
+  bool _resolveUseDynamicColor(AppThemeMode mode) {
+    if (_lastDynamicColorMode == mode &&
+        _lastDynamicColorLiteShell == _useStartupLiteShell &&
+        _cachedDynamicColorDecision != null) {
+      return _cachedDynamicColorDecision!;
+    }
+
+    final bool decision;
+    if (_useStartupLiteShell) {
+      decision = false;
+    } else if (!_isAndroidStartupConstrained) {
+      decision = true;
+    } else if (kDebugMode || kProfileMode) {
+      decision = false;
+    } else {
+      decision = normalizeThemeMode(mode) == AppThemeMode.system;
+    }
+
+    _lastDynamicColorMode = mode;
+    _lastDynamicColorLiteShell = _useStartupLiteShell;
+    _cachedDynamicColorDecision = decision;
+    return decision;
+  }
 
   @override
   void initState() {
     super.initState();
+    final startingTheme = ref.read(themeProvider.select((s) => s.mode));
+    _activeThemeMode = startingTheme;
+    _themeTransitionKey = startingTheme.name;
+    _latestStartupSnapshot = ref.read(startupControllerProvider);
+    _latestDataSaver = _prefs?.getBool('data_saver') ?? false;
+    _latestPerfAsync = ref.read(performanceConfigProvider);
+
     _pushNotificationService = ref.read(pushNotificationServiceProvider);
     _pushNotificationService.onNotificationTap = _handleNotificationPayload;
 
-    // Register lifecycle bridge after a short delay to avoid cold-start sync
-    // pressure during first interactions.
-    _scheduleCancellableDelay(const Duration(seconds: 2), () async {
-      if (!mounted) return;
-      try {
-        final lifecycle = ref.read(appLifecycleProvider.notifier);
-        ref
-            .read(syncOrchestratorProvider)
-            .registerAppLifecycleNotifier(lifecycle);
-      } catch (_) {
-        // Orchestrator records errors internally.
-      }
-    });
+    _themeModeSub ??= ref.listenManual<AppThemeMode>(
+      themeProvider.select((s) => s.mode),
+      (previous, next) {
+        if (!mounted || next == _activeThemeMode) return;
 
-    // Performance tier → network service bridge.
-    // listenManual in initState registers exactly once; ref.listen in build()
-    // would accumulate a new subscription on every rebuild.
-    _performanceConfigSub ??= ref.listenManual<AsyncValue<PerformanceConfig>>(
-      performanceConfigProvider,
-      (prev, next) {
-        next.whenData((perf) {
-          ref
-              .read(appNetworkServiceProvider)
-              .updatePerformanceTier(perf.performanceTier);
+        // Do not animate theme transitions while startup state is still
+        // reconciling; this avoids expensive screenshot captures at boot.
+        if (_useStartupLiteShell ||
+            !_themeTransitionArmed ||
+            !_latestStartupSnapshot.isReady) {
+          setState(() {
+            _activeThemeMode = next;
+            _themeTransitionKey = next.name;
+          });
+          _themeTransitionArmed = true;
+          return;
+        }
+
+        unawaited(
+          _themeWaveKey.currentState?.captureBeforeThemeChange().then((_) {
+                SchedulerBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  setState(() {
+                    _activeThemeMode = next;
+                    _themeTransitionKey = next.name;
+                  });
+                });
+              }) ??
+              Future<void>.value(),
+        );
+      },
+    );
+
+    _startupLiteShellActive =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+    if (_useStartupLiteShell) {
+      _scheduleCancellableDelay(_kAndroidStartupLiteShellDuration, () {
+        if (!mounted || !_startupLiteShellActive) return;
+        _ensurePerformanceConfigBridge();
+        setState(() {
+          _startupLiteShellActive = false;
+          _activeThemeMode = ref.read(themeProvider).mode;
+          _themeTransitionKey = (_activeThemeMode ?? startingTheme).name;
         });
+      });
+    } else {
+      _ensurePerformanceConfigBridge();
+      _themeTransitionArmed = true;
+    }
+
+    _scheduleCancellableDelay(
+      _deferredBootstrapDelay(
+        _kDeferredLifecycleBridgeDelay,
+        androidDelay: const Duration(seconds: 6),
+      ),
+      () async {
+        if (!mounted) return;
+        try {
+          final lifecycle = ref.read(appLifecycleProvider.notifier);
+          ref
+              .read(syncOrchestratorProvider)
+              .registerAppLifecycleNotifier(lifecycle);
+        } catch (_) {}
       },
     );
 
@@ -455,10 +632,28 @@ class _MyAppState extends ConsumerState<MyApp> {
       },
     );
 
+    if (_shouldControlAndroidLaunchSplash) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _scheduleAndroidLaunchSplashRelease();
+      });
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final startup = ref.read(startupControllerProvider);
       _applyStartupSnapshot(startup);
+
+      _scheduleCancellableDelay(
+        _deferredBootstrapDelay(
+          _kDeferredThemeCacheWarmupDelay,
+          androidDelay: const Duration(seconds: 1),
+        ),
+        () {
+          if (!mounted) return;
+          prewarmThemeCaches();
+        },
+      );
     });
   }
 
@@ -466,9 +661,45 @@ class _MyAppState extends ConsumerState<MyApp> {
   void dispose() {
     _cancelStartupTimers();
     _performanceConfigSub?.close();
+    _dataSaverSub?.close();
     _startupSnapshotSub?.close();
+    _themeModeSub?.close();
     _pushNotificationService.onNotificationTap = null;
     super.dispose();
+  }
+
+  void _ensurePerformanceConfigBridge() {
+    // Performance auto-detect uses Android method-channel calls. Deferring it keeps the first interactive seconds lighter on physical devices.
+    _performanceConfigSub ??= ref.listenManual<AsyncValue<PerformanceConfig>>(
+      performanceConfigProvider,
+      (prev, next) {
+        _latestPerfAsync = next;
+        if (mounted) {
+          setState(() {
+            _cachedPerfConfig = null;
+            _lastPerfTierKey = null;
+          });
+        }
+        next.whenData((perf) {
+          ref
+              .read(appNetworkServiceProvider)
+              .updatePerformanceTier(perf.performanceTier);
+        });
+      },
+    );
+  }
+
+  void _ensureDataSaverBridge() {
+    _dataSaverSub ??= ref.listenManual<bool>(dataSaverProvider, (prev, next) {
+      if (prev == next) return;
+      _latestDataSaver = next;
+      if (mounted) {
+        setState(() {
+          _cachedPerfConfig = null;
+          _lastPerfTierKey = null;
+        });
+      }
+    });
   }
 
   Timer _scheduleCancellableDelay(
@@ -495,17 +726,35 @@ class _MyAppState extends ConsumerState<MyApp> {
   }
 
   void _applyStartupSnapshot(StartupSnapshot snapshot) {
+    _latestStartupSnapshot = snapshot;
+    if (mounted) {
+      setState(() {});
+    }
+    if (snapshot.isReady) {
+      _themeTransitionArmed = true;
+    }
+
     if (!_startupRouteApplied && !snapshot.isLoading) {
       _startupRouteApplied = true;
       if (snapshot.isBlocked) {
-        _router.go(snapshot.initialRoute); // AppPaths.securityLockout
+        _router.go(snapshot.initialRoute);
       } else if (snapshot.isFirebaseUnavailable) {
         _router.go(snapshot.initialRoute);
       } else if (snapshot.isReady &&
           snapshot.initialRoute != widget.initialRoute) {
-        // Navigate if the resolved route differs from the startup skeleton route
         _router.go(snapshot.initialRoute);
       }
+    }
+
+    if (snapshot.firebaseReady &&
+        Firebase.apps.isNotEmpty &&
+        !_initialNotificationPayloadPrimed) {
+      _initialNotificationPayloadPrimed = true;
+      unawaited(_primeInitialNotificationPayload());
+    }
+
+    if (_startupRouteApplied) {
+      _drainPendingStartupNotificationPayload();
     }
 
     if (snapshot.isReady &&
@@ -513,6 +762,32 @@ class _MyAppState extends ConsumerState<MyApp> {
         Firebase.apps.isNotEmpty) {
       _startPostReadyBootstrap();
     }
+  }
+
+  bool get _shouldControlAndroidLaunchSplash =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  void _scheduleAndroidLaunchSplashRelease() {
+    if (!_shouldControlAndroidLaunchSplash ||
+        _androidLaunchSplashReleased ||
+        _androidLaunchSplashReleaseScheduled) {
+      return;
+    }
+
+    _androidLaunchSplashReleaseScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _androidLaunchSplashReleased) {
+        return;
+      }
+      _androidLaunchSplashReleased = true;
+      unawaited(_releaseAndroidLaunchSplash());
+    });
+  }
+
+  Future<void> _releaseAndroidLaunchSplash() async {
+    try {
+      await _androidLaunchSplashChannel.invokeMethod<void>('release');
+    } catch (_) {}
   }
 
   void _startPostReadyBootstrap() {
@@ -528,9 +803,13 @@ class _MyAppState extends ConsumerState<MyApp> {
 
       final observability = ref.read(observabilityServiceProvider);
       final firebaseBootstrapper = FirebaseBootstrapper();
+      final useLiteDebugFirebaseStartup = _useLiteDebugFirebaseStartup;
 
-      // Give first frame room before running bootstrap pressure.
-      _scheduleCancellableDelay(const Duration(milliseconds: 450), () async {
+      // Attach app-settings bridge only after startup is ready to avoid
+      // pulling Sync providers into early startup transitions.
+      _ensureDataSaverBridge();
+
+      _scheduleCancellableDelay(_criticalBootstrapQuietWindow, () async {
         if (!mounted) return;
         await _criticalBootstrap(ref)
             .then((success) {
@@ -551,25 +830,45 @@ class _MyAppState extends ConsumerState<MyApp> {
             });
       });
 
+      // Everything below is optional startup work.
       _scheduleDeferredStartupTask(
-        delay: const Duration(milliseconds: 900),
+        delay: const Duration(milliseconds: 800),
+        task: () => ref.read(publisherAssetsDataProvider.future),
+        reason: 'Publisher asset data preload failed',
+      );
+      _scheduleDeferredStartupTask(
+        delay: _deferredBootstrapDelay(
+          _kDeferredNetworkUtilsDelay,
+          androidDelay: const Duration(seconds: 6),
+        ),
         task: () => ref.read(networkUtilsProvider).initialize(),
         reason: 'Network utils init failed',
       );
+      if (useLiteDebugFirebaseStartup && _shouldWarmAuthBootstrap) {
+        _scheduleDeferredStartupTask(
+          delay: _deferredBootstrapDelay(
+            _kDeferredAuthWarmupDelay,
+            androidDelay: const Duration(seconds: 8),
+          ),
+          task: () => ref.read(authFacadeProvider).init(),
+          reason: 'Deferred auth init failed',
+        );
+      }
       _scheduleDeferredStartupTask(
-        delay: const Duration(seconds: 2),
+        delay: _deferredBootstrapDelay(
+          _kDeferredRemoteConfigDelay,
+          androidDelay: const Duration(seconds: 25),
+        ),
         task: firebaseBootstrapper.initializeRemoteConfig,
         reason: 'RemoteConfig init failed',
       );
       _scheduleDeferredStartupTask(
-        delay: const Duration(seconds: 4),
+        delay: _deferredBootstrapDelay(
+          _kDeferredNotificationPipelineDelay,
+          androidDelay: const Duration(seconds: 8),
+        ),
         task: _initializeNotificationPipeline,
         reason: 'Notification init failed',
-      );
-      _scheduleDeferredStartupTask(
-        delay: const Duration(seconds: 6),
-        task: BackgroundService.initialize,
-        reason: 'Background service init failed',
       );
     });
   }
@@ -600,9 +899,43 @@ class _MyAppState extends ConsumerState<MyApp> {
 
     final notifications = ref.read(pushNotificationServiceProvider);
     notifications.onNotificationTap = _handleNotificationPayload;
-    await notifications.initialize();
-    await notifications.checkInitialMessage();
+    await notifications.initialize(deferRemoteRegistration: true);
 
+    if (kDebugMode && !FirebaseBootstrapper.shouldEnableAppCheck) {
+      debugPrint(
+        'ℹ️ Skipping remote notification bootstrap in normal debug runs because Firebase App Check is disabled.',
+      );
+      return;
+    }
+
+    await notifications.checkInitialMessage();
+    _scheduleDeferredStartupTask(
+      delay: _deferredBootstrapDelay(
+        _kDeferredNotificationRemoteSetupDelay,
+        androidDelay: const Duration(seconds: 35),
+      ),
+      task: _completeNotificationRemoteSetup,
+      reason: 'Notification remote setup failed',
+    );
+  }
+
+  Future<void> _completeNotificationRemoteSetup() async {
+    if (!mounted) return;
+    if (!ref.read(appNetworkServiceProvider).isConnected) {
+      _scheduleDeferredStartupTask(
+        delay: const Duration(seconds: 30),
+        task: _completeNotificationRemoteSetup,
+        reason: 'Notification remote setup retry failed',
+      );
+      return;
+    }
+
+    final notifications = ref.read(pushNotificationServiceProvider);
+    if (!notifications.isEnabled) {
+      return;
+    }
+
+    await notifications.completeDeferredRegistration();
     if (notifications.isEnabled) {
       unawaited(BackgroundService.registerPeriodicSync());
     }
@@ -630,8 +963,40 @@ class _MyAppState extends ConsumerState<MyApp> {
       if (!mounted) {
         return;
       }
-      _router.push(target.location, extra: target.extra);
+      NavigationHelper.pushRouterDeduped<void>(
+        _router,
+        target.location,
+        extra: target.extra,
+      );
     });
+  }
+
+  Future<void> _primeInitialNotificationPayload() async {
+    try {
+      final payload = await _pushNotificationService
+          .consumeInitialMessagePayload();
+      if (!mounted || payload == null) {
+        return;
+      }
+
+      _pendingStartupNotificationPayload = payload;
+      if (_startupRouteApplied) {
+        _drainPendingStartupNotificationPayload();
+      }
+    } catch (e, stack) {
+      ref
+          .read(structuredLoggerProvider)
+          .warning('Initial notification payload prime failed', e, stack);
+    }
+  }
+
+  void _drainPendingStartupNotificationPayload() {
+    final payload = _pendingStartupNotificationPayload;
+    if (payload == null) {
+      return;
+    }
+    _pendingStartupNotificationPayload = null;
+    _handleNotificationPayload(payload);
   }
 
   bool _isDuplicateNotificationOpen(String url) {
@@ -649,67 +1014,149 @@ class _MyAppState extends ConsumerState<MyApp> {
         now.difference(previousTime) < const Duration(seconds: 2);
   }
 
+  @pragma('vm:prefer-inline')
+  int _lightSchemeSignature(ColorScheme scheme) => Object.hashAll(<Object?>[
+    scheme.brightness,
+    scheme.primary.value,
+    scheme.onPrimary.value,
+    scheme.secondary.value,
+    scheme.onSecondary.value,
+    scheme.surface.value,
+    scheme.onSurface.value,
+    scheme.surfaceContainerHighest.value,
+    scheme.outline.value,
+    scheme.error.value,
+  ]);
+
+  ThemeData _resolveCachedLightTheme(ColorScheme scheme) {
+    final signature = _lightSchemeSignature(scheme);
+    final cachedTheme = _cachedLightTheme;
+    if (cachedTheme != null && _cachedLightThemeSignature == signature) {
+      return cachedTheme;
+    }
+    final resolved = AppTheme.lightThemeForScheme(scheme);
+    _cachedLightTheme = resolved;
+    _cachedLightThemeSignature = signature;
+    return resolved;
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Single mode selector keeps theme resolution coherent for the whole tree.
     final appThemeMode = ref.watch(themeProvider.select((s) => s.mode));
-    final themeMode = resolveThemeMode(appThemeMode);
-    final darkTheme = resolveDarkTheme(appThemeMode);
-    _themeTransitionKey = appThemeMode.name;
+    _activeThemeMode ??= appThemeMode;
+
+    final activeThemeMode = _useStartupLiteShell
+        ? appThemeMode
+        : (_activeThemeMode ?? appThemeMode);
+    final themeMode = resolveThemeMode(activeThemeMode);
+    final darkTheme = resolveDarkTheme(activeThemeMode);
+    _themeTransitionKey = activeThemeMode.name;
 
     final locale = ref.watch(languageProvider.select((s) => s.locale));
-    // NOTE: dataSaverProvider is intentionally NOT watched here.
-    // It is only needed inside _appBuilder, which watches it independently,
-    // so watching it here would create a duplicate subscription and trigger
-    // an extra MyApp rebuild whenever data-saver toggles.
+    final useDynamicColor = _resolveUseDynamicColor(activeThemeMode);
 
-    return SessionValidator(
-      child: DynamicColorBuilder(
-        builder: (lightDynamic, darkDynamic) {
-          // Harmonize dynamic color schemes with brand primary if available
-          final ColorScheme lightScheme =
-              lightDynamic?.harmonized() ?? AppTheme.lightTheme.colorScheme;
-          final ColorScheme darkScheme =
-              darkDynamic?.harmonized() ?? (darkTheme.colorScheme);
-
-          return MaterialApp.router(
-            title: _appName,
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme.copyWith(colorScheme: lightScheme),
-            darkTheme: darkTheme.copyWith(colorScheme: darkScheme),
+    final appChild = _useStartupLiteShell || !useDynamicColor
+        ? _buildRouterApp(
+            lightTheme: AppTheme.lightTheme,
+            darkTheme: darkTheme,
             themeMode: themeMode,
-            themeAnimationDuration: const Duration(milliseconds: 220),
-            themeAnimationCurve: Curves.easeOutCubic,
             locale: locale,
-            supportedLocales: const [Locale('en'), Locale('bn')],
-            localizationsDelegates:
-                widget.localizationsDelegates ??
-                [
-                  AppLocalizations.delegate,
-                  GlobalMaterialLocalizations.delegate,
-                  GlobalWidgetsLocalizations.delegate,
-                  GlobalCupertinoLocalizations.delegate,
-                ],
-            routerConfig: _router,
-            builder: _appBuilder,
+          )
+        : _buildDynamicColorRouter(
+            darkTheme: darkTheme,
+            themeMode: themeMode,
+            locale: locale,
           );
-        },
-      ),
+
+    return appChild;
+  }
+
+  Widget _buildDynamicColorRouter({
+    required ThemeData darkTheme,
+    required ThemeMode themeMode,
+    required Locale locale,
+  }) {
+    final cachedScheme = _cachedDynamicLightScheme;
+    if (cachedScheme != null) {
+      return _buildRouterApp(
+        lightTheme: _resolveCachedLightTheme(cachedScheme),
+        darkTheme: darkTheme,
+        themeMode: themeMode,
+        locale: locale,
+      );
+    }
+
+    return DynamicColorBuilder(
+      builder: (lightDynamic, _) {
+        final ColorScheme lightScheme =
+            lightDynamic?.harmonized() ?? AppTheme.lightTheme.colorScheme;
+        _cachedDynamicLightScheme ??= lightScheme;
+
+        return _buildRouterApp(
+          lightTheme: _resolveCachedLightTheme(lightScheme),
+          darkTheme: darkTheme,
+          themeMode: themeMode,
+          locale: locale,
+        );
+      },
     );
   }
 
-  /// Separated method so `dataSaverProvider` and `performanceConfigProvider`
-  /// are watched here rather than in `build()`.  A perf-config change
-  /// therefore rebuilds only the builder subtree, not the entire MaterialApp.
+  Widget _buildRouterApp({
+    required ThemeData lightTheme,
+    required ThemeData darkTheme,
+    required ThemeMode themeMode,
+    required Locale locale,
+  }) {
+    return MaterialApp.router(
+      title: _appName,
+      debugShowCheckedModeBanner: false,
+      theme: lightTheme,
+      darkTheme: darkTheme,
+      themeMode: themeMode,
+      // Our custom ThemeWaveTransition handles the "heavy lifting" of the
+      // transition visuals. We disable the native MaterialApp fade to
+      // ensure the new theme is rendered instantly under the wave's mask,
+      // preventing the "flicker" caused by overlapping animations.
+      themeAnimationDuration: Duration.zero,
+      locale: locale,
+      supportedLocales: const [Locale('en'), Locale('bn')],
+      localizationsDelegates:
+          widget.localizationsDelegates ??
+          [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+      routerConfig: _router,
+      builder: _appBuilder,
+    );
+  }
+
+  /// Route transitions trigger this builder frequently, so avoid provider
+  /// watches here and use bridged snapshots instead.
   Widget _appBuilder(BuildContext context, Widget? child) {
-    final dataSaver = ref.watch(dataSaverProvider);
-    final bool systemReduceMotion = MediaQuery.of(context).disableAnimations;
-    final perfAsync = ref.watch(performanceConfigProvider);
-    final startupSnapshot = ref.watch(startupControllerProvider);
-
+    final startupSnapshot = _latestStartupSnapshot;
     final fallback = child ?? const SizedBox.shrink();
+    Widget builtChild;
 
-    return perfAsync.maybeWhen(
+    if (_useStartupLiteShell) {
+      builtChild = PerformanceConfig.defaults(
+        child: _SnapshotOverlay(
+          snapshot: startupSnapshot,
+          animate: false,
+          child: fallback,
+        ),
+      );
+      return SessionValidator(child: builtChild);
+    }
+
+    final dataSaver = _latestDataSaver;
+    final bool systemReduceMotion = MediaQuery.of(context).disableAnimations;
+    final perfAsync = _latestPerfAsync;
+
+    builtChild = perfAsync.maybeWhen(
       data: (perf) {
         final bool perfConstrained =
             perf.shouldDisableAnimations ||
@@ -734,9 +1181,11 @@ class _MyAppState extends ConsumerState<MyApp> {
             _lastReduceEffects == reduceEffects &&
             _lastPerfTierKey == tierKey) {
           return ThemeWaveTransition(
+            key: _themeWaveKey,
             themeKey: _themeTransitionKey,
             child: _SnapshotOverlay(
               snapshot: startupSnapshot,
+              animate: true,
               child: _cachedPerfConfig!.copyWith(child: fallback),
             ),
           );
@@ -761,39 +1210,69 @@ class _MyAppState extends ConsumerState<MyApp> {
         );
 
         return ThemeWaveTransition(
+          key: _themeWaveKey,
           themeKey: _themeTransitionKey,
           child: _SnapshotOverlay(
             snapshot: startupSnapshot,
+            animate: true,
             child: _cachedPerfConfig!,
           ),
         );
       },
       orElse: () => ThemeWaveTransition(
+        key: _themeWaveKey,
         themeKey: _themeTransitionKey,
         child: PerformanceConfig.defaults(
-          child: _SnapshotOverlay(snapshot: startupSnapshot, child: fallback),
+          child: _SnapshotOverlay(
+            snapshot: startupSnapshot,
+            animate: true,
+            child: fallback,
+          ),
         ),
       ),
     );
+
+    return SessionValidator(child: builtChild);
   }
 }
 
 class _SnapshotOverlay extends StatelessWidget {
-  const _SnapshotOverlay({required this.snapshot, required this.child});
+  const _SnapshotOverlay({
+    required this.snapshot,
+    required this.child,
+    required this.animate,
+  });
 
   final StartupSnapshot snapshot;
   final Widget child;
+  final bool animate;
 
   @override
   Widget build(BuildContext context) {
-    if (snapshot.isReady || snapshot.isLoading) {
-      return child;
+    final content = (snapshot.isReady || snapshot.isLoading)
+        ? KeyedSubtree(key: const ValueKey('app_main'), child: child)
+        : _buildErrorOrSkeleton(context);
+
+    if (!animate) {
+      return content;
     }
 
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      switchInCurve: Curves.easeInQuad,
+      switchOutCurve: Curves.easeOutQuad,
+      // The child of MaterialApp (the Navigator) shouldn't be recreated,
+      // so we use a non-changing key when it's ready.
+      child: content,
+    );
+  }
+
+  Widget _buildErrorOrSkeleton(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return Stack(
+      key: const ValueKey('app_startup_overlay'),
       children: [
         child,
         Positioned.fill(

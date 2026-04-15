@@ -13,12 +13,14 @@ import '../../presentation/features/news/newspaper_screen.dart';
 import '../../presentation/features/settings/settings_screen.dart';
 import '../../presentation/features/sources/source_management_screen.dart';
 import '../../presentation/features/extras/extras_screen.dart';
+import '../../presentation/features/history/history_widget.dart';
 
 import '../../presentation/features/favorites/favorites_screen.dart';
 import '../../presentation/features/about/about_screen.dart';
 import '../../presentation/features/help/help_screen.dart';
 import '../../presentation/features/search/search_screen.dart';
 import '../../presentation/features/offline/saved_articles_screen.dart';
+import '../../presentation/features/quiz/daily_quiz_widget.dart';
 
 import '../../presentation/features/common/webview_screen.dart';
 import '../../presentation/features/common/news_detail_args.dart';
@@ -30,12 +32,11 @@ import '../../presentation/features/subscription/subscription_management_screen.
 import '../../domain/entities/news_article.dart';
 import '../../presentation/features/settings/privacy_policy_screen.dart';
 import '../../presentation/features/tts/ui/full_audio_player.dart';
+import '../../tools/main_navigation_screen.dart';
 
 import 'app_paths.dart';
 import 'url_safety_policy.dart';
-import '../../presentation/widgets/bottom_nav_bar.dart';
 import '../../l10n/generated/app_localizations.dart';
-import '../config/performance_config.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -43,89 +44,89 @@ GoRouter createRouter({String? initialLocation}) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: initialLocation ?? AppPaths.splash,
-    // refreshListenable: di.sl<AuthFacade>(), // AuthFacade doesn't extend ChangeNotifier
-    redirect: (context, state) async {
-      if (state.matchedLocation == AppPaths.splash) return null;
-
-      // Protect secure routes
-      // if (!isLoggedIn && state.matchedLocation.startsWith('/home')) return AppPaths.login;
-
-      return null;
-    },
     routes: [
       GoRoute(
         path: AppPaths.splash,
         pageBuilder: (context, state) =>
-            const NoTransitionPage(child: BootstrapScreen()),
+            _buildPage(state, const BootstrapScreen()),
       ),
       GoRoute(
         path: AppPaths.onboarding,
         pageBuilder: (context, state) =>
-            _buildTransition(context, state, const OnboardingScreen()),
+            _buildPage(state, const OnboardingScreen()),
       ),
       GoRoute(
         path: AppPaths.login,
-        pageBuilder: (context, state) =>
-            _buildTransition(context, state, const LoginScreen()),
+        pageBuilder: (context, state) => _buildPage(state, const LoginScreen()),
       ),
       GoRoute(
         path: AppPaths.signup,
         pageBuilder: (context, state) =>
-            _buildTransition(context, state, const SignupScreen()),
+            _buildPage(state, const SignupScreen()),
       ),
       GoRoute(
         path: AppPaths.forgotPassword,
         pageBuilder: (context, state) =>
-            _buildTransition(context, state, const ForgotPasswordScreen()),
+            _buildPage(state, const ForgotPasswordScreen()),
       ),
 
-      // Industrial Grade: StatefulShellRoute to preserve tab state
-      StatefulShellRoute.indexedStack(
+      StatefulShellRoute(
         builder: (context, state, navigationShell) {
-          return ScaffoldWithNavBar(navigationShell: navigationShell);
+          return MainNavigationScreen(
+            key: const ValueKey('main_navigation_shell'),
+            navigationShell: navigationShell,
+          );
         },
+        navigatorContainerBuilder:
+            (context, navigationShell, children) =>
+                LazyStatefulBranchContainer(
+                  currentIndex: navigationShell.currentIndex,
+                  children: children,
+                ),
         branches: [
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: AppPaths.home,
                 pageBuilder: (context, state) =>
-                    const NoTransitionPage(child: HomeScreen()),
+                    _buildPage(state, const HomeScreen()),
                 routes: [
-                  // Drawer Routes pinned to Home Tab
                   GoRoute(
-                    path:
-                        'extras', // AppPaths.extras is /home/extras, so sub-path is 'extras'
+                    path: 'extras',
                     pageBuilder: (context, state) =>
-                        _buildTransition(context, state, const ExtrasScreen()),
+                        _buildPage(state, const ExtrasScreen()),
                     routes: [
                       GoRoute(
                         path: 'offline',
-                        pageBuilder: (context, state) => _buildTransition(
-                          context,
-                          state,
-                          const SavedArticlesScreen(),
-                        ),
+                        pageBuilder: (context, state) =>
+                            _buildPage(state, const SavedArticlesScreen()),
+                      ),
+                      GoRoute(
+                        path: 'history',
+                        pageBuilder: (context, state) =>
+                            _buildPage(state, const HistoryWidget()),
+                      ),
+                      GoRoute(
+                        path: 'quiz',
+                        pageBuilder: (context, state) =>
+                            _buildPage(state, const DailyQuizWidget()),
                       ),
                     ],
                   ),
                   GoRoute(
                     path: 'favorites',
-                    pageBuilder: (context, state) => _buildTransition(
-                      context,
-                      state,
-                      const FavoritesScreen(),
-                    ),
+                    pageBuilder: (context, state) =>
+                        _buildPage(state, const FavoritesScreen()),
                   ),
                   GoRoute(
                     path: 'about',
                     pageBuilder: (context, state) =>
-                        _buildTransition(context, state, const AboutScreen()),
+                        _buildPage(state, const AboutScreen()),
                   ),
                   GoRoute(
                     path: 'help',
                     pageBuilder: (context, state) =>
-                        _buildTransition(context, state, const HelpScreen()),
+                        _buildPage(state, const HelpScreen()),
                   ),
                 ],
               ),
@@ -136,7 +137,7 @@ GoRouter createRouter({String? initialLocation}) {
               GoRoute(
                 path: AppPaths.newspaper,
                 pageBuilder: (context, state) =>
-                    const NoTransitionPage(child: NewspaperScreen()),
+                    _buildPage(state, const NewspaperScreen()),
               ),
             ],
           ),
@@ -145,7 +146,7 @@ GoRouter createRouter({String? initialLocation}) {
               GoRoute(
                 path: AppPaths.search,
                 pageBuilder: (context, state) =>
-                    const NoTransitionPage(child: SearchScreen()),
+                    _buildPage(state, const SearchScreen()),
               ),
             ],
           ),
@@ -154,7 +155,7 @@ GoRouter createRouter({String? initialLocation}) {
               GoRoute(
                 path: AppPaths.magazine,
                 pageBuilder: (context, state) =>
-                    const NoTransitionPage(child: MagazineScreen()),
+                    _buildPage(state, const MagazineScreen()),
               ),
             ],
           ),
@@ -163,23 +164,17 @@ GoRouter createRouter({String? initialLocation}) {
               GoRoute(
                 path: AppPaths.settings,
                 pageBuilder: (context, state) =>
-                    const NoTransitionPage(child: SettingsScreen()),
+                    _buildPage(state, const SettingsScreen()),
                 routes: [
                   GoRoute(
                     path: 'manage-sources',
-                    pageBuilder: (context, state) => _buildTransition(
-                      context,
-                      state,
-                      const SourceManagementScreen(),
-                    ),
+                    pageBuilder: (context, state) =>
+                        _buildPage(state, const SourceManagementScreen()),
                   ),
                   GoRoute(
                     path: 'privacy',
-                    pageBuilder: (context, state) => _buildTransition(
-                      context,
-                      state,
-                      const PrivacyPolicyScreen(),
-                    ),
+                    pageBuilder: (context, state) =>
+                        _buildPage(state, const PrivacyPolicyScreen()),
                   ),
                 ],
               ),
@@ -189,8 +184,7 @@ GoRouter createRouter({String? initialLocation}) {
       ),
       GoRoute(
         path: AppPaths.savedArticles,
-        pageBuilder: (context, state) =>
-            _buildTransition(context, state, const SavedArticlesScreen()),
+        redirect: (_, _) => AppPaths.offline,
       ),
 
       GoRoute(
@@ -200,34 +194,23 @@ GoRouter createRouter({String? initialLocation}) {
           final title = state.uri.queryParameters['title'] ?? 'News';
 
           if (url == null) {
-            return _buildTransition(context, state, const HomeScreen());
+            return _buildPage(state, const HomeScreen());
           }
 
-          final decision = UrlSafetyPolicy.evaluate(url);
-          if (decision.disposition != UrlSafetyDisposition.allowInApp ||
-              decision.uri == null) {
-            return _buildTransition(context, state, const HomeScreen());
-          }
-
-          return _buildTransition(
-            context,
+          return _buildWebViewPage(
             state,
-            WebViewScreen(
-              args: WebViewArgs(
-                url: decision.uri!,
-                title: title,
-                origin: WebViewOrigin.deeplink,
-              ),
-            ),
+            rawUrl: url,
+            title: title,
+            origin: WebViewOrigin.deeplink,
+            fallback: const HomeScreen(),
           );
         },
       ),
 
-      // ... Other Routes ...
       GoRoute(
         path: AppPaths.profile,
         pageBuilder: (context, state) =>
-            _buildTransition(context, state, const ProfileScreen()),
+            _buildPage(state, const ProfileScreen()),
       ),
       GoRoute(
         path: AppPaths.newsDetail,
@@ -235,8 +218,7 @@ GoRouter createRouter({String? initialLocation}) {
           final l10n = AppLocalizations.of(context);
           final extra = state.extra;
           if (extra is! NewsArticle && extra is! NewsDetailArgs) {
-            return _buildTransition(
-              context,
+            return _buildPage(
               state,
               Scaffold(body: Center(child: Text(l10n.invalidArticleData))),
             );
@@ -255,23 +237,20 @@ GoRouter createRouter({String? initialLocation}) {
             articles = [news];
             initialIndex = 0;
           } else {
-            return _buildTransition(
-              context,
+            return _buildPage(
               state,
               Scaffold(body: Center(child: Text(l10n.invalidArticleData))),
             );
           }
 
-          return _buildTransition(
-            context,
+          return _buildWebViewPage(
             state,
-            _buildValidatedWebView(
-              url: news.url,
-              title: news.source.isNotEmpty ? news.source : news.title,
-              origin: WebViewOrigin.article,
-              articles: articles,
-              initialIndex: initialIndex,
-            ),
+            rawUrl: news.url,
+            title: news.source.isNotEmpty ? news.source : news.title,
+            origin: WebViewOrigin.article,
+            articles: articles,
+            initialIndex: initialIndex,
+            fallback: _buildInvalidWebView(context),
           );
         },
       ),
@@ -280,82 +259,143 @@ GoRouter createRouter({String? initialLocation}) {
         pageBuilder: (context, state) {
           final extra = state.extra;
           if (extra is! WebViewArgs) {
-            return _buildTransition(
-              context,
-              state,
-              _buildInvalidWebView(context),
-            );
+            return _buildPage(state, _buildInvalidWebView(context));
           }
-          final decision = UrlSafetyPolicy.evaluateUri(extra.url);
-          if (decision.disposition != UrlSafetyDisposition.allowInApp ||
-              decision.uri == null) {
-            return _buildTransition(
-              context,
-              state,
-              _buildInvalidWebView(context),
-            );
-          }
-          return _buildTransition(
-            context,
+          return _buildWebViewPage(
             state,
-            WebViewScreen(
-              args: WebViewArgs(
-                url: decision.uri!,
-                title: extra.title,
-                origin: extra.origin,
-                articles: extra.articles,
-                initialIndex: extra.initialIndex,
-              ),
-            ),
+            url: extra.url,
+            title: extra.title,
+            origin: extra.origin,
+            articles: extra.articles,
+            initialIndex: extra.initialIndex,
+            fallback: _buildInvalidWebView(context),
           );
         },
       ),
       GoRoute(
         path: AppPaths.securityLockout,
         pageBuilder: (context, state) =>
-            _buildTransition(context, state, const SecurityLockoutScreen()),
+            _buildPage(state, const SecurityLockoutScreen()),
       ),
       GoRoute(
         path: AppPaths.subscriptionManagement,
-        pageBuilder: (context, state) => _buildTransition(
-          context,
-          state,
-          const SubscriptionManagementScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            _buildPage(state, const SubscriptionManagementScreen()),
       ),
       GoRoute(
         path: AppPaths.legacyPrivacy,
         pageBuilder: (context, state) =>
-            _buildTransition(context, state, const PrivacyPolicyScreen()),
+            _buildPage(state, const PrivacyPolicyScreen()),
       ),
       GoRoute(
         path: AppPaths.fullAudioPlayer,
         pageBuilder: (context, state) =>
-            _buildTransition(context, state, const FullAudioPlayer()),
+            _buildPage(state, const FullAudioPlayer()),
       ),
     ],
   );
 }
 
-Widget _buildValidatedWebView({
-  required String url,
+class LazyStatefulBranchContainer extends StatefulWidget {
+  const LazyStatefulBranchContainer({
+    required this.currentIndex,
+    required this.children,
+    super.key,
+  });
+
+  final int currentIndex;
+  final List<Widget> children;
+
+  @override
+  State<LazyStatefulBranchContainer> createState() =>
+      _LazyStatefulBranchContainerState();
+}
+
+class _LazyStatefulBranchContainerState
+    extends State<LazyStatefulBranchContainer> {
+  late List<bool> _visited;
+
+  @override
+  void initState() {
+    super.initState();
+    _visited = List<bool>.filled(widget.children.length, false);
+    if (widget.children.isNotEmpty) {
+      _visited[widget.currentIndex] = true;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant LazyStatefulBranchContainer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.children.length != _visited.length) {
+      final nextVisited = List<bool>.filled(widget.children.length, false);
+      for (int i = 0; i < _visited.length && i < nextVisited.length; i++) {
+        nextVisited[i] = _visited[i];
+      }
+      _visited = nextVisited;
+    }
+    if (!_visited[widget.currentIndex]) {
+      _visited[widget.currentIndex] = true;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: List<Widget>.generate(widget.children.length, (index) {
+        if (!_visited[index]) {
+          return const SizedBox.shrink();
+        }
+
+        final isActive = index == widget.currentIndex;
+        return Offstage(
+          offstage: !isActive,
+          child: TickerMode(
+            enabled: isActive,
+            child: IgnorePointer(
+              ignoring: !isActive,
+              child: widget.children[index],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+NoTransitionPage<void> _buildPage(GoRouterState state, Widget child) {
+  return NoTransitionPage<void>(key: state.pageKey, child: child);
+}
+
+NoTransitionPage<void> _buildWebViewPage(
+  GoRouterState state, {
   required String title,
   required WebViewOrigin origin,
+  required Widget fallback,
+  String? rawUrl,
+  Uri? url,
   List<NewsArticle> articles = const <NewsArticle>[],
   int initialIndex = 0,
 }) {
-  final decision = UrlSafetyPolicy.evaluate(url);
+  assert(rawUrl != null || url != null);
+  final decision = rawUrl != null
+      ? UrlSafetyPolicy.evaluate(rawUrl)
+      : UrlSafetyPolicy.evaluateUri(url!);
   if (decision.disposition != UrlSafetyDisposition.allowInApp ||
       decision.uri == null) {
-    return Builder(builder: (context) => _buildInvalidWebView(context));
+    return _buildPage(state, fallback);
   }
-  return WebViewScreen(
-    args: WebViewArgs(
-      url: decision.uri!,
-      title: title,
-      origin: origin,
-      articles: articles,
-      initialIndex: initialIndex,
+  return _buildPage(
+    state,
+    WebViewScreen(
+      args: WebViewArgs(
+        url: decision.uri!,
+        title: title,
+        origin: origin,
+        articles: articles,
+        initialIndex: initialIndex,
+      ),
     ),
   );
 }
@@ -364,86 +404,4 @@ Widget _buildInvalidWebView(BuildContext context) {
   return Scaffold(
     body: Center(child: Text(AppLocalizations.of(context).invalidArticleData)),
   );
-}
-
-CustomTransitionPage _buildTransition(
-  BuildContext context,
-  GoRouterState state,
-  Widget child,
-) {
-  final perf = PerformanceConfig.of(context);
-  final bool reduceMotion =
-      perf.reduceMotion ||
-      perf.reduceEffects ||
-      perf.lowPowerMode ||
-      perf.isLowEndDevice;
-  return CustomTransitionPage(
-    key: state.pageKey,
-    maintainState: false,
-    child: _ResetScrollOnMount(child: child),
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      if (reduceMotion) return child;
-      // iOS-like Slide Transition
-      const begin = Offset(1.0, 0.0);
-      const end = Offset.zero;
-      const curve = Curves.easeInOut;
-      final tween = Tween(
-        begin: begin,
-        end: end,
-      ).chain(CurveTween(curve: curve));
-      final offsetAnimation = animation.drive(tween);
-
-      return SlideTransition(position: offsetAnimation, child: child);
-    },
-  );
-}
-
-class _ResetScrollOnMount extends StatefulWidget {
-  const _ResetScrollOnMount({required this.child});
-
-  final Widget child;
-
-  @override
-  State<_ResetScrollOnMount> createState() => _ResetScrollOnMountState();
-}
-
-class _ResetScrollOnMountState extends State<_ResetScrollOnMount> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _resetPrimaryScroll());
-  }
-
-  @override
-  void didUpdateWidget(covariant _ResetScrollOnMount oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _resetPrimaryScroll());
-  }
-
-  void _resetPrimaryScroll() {
-    if (!mounted) return;
-    final controller = PrimaryScrollController.maybeOf(context);
-    if (controller != null && controller.hasClients) {
-      controller.jumpTo(0);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return widget.child;
-  }
-}
-
-class ScaffoldWithNavBar extends StatelessWidget {
-  const ScaffoldWithNavBar({required this.navigationShell, super.key});
-  final StatefulNavigationShell navigationShell;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      body: navigationShell,
-      bottomNavigationBar: BottomNavBar(navigationShell: navigationShell),
-    );
-  }
 }

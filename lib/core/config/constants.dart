@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 /// =============================================================
 
 class AppSurfaces {
-  AppSurfaces._(); 
+  AppSurfaces._();
 
   /// Base surface (cards, sheets) - Derived from theme
   static Color surface(BuildContext context) {
@@ -41,7 +41,7 @@ class AppSurfaces {
 /// =============================================================
 
 class AppGlass {
-  AppGlass._(); 
+  AppGlass._();
 
   /// Background tint for glass surfaces
   static Color background(BuildContext context) {
@@ -56,22 +56,28 @@ class AppGlass {
     BorderRadius? borderRadius,
   }) {
     // Check if reduce motion/effects is enabled via MediaQuery or AppPerformance
-    final bool disableBlur = MediaQuery.of(context).disableAnimations || AppPerformance.reduceEffects;
-    
+    final bool disableBlur =
+        MediaQuery.of(context).disableAnimations ||
+        AppPerformance.reduceEffects;
+
     final blur = disableBlur ? 0.0 : AppPerformance.glassBlurSigma;
+
+    final content = Container(
+      decoration: BoxDecoration(
+        color: background(context),
+        border: Border.all(color: AppSurfaces.divider(context), width: 0.5),
+      ),
+      child: child,
+    );
 
     return ClipRRect(
       borderRadius: borderRadius ?? BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: Container(
-          decoration: BoxDecoration(
-            color: background(context),
-            border: Border.all(color: AppSurfaces.divider(context), width: 0.5),
-          ),
-          child: child,
-        ),
-      ),
+      child: blur <= 0.01
+          ? content
+          : BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+              child: content,
+            ),
     );
   }
 }
@@ -81,7 +87,7 @@ class AppGlass {
 /// =============================================================
 
 class AppMotion {
-  AppMotion._(); 
+  AppMotion._();
 
   /// Standardized Material 3 Easing
   static const Curve standard = Curves.easeInOutCubicEmphasized;
@@ -113,7 +119,7 @@ class AppPerformance {
   static const Duration animationDuration = Duration(milliseconds: 180);
 
   /// Standard M3 blur radius.
-  static const double glassBlurSigma = 8.0;
+  static const double glassBlurSigma = 6.0;
 }
 
 /// =============================================================
@@ -121,7 +127,7 @@ class AppPerformance {
 /// =============================================================
 
 class AdaptiveIcons {
-  AdaptiveIcons._(); 
+  AdaptiveIcons._();
 
   static IconData settings() => Icons.settings_rounded;
 
@@ -139,7 +145,7 @@ class AdaptiveIcons {
 /// =============================================================
 
 class AppThemeBridge {
-  AppThemeBridge._(); 
+  AppThemeBridge._();
 
   /// Material Theme (Optimized for Android)
   static ThemeData materialTheme({
@@ -153,8 +159,9 @@ class AppThemeBridge {
       brightness: brightness,
       primaryColor: primaryColor,
 
-      scaffoldBackgroundColor:
-          isDark ? const Color(0xFF0B0B14) : const Color(0xFFF8F9FF),
+      scaffoldBackgroundColor: isDark
+          ? const Color(0xFF0B0B14)
+          : const Color(0xFFF8F9FF),
 
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,
@@ -178,10 +185,9 @@ class AppThemeBridge {
     return CupertinoThemeData(
       brightness: brightness,
       primaryColor: primaryColor,
-      scaffoldBackgroundColor:
-          brightness == Brightness.dark
-              ? const Color(0xFF000000)
-              : const Color(0xFFFFFFFF),
+      scaffoldBackgroundColor: brightness == Brightness.dark
+          ? const Color(0xFF000000)
+          : const Color(0xFFFFFFFF),
     );
   }
 }

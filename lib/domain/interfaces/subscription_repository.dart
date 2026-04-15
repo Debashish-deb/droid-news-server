@@ -1,6 +1,7 @@
 import '../../core/architecture/either.dart';
 import '../../core/architecture/failure.dart';
 import '../entities/subscription.dart';
+import '../entities/tts_quota_status.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 /// Repository interface for subscription-related operations.
@@ -30,6 +31,11 @@ abstract class SubscriptionRepository {
   /// or [Left] with [SubscriptionFailure] on error.
   Future<Either<AppFailure, Subscription>> upgradeSubscription(
     SubscriptionTier newTier,
+  );
+
+  /// Starts a specific premium billing option while resolving to the same Pro entitlement.
+  Future<Either<AppFailure, Subscription>> purchasePremiumProduct(
+    String productId,
   );
 
   /// Cancels the current subscription.
@@ -84,11 +90,13 @@ abstract class SubscriptionRepository {
   /// Checks if the user is allowed to use TTS based on their tier and usage.
   Future<Either<AppFailure, bool>> canUseTts();
 
-  /// Upgrades subscription using Google Pay.
-  Future<Either<AppFailure, void>> upgradeWithGooglePay({
-    required SubscriptionTier tier,
-    required String paymentToken,
+  /// Returns the free-tier daily/monthly TTS quota snapshot for the current article, if any.
+  Future<Either<AppFailure, TtsQuotaStatus>> getTtsQuotaStatus({
+    String? articleUrl,
   });
+
+  /// Records a TTS start for a specific article if it has not already counted today/month.
+  Future<Either<AppFailure, void>> recordTtsArticleUsage(String articleUrl);
 
   /// Processes a Play/App Store purchase update and syncs entitlement.
   Future<Either<AppFailure, Subscription>> processStorePurchase(

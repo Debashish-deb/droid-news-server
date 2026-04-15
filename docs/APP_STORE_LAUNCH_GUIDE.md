@@ -105,7 +105,7 @@ PRIVACY & SECURITY:
 Your data is protected with industry-standard encryption. Full privacy policy available in-app.
 
 SUPPORT:
-Questions? Contact us at support@bdnewsreader.com
+Questions? Contact us at support@appcraftr.store
 
 Download now and stay informed! 🇧🇩
 ```

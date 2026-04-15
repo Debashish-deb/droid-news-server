@@ -10,7 +10,7 @@ class SynthesisCircuitBreaker {
   final TtsAnalytics analytics;
 
   static const int _failureThreshold = 5;
-  static const Duration _resetTimeout = Duration(minutes: 5);
+  static const Duration _resetTimeout = Duration(seconds: 30);
 
   CircuitState _state = CircuitState.closed;
   int _failureCount = 0;

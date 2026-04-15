@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+import '../../core/theme/theme_skeleton.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/config/constants.dart' show AppPerformance;
 import '../../core/config/performance_config.dart';
+import 'platform_surface_treatment.dart';
 
 class GlassPillButton extends StatefulWidget {
   const GlassPillButton({
@@ -76,7 +79,8 @@ class _GlassPillButtonState extends State<GlassPillButton>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final perf = PerformanceConfig.of(context);
-    final reduceEffects = perf.reduceEffects;
+    final preferMaterialChrome = preferAndroidMaterialSurfaceChrome(context);
+    final reduceEffects = perf.reduceEffects || preferMaterialChrome;
     final reduceMotion =
         perf.reduceMotion || MediaQuery.of(context).disableAnimations;
 
@@ -90,10 +94,10 @@ class _GlassPillButtonState extends State<GlassPillButton>
         : Colors.black.withValues(alpha: 0.05);
 
     if (widget.isDestructive) {
-      textColor = Colors.redAccent;
-      iconColor = Colors.redAccent;
-      borderColor = Colors.redAccent.withValues(alpha: 0.35);
-      glassColor = Colors.red.withValues(alpha: 0.06);
+      textColor = theme.colorScheme.primary;
+      iconColor = theme.colorScheme.primary;
+      borderColor = theme.colorScheme.primary.withValues(alpha: 0.35);
+      glassColor = theme.colorScheme.primary.withValues(alpha: 0.08);
     } else if (widget.isPrimary) {
       textColor = widget.isDark ? Colors.white : Colors.black;
       iconColor = widget.isDark ? Colors.white : Colors.black;
@@ -103,12 +107,26 @@ class _GlassPillButtonState extends State<GlassPillButton>
       glassColor = theme.colorScheme.primary.withValues(alpha: 0.85);
     }
 
+    if (preferMaterialChrome && !widget.isPrimary) {
+      glassColor = materialSurfaceOverlayColor(
+        theme.colorScheme,
+        surfaceAlpha: widget.isDark ? 0.92 : 0.98,
+        tintAlpha: widget.isDestructive ? 0.02 : 0.05,
+      );
+      borderColor = theme.colorScheme.outlineVariant.withValues(alpha: 0.7);
+      if (widget.isDestructive) {
+        borderColor = theme.colorScheme.primary.withValues(alpha: 0.28);
+      }
+    }
+
     final disabled = widget.onPressed == null;
     final surface = _PillButtonSurface(
       theme: theme,
       widget: widget,
       borderColor: borderColor,
-      glassColor: reduceEffects ? glassColor.withValues(alpha: 0.92) : glassColor,
+      glassColor: reduceEffects
+          ? glassColor.withValues(alpha: 0.92)
+          : glassColor,
       iconColor: iconColor,
       textColor: textColor,
       onTapDown: _onTapDown,
@@ -121,24 +139,20 @@ class _GlassPillButtonState extends State<GlassPillButton>
       button: true,
       enabled: !disabled,
       label: widget.label,
-      child: AnimatedBuilder(
-        animation: _scale,
-        builder: (_, child) => Transform.scale(
-          scale: reduceMotion ? 1.0 : _scale.value,
-          child: child,
-        ),
+      child: ScaleTransition(
+        scale: reduceMotion ? const AlwaysStoppedAnimation(1.0) : _scale,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: ThemeSkeleton.shared.circular(999),
           child: RepaintBoundary(
             child: reduceEffects
                 ? surface
                 : BackdropFilter(
                     filter: ImageFilter.blur(
-                      sigmaX: AppPerformance.glassBlurSigma > 8
-                          ? 8
+                      sigmaX: AppPerformance.glassBlurSigma > 5
+                          ? 5
                           : AppPerformance.glassBlurSigma,
-                      sigmaY: AppPerformance.glassBlurSigma > 8
-                          ? 8
+                      sigmaY: AppPerformance.glassBlurSigma > 5
+                          ? 5
                           : AppPerformance.glassBlurSigma,
                     ),
                     child: surface,
@@ -184,34 +198,23 @@ class _PillButtonSurface extends StatelessWidget {
         onTapDown: onTapDown,
         onTapUp: onTapUp,
         onTapCancel: onTapCancel,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: ThemeSkeleton.shared.circular(999),
         splashColor: theme.colorScheme.primary.withValues(alpha: 0.08),
         highlightColor: Colors.transparent,
         child: AnimatedContainer(
           duration: reduceMotion
               ? Duration.zero
-              : const Duration(milliseconds: 110),
+              : const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
           width: widget.width,
-          height: widget.height,
+          height: math.max(widget.height, 48),
           alignment: Alignment.center, // Ensure vertical centering
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: ThemeSkeleton.shared.insetsSymmetric(horizontal: 20),
           decoration: BoxDecoration(
             color: glassColor,
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: ThemeSkeleton.shared.circular(999),
             border: Border.all(color: borderColor, width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: widget.isDark ? 0.20 : 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.05),
-                blurRadius: 3,
-                offset: const Offset(0, -1),
-              ),
-            ],
+            boxShadow: const <BoxShadow>[],
           ),
           child: Stack(
             alignment: Alignment.center,
@@ -222,17 +225,23 @@ class _PillButtonSurface extends StatelessWidget {
                   child: Icon(widget.icon, size: 18, color: iconColor),
                 ),
               Padding(
-                padding: EdgeInsets.symmetric(
+                padding: ThemeSkeleton.shared.insetsSymmetric(
                   horizontal: widget.icon != null ? 36 : 12,
                 ),
-                child: Text(
-                  widget.label.toUpperCase(),
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: textColor,
-                    fontSize: widget.fontSize ?? 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.9,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    widget.label.toUpperCase(),
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.fade,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: textColor,
+                      fontSize: widget.fontSize ?? 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.9,
+                    ),
                   ),
                 ),
               ),

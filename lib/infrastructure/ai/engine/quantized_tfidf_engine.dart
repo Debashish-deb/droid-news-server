@@ -1,35 +1,63 @@
+import 'dart:collection';
 import 'dart:math';
 import 'dart:typed_data';
 import '../../../domain/entities/news_article.dart';
 
 /// An industrial-grade, memory-efficient TF-IDF engine optimized for on-device personalization.
-/// 
+///
 /// Features:
-/// - **Quantization**: Vectors are stored as [Uint16List] (0-65535) scaling to reduce memory 
+/// - **Quantization**: Vectors are stored as [Uint16List] (0-65535) scaling to reduce memory
 ///   usage.
 /// - **IDF Cache**: Tracks document frequency locally across sessions for accurate weighing.
 /// - **Fast Similarity**: Optimized Cosine Similarity for quantized payloads.
 
 /// An industrial-grade, memory-efficient TF-IDF engine optimized for on-device personalization.
-/// 
+///
 /// Features:
-/// - **Quantization**: Vectors are stored as [Uint16List] (0-65535) scaling to reduce memory 
+/// - **Quantization**: Vectors are stored as [Uint16List] (0-65535) scaling to reduce memory
 ///   usage.
 /// - **IDF Cache**: Tracks document frequency locally across sessions for accurate weighing.
 /// - **Fast Similarity**: Optimized Cosine Similarity for quantized payloads.
 
 class QuantizedTfIdfEngine {
-
-  QuantizedTfIdfEngine();
+  QuantizedTfIdfEngine({int maxVectorCacheEntries = 512})
+    : assert(maxVectorCacheEntries > 0),
+      _maxVectorCacheEntries = maxVectorCacheEntries;
   static const int _quantizationScale = 65535;
-  
+
   final Map<String, int> _dfCache = {};
   int _totalDocumentsParsed = 0;
-  final Map<String, Uint16List> _vectorCache = {};
+  final int _maxVectorCacheEntries;
+  final LinkedHashMap<String, Uint16List> _vectorCache =
+      LinkedHashMap<String, Uint16List>();
 
   static final Set<String> _stopWords = {
-    'the', 'is', 'at', 'of', 'on', 'and', 'a', 'an', 'in', 'to', 'for', 'with', 'by',
-    'ও', 'এবং', 'থেকে', 'করে', 'করা', 'এর', 'এ', 'কি', 'it', 'was', 'were', 'be', 'been'
+    'the',
+    'is',
+    'at',
+    'of',
+    'on',
+    'and',
+    'a',
+    'an',
+    'in',
+    'to',
+    'for',
+    'with',
+    'by',
+    'ও',
+    'এবং',
+    'থেকে',
+    'করে',
+    'করা',
+    'এর',
+    'এ',
+    'কি',
+    'it',
+    'was',
+    'were',
+    'be',
+    'been',
   };
 
   /// Processes a list of articles to update the IDF (Inverse Document Frequency) cache.
@@ -44,11 +72,13 @@ class QuantizedTfIdfEngine {
 
     int newCount = 0;
     for (var article in articles) {
-      if (_processedIds.contains(article.url)) continue; // Skip if already processed
+      if (_processedIds.contains(article.url)) {
+        continue; // Skip if already processed
+      }
 
       final terms = _tokenize('${article.title} ${article.description}');
       final uniqueTerms = terms.toSet();
-      
+
       for (var term in uniqueTerms) {
         _dfCache[term] = (_dfCache[term] ?? 0) + 1;
       }
@@ -56,9 +86,10 @@ class QuantizedTfIdfEngine {
       _totalDocumentsParsed++;
       newCount++;
     }
-    
+
     // Only verify/log if we actually did work to avoid log spam
     if (newCount > 0) {
+      _vectorCache.clear();
       // debugPrint('TfIdfEngine: Updated IDF with $newCount new articles.');
     }
   }
@@ -67,8 +98,9 @@ class QuantizedTfIdfEngine {
   /// Result is a [Uint16List] representing weights for terms in [vocabulary].
   Uint16List generateVector(NewsArticle article, List<String> vocabulary) {
     final cacheKey = '${article.url.hashCode}_${vocabulary.length}';
-    if (_vectorCache.containsKey(cacheKey)) {
-      return _vectorCache[cacheKey]!;
+    final cached = _readFromVectorCache(cacheKey);
+    if (cached != null) {
+      return cached;
     }
 
     final terms = _tokenize('${article.title} ${article.description}');
@@ -89,11 +121,11 @@ class QuantizedTfIdfEngine {
       if (termCounts.containsKey(term)) {
         // TF (Term Frequency)
         final tf = termCounts[term]! / totalTerms;
-        
+
         // IDF (Inverse Document Frequency)
         final df = _dfCache[term] ?? 1;
         final idf = log((_totalDocumentsParsed + 1) / (df + 1)) + 1;
-        
+
         // TF-IDF
         final score = tf * idf;
         doubleScores[i] = score;
@@ -106,14 +138,29 @@ class QuantizedTfIdfEngine {
     if (norm > 0) {
       for (int i = 0; i < vocabulary.length; i++) {
         if (doubleScores[i] > 0) {
-           // Scale normalized score to Uint16 range
-           vector[i] = ((doubleScores[i] / norm) * _quantizationScale).toInt();
+          // Scale normalized score to Uint16 range
+          vector[i] = ((doubleScores[i] / norm) * _quantizationScale).toInt();
         }
       }
     }
 
-    _vectorCache[cacheKey] = vector;
+    _storeVectorCache(cacheKey, vector);
     return vector;
+  }
+
+  Uint16List? _readFromVectorCache(String cacheKey) {
+    final cached = _vectorCache.remove(cacheKey);
+    if (cached == null) return null;
+    _vectorCache[cacheKey] = cached;
+    return cached;
+  }
+
+  void _storeVectorCache(String cacheKey, Uint16List vector) {
+    _vectorCache.remove(cacheKey);
+    _vectorCache[cacheKey] = vector;
+    if (_vectorCache.length > _maxVectorCacheEntries) {
+      _vectorCache.remove(_vectorCache.keys.first);
+    }
   }
 
   /// Calculates the similarity between two quantized vectors.
@@ -140,7 +187,8 @@ class QuantizedTfIdfEngine {
 
   /// Tokenizes text into a clean list of words.
   List<String> _tokenize(String text) {
-    return text.toLowerCase()
+    return text
+        .toLowerCase()
         .replaceAll(RegExp(r'[^\w\s\u0980-\u09FF]'), '')
         .split(RegExp(r'\s+'))
         .where((token) => token.length >= 3 && !_stopWords.contains(token))
@@ -148,10 +196,15 @@ class QuantizedTfIdfEngine {
   }
 
   /// Aggregates interest from multiple articles into a single quantized "Interest Vector".
-  Uint16List computeInterestVector(List<NewsArticle> interactions, List<String> vocabulary) {
+  Uint16List computeInterestVector(
+    List<NewsArticle> interactions,
+    List<String> vocabulary,
+  ) {
     if (interactions.isEmpty) return Uint16List(vocabulary.length);
 
-    final List<Uint16List> vectors = interactions.map((a) => generateVector(a, vocabulary)).toList();
+    final List<Uint16List> vectors = interactions
+        .map((a) => generateVector(a, vocabulary))
+        .toList();
     final resultVector = Uint16List(vocabulary.length);
 
     for (int i = 0; i < vocabulary.length; i++) {
@@ -166,7 +219,10 @@ class QuantizedTfIdfEngine {
   }
 
   // Helper to extract top keywords for vocabulary generation
-  List<String> extractVocabulary(List<NewsArticle> articles, {int limit = 200}) {
+  List<String> extractVocabulary(
+    List<NewsArticle> articles, {
+    int limit = 200,
+  }) {
     final Map<String, int> counts = {};
     for (var article in articles) {
       final terms = _tokenize('${article.title} ${article.description}');

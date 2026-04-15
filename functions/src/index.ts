@@ -1,6 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
-import { google } from 'googleapis';
 import { defineString } from 'firebase-functions/params';
 
 admin.initializeApp();
@@ -47,9 +46,10 @@ const rateLimit = async (userId: string): Promise<boolean> => {
 // ============================================================================
 // iOS App Store Receipt Validation
 // ============================================================================
-const validateAppleReceipt = async (receiptData: string): Promise<any> => {
-    const url = 'https://sandbox.itunes.apple.com/verifyReceipt';
+const appleProductionVerifyUrl = 'https://buy.itunes.apple.com/verifyReceipt';
+const appleSandboxVerifyUrl = 'https://sandbox.itunes.apple.com/verifyReceipt';
 
+const postAppleReceipt = async (url: string, receiptData: string): Promise<any> => {
     const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -63,30 +63,107 @@ const validateAppleReceipt = async (receiptData: string): Promise<any> => {
     return response.json();
 };
 
+const validateAppleReceipt = async (receiptData: string): Promise<any> => {
+    const productionResult = await postAppleReceipt(
+        appleProductionVerifyUrl,
+        receiptData
+    );
+
+    // Production receipts must be checked against production first, with
+    // Apple's sandbox-only status code explicitly retried against sandbox.
+    if (productionResult.status === 21007) {
+        return postAppleReceipt(appleSandboxVerifyUrl, receiptData);
+    }
+
+    return productionResult;
+};
+
 // ============================================================================
 // Android Play Store Receipt Validation
 // ============================================================================
+type GooglePurchaseValidationResult =
+    | { kind: 'subscription'; data: any }
+    | { kind: 'product'; data: any };
+
+const getGoogleApiAccessToken = async (): Promise<string> => {
+    const credential =
+        admin.app().options.credential ?? admin.credential.applicationDefault();
+    const accessToken = await credential.getAccessToken();
+    if (!accessToken.access_token) {
+        throw new Error('Missing Google API access token for receipt validation');
+    }
+    return accessToken.access_token;
+};
+
+const fetchGooglePlayValidation = async (
+    url: string,
+    accessToken: string
+): Promise<any> => {
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Accept: 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        const responseText = await response.text();
+        const error = new Error(
+            `Google Play validation failed (${response.status}): ${responseText}`
+        ) as Error & { status?: number };
+        error.status = response.status;
+        throw error;
+    }
+
+    return response.json();
+};
+
 const validateGoogleReceipt = async (
     packageName: string,
     productId: string,
     purchaseToken: string
-): Promise<any> => {
-    const androidpublisher = google.androidpublisher('v3');
+): Promise<GooglePurchaseValidationResult> => {
+    const accessToken = await getGoogleApiAccessToken();
 
-    const auth = new google.auth.GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/androidpublisher'],
-    });
+    try {
+        const subscriptionResult = await fetchGooglePlayValidation(
+            `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(
+                packageName
+            )}/purchases/subscriptionsv2/tokens/${encodeURIComponent(
+                purchaseToken
+            )}`,
+            accessToken
+        );
 
-    const authClient = await auth.getClient();
+        const lineItems = subscriptionResult.lineItems ?? [];
+        const matchesRequestedProduct =
+            lineItems.length === 0 ||
+            lineItems.some((lineItem: any) => lineItem?.productId === productId);
 
-    const result = await androidpublisher.purchases.products.get({
-        auth: authClient as any,
-        packageName: packageName,
-        productId: productId,
-        token: purchaseToken,
-    });
+        if (matchesRequestedProduct) {
+            return { kind: 'subscription', data: subscriptionResult };
+        }
+    } catch (error: any) {
+        const status = error?.status;
+        if (status !== 404) {
+            console.warn(
+                `Subscription receipt lookup failed for ${productId}:`,
+                error
+            );
+        }
+    }
 
-    return result.data;
+    const productResult = await fetchGooglePlayValidation(
+        `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(
+            packageName
+        )}/purchases/products/${encodeURIComponent(
+            productId
+        )}/tokens/${encodeURIComponent(purchaseToken)}`,
+        accessToken
+    );
+
+    return { kind: 'product', data: productResult };
 };
 
 // ============================================================================
@@ -128,6 +205,7 @@ export const validateReceipt = onCall(async (request) => {
 
     try {
         let validationResult: any;
+        let validatedProductId = productId || 'unknown';
         let tier = 'free';
 
         // 4. Platform-specific validation
@@ -149,7 +227,8 @@ export const validateReceipt = onCall(async (request) => {
 
             const latestReceipt = validationResult.latest_receipt_info?.[0];
             if (latestReceipt) {
-                tier = latestReceipt.product_id.includes('pro_plus') ? 'proPlus' : 'pro';
+                validatedProductId = latestReceipt.product_id || validatedProductId;
+                tier = 'pro';
             }
         } else {
             // Android validation
@@ -161,14 +240,43 @@ export const validateReceipt = onCall(async (request) => {
             }
 
             console.log(`Validating Android receipt for product: ${productId}`);
-            validationResult = await validateGoogleReceipt(packageName, productId, purchaseToken);
+            const googleValidation = await validateGoogleReceipt(
+                packageName,
+                productId,
+                purchaseToken
+            );
+            validationResult = googleValidation.data;
 
-            if (validationResult.purchaseState !== 0) {
-                console.error(`Android purchase not in valid state: ${validationResult.purchaseState}`);
-                throw new HttpsError('failed-precondition', 'Purchase is not in a valid state');
+            if (googleValidation.kind === 'subscription') {
+                const subscriptionState = String(
+                    validationResult.subscriptionState || ''
+                );
+                if (
+                    subscriptionState !== 'SUBSCRIPTION_STATE_ACTIVE' &&
+                    subscriptionState !== 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD'
+                ) {
+                    console.error(
+                        `Android subscription not active: ${subscriptionState}`
+                    );
+                    throw new HttpsError(
+                        'failed-precondition',
+                        'Subscription is not active'
+                    );
+                }
+
+                validatedProductId =
+                    validationResult.lineItems?.[0]?.productId || validatedProductId;
+            } else if (validationResult.purchaseState !== 0) {
+                console.error(
+                    `Android purchase not in valid state: ${validationResult.purchaseState}`
+                );
+                throw new HttpsError(
+                    'failed-precondition',
+                    'Purchase is not in a valid state'
+                );
             }
 
-            tier = productId.includes('pro_plus') ? 'proPlus' : 'pro';
+            tier = 'pro';
         }
 
         // 5. Update user subscription in Firestore
@@ -183,7 +291,7 @@ export const validateReceipt = onCall(async (request) => {
                         status: 'active',
                         validatedAt: admin.firestore.FieldValue.serverTimestamp(),
                         platform: platform,
-                        productId: productId || 'unknown',
+                        productId: validatedProductId,
                     },
                     isPremium: true,
                 },
@@ -196,7 +304,7 @@ export const validateReceipt = onCall(async (request) => {
         await admin.firestore().collection('purchase_logs').add({
             userId: userId,
             platform: platform,
-            productId: productId || 'unknown',
+            productId: validatedProductId,
             tier: tier,
             validatedAt: admin.firestore.FieldValue.serverTimestamp(),
             success: true,

@@ -12,7 +12,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../platform/identity/session_manager.dart'
@@ -53,6 +52,7 @@ import '../../platform/identity/device_registry_impl.dart';
 import '../../platform/identity/trust_engine.dart';
 import '../../domain/facades/auth_facade.dart';
 import '../../infrastructure/auth/auth_service_impl.dart';
+import '../../infrastructure/auth/google_sign_in_warmup_coordinator.dart';
 import '../../infrastructure/ai/ranking/pipeline/ranking_pipeline.dart';
 import '../../platform/governance/governance_engine.dart';
 import '../../infrastructure/services/storage/hive_service.dart';
@@ -78,8 +78,10 @@ import '../../application/identity/device_trust_service.dart';
 import '../../infrastructure/services/ml/ml_service.dart';
 import '../../infrastructure/services/ml/ml_sentiment_analyzer.dart';
 import '../../infrastructure/ai/engine/quantized_tfidf_engine.dart';
+import '../../application/ai/ranking/local_learning_engine.dart';
 import '../../application/ai/ranking/user_interest_service.dart';
 import '../bootstrap/startup_controller.dart';
+import '../utils/source_logos.dart';
 
 import '../security/security_service.dart';
 import '../network/network_quality_manager.dart';
@@ -101,7 +103,6 @@ final startupControllerProvider =
     StateNotifierProvider<StartupController, StartupSnapshot>((ref) {
       final prefs = ref.watch(sharedPreferencesProvider);
       final securityService = ref.watch(securityServiceProvider);
-      final googleSignIn = ref.watch(googleSignInProvider);
 
       if (prefs == null) {
         return StartupController();
@@ -110,7 +111,6 @@ final startupControllerProvider =
       final runner = StartupBootstrapRunner(
         prefs: prefs,
         securityService: securityService,
-        googleSignIn: googleSignIn,
       );
       return StartupController(runner: runner);
     });
@@ -147,29 +147,48 @@ final analyticsProvider = Provider<FirebaseAnalytics>(
 final crashlyticsProvider = Provider<FirebaseCrashlytics>(
   (ref) => FirebaseCrashlytics.instance,
 );
-final googleSignInProvider = Provider<GoogleSignIn>(
-  (ref) {
-    final googleClientId = dotenv.isInitialized ? dotenv.env['GOOGLE_CLIENT_ID'] : null;
-    
-    // For iOS and Web, clientId is required.
-    // For Android, clientId is picked from google-services.json, 
-    // but serverClientId (the Web Client ID) is required to get an idToken for Firebase.
-    return GoogleSignIn(
-      clientId: (defaultTargetPlatform == TargetPlatform.iOS || kIsWeb)
-          ? googleClientId
-          : null,
-      serverClientId: googleClientId,
-      scopes: [
-        'email',
-      ],
-    );
-  },
-);
+
+String? _normalizedGoogleClientId(String? rawValue) {
+  final value = rawValue?.trim();
+  if (value == null || value.isEmpty) return null;
+
+  final upper = value.toUpperCase();
+  if (upper.contains('YOUR_GOOGLE_CLIENT_ID_HERE') ||
+      upper.contains('YOUR_FIREBASE_ANDROID_CLIENT_ID_HERE') ||
+      !value.endsWith('.apps.googleusercontent.com')) {
+    return null;
+  }
+
+  return value;
+}
+
+final googleSignInProvider = Provider<GoogleSignIn>((ref) {
+  final googleClientId = _normalizedGoogleClientId(
+    dotenv.isInitialized ? dotenv.env['GOOGLE_CLIENT_ID'] : null,
+  );
+
+  // For iOS and Web, clientId is required.
+  // For Android, clientId is picked from google-services.json,
+  // and if serverClientId is omitted the native configuration can still
+  // fall back to the value generated from google-services.json.
+  return GoogleSignIn(
+    clientId: (defaultTargetPlatform == TargetPlatform.iOS || kIsWeb)
+        ? googleClientId
+        : null,
+    serverClientId: googleClientId,
+    scopes: ['email'],
+  );
+});
+final googleSignInWarmupProvider = Provider<GoogleSignInWarmupCoordinator>((
+  ref,
+) {
+  return GoogleSignInWarmupCoordinator(ref.watch(googleSignInProvider));
+});
 final deviceInfoProvider = Provider<DeviceInfoPlugin>(
   (ref) => DeviceInfoPlugin(),
 );
 final secureStorageProvider = Provider<FlutterSecureStorage>(
-  (ref) => const FlutterSecureStorage(),
+  (ref) => SecurePrefs.sharedStorage,
 );
 final inAppPurchaseProvider = Provider<InAppPurchase>(
   (ref) => InAppPurchase.instance,
@@ -204,7 +223,8 @@ final appNetworkServiceProvider = ChangeNotifierProvider<AppNetworkService>(
 );
 
 final hiveServiceProvider = Provider<HiveService>((ref) {
-  return HiveService(ref.watch(appNetworkServiceProvider));
+  // Keep HiveService stable; network changes should not recreate cache service.
+  return HiveService(ref.read(appNetworkServiceProvider));
 });
 
 final remoteConfigServiceProvider = Provider<RemoteConfigService>(
@@ -223,11 +243,21 @@ final appVerificationServiceProvider = Provider<AppVerificationService>((ref) {
   return AppVerificationService();
 });
 
-final vaultDatabaseProvider = Provider<VaultDatabase>((ref) => VaultDatabase());
+final vaultDatabaseProvider = Provider<VaultDatabase>((ref) {
+  final db = VaultDatabase();
+  ref.onDispose(() {
+    VaultDatabase.closeDatabase();
+  });
+  return db;
+});
 
-final ttsDatabaseProvider = Provider<TtsDatabase>(
-  (ref) => TtsDatabase(ref.watch(structuredLoggerProvider)),
-);
+final ttsDatabaseProvider = Provider<TtsDatabase>((ref) {
+  final db = TtsDatabase(ref.watch(structuredLoggerProvider));
+  ref.onDispose(() {
+    db.close();
+  });
+  return db;
+});
 
 final audioCacheProvider = Provider<AudioCacheManager>(
   (ref) => AudioCacheManager(),
@@ -328,7 +358,8 @@ final rssServiceProvider = Provider<RssService>((ref) {
   final client = ref.read(httpClientProvider);
   final networkService = ref.read(appNetworkServiceProvider);
   final logger = ref.read(structuredLoggerProvider);
-  final rssService = RssService(client, networkService, logger);
+  final prefs = ref.read(sharedPreferencesProvider);
+  final rssService = RssService(client, networkService, logger, prefs: prefs);
   return rssService;
 });
 
@@ -346,8 +377,17 @@ final newsRepositoryProvider = Provider<NewsRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
   final rssService = ref.watch(rssServiceProvider);
   final classifier = ref.watch(newsFeedCategoryClassifierProvider);
+  final prefs = ref.watch(sharedPreferencesProvider);
 
-  return NewsRepositoryImpl(db, rssService, classifier, runBootstrap: false);
+  final repository = NewsRepositoryImpl(
+    db,
+    rssService,
+    classifier,
+    runBootstrap: false,
+    prefs: prefs,
+  );
+  ref.onDispose(repository.dispose);
+  return repository;
 });
 
 final premiumRepositoryProvider = Provider<PremiumRepository>((ref) {
@@ -405,17 +445,15 @@ final searchRepositoryProvider = Provider<SearchRepository>((ref) {
 // —————————————————————————————————————————————————————————————————————————————
 
 final syncServiceProvider = Provider<SyncService>((ref) {
-  // Use .select to avoid redundant re-creation when unrelated snapshot fields (like message) change
-  final isReady = ref.watch(startupStateProvider.select((s) => s.isReady));
-  final firebaseReady = ref.watch(
-    startupStateProvider.select((s) => s.firebaseReady),
+  final syncGateReady = ref.watch(
+    startupStateProvider.select((s) => s.isReady && s.firebaseReady),
   );
 
   final observability = ref.watch(observabilityServiceProvider);
   final logger = ref.watch(structuredLoggerProvider);
   final prefs = ref.watch(sharedPreferencesProvider);
 
-  if (!isReady || !firebaseReady || Firebase.apps.isEmpty) {
+  if (!syncGateReady || Firebase.apps.isEmpty) {
     return SyncService.disabled(observability, logger, prefs);
   }
   final premiumRepo = ref.watch(premiumRepositoryProvider);
@@ -433,16 +471,37 @@ final syncServiceProvider = Provider<SyncService>((ref) {
 });
 
 final syncOrchestratorProvider = Provider<SyncOrchestrator>((ref) {
-  // Use .select to avoid redundant re-creation when unrelated snapshot fields change
-  final firebaseReady = ref.watch(
-    startupStateProvider.select((s) => s.firebaseReady),
+  final prefs = ref.watch(sharedPreferencesProvider);
+  final orchestrator = SyncOrchestrator.disabled(prefs);
+
+  void syncAttachment({bool? gateReadyOverride}) {
+    final bool syncGateReady =
+        gateReadyOverride == true ||
+        (gateReadyOverride == null &&
+            ref.read(
+              startupStateProvider.select((s) => s.isReady && s.firebaseReady),
+            ));
+    if (!syncGateReady || Firebase.apps.isEmpty) {
+      orchestrator.attachSyncService(null);
+      return;
+    }
+    orchestrator.attachSyncService(ref.read(syncServiceProvider));
+  }
+
+  syncAttachment();
+
+  ref.listen<bool>(
+    startupStateProvider.select((s) => s.isReady && s.firebaseReady),
+    (previous, next) {
+      syncAttachment(gateReadyOverride: next);
+    },
   );
 
-  final prefs = ref.watch(sharedPreferencesProvider);
-  if (!firebaseReady || Firebase.apps.isEmpty) {
-    return SyncOrchestrator.disabled(prefs);
-  }
-  return SyncOrchestrator(ref.watch(syncServiceProvider), prefs);
+  ref.listen<SyncService>(syncServiceProvider, (previous, next) {
+    syncAttachment();
+  });
+
+  return orchestrator;
 });
 
 // —————————————————————————————————————————————————————————————————————————————
@@ -478,6 +537,16 @@ final syncRepositoryProvider = Provider<SyncRepository>((ref) {
 
 final aiEventCollectorProvider = Provider<AIEventCollector>((ref) {
   return AIEventCollector(ref.watch(syncRepositoryProvider));
+});
+
+final localLearningEngineProvider = Provider<LocalLearningEngine>((ref) {
+  final engine = LocalLearningEngine(
+    ref.watch(userInterestServiceProvider),
+    prefs: ref.watch(sharedPreferencesProvider),
+    eventCollector: ref.watch(aiEventCollectorProvider),
+  );
+  ref.onDispose(engine.dispose);
+  return engine;
 });
 
 final featureEngineeringServiceProvider = Provider<FeatureEngineeringService>((
@@ -559,7 +628,7 @@ final governanceEngineProvider = Provider<GovernanceEngine>((ref) {
   final startup = ref.watch(startupStateProvider);
   final db = ref.watch(appDatabaseProvider);
   final prefs = ref.watch(sharedPreferencesProvider);
-  const secureStorage = FlutterSecureStorage();
+  const secureStorage = SecurePrefs.sharedStorage;
 
   if (!startup.firebaseReady || Firebase.apps.isEmpty || prefs == null) {
     return GovernanceEngine.disabled(secureStorage);
@@ -584,7 +653,13 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
 
 final interstitialAdServiceProvider = Provider<InterstitialAdService>((ref) {
   final repo = ref.watch(premiumRepositoryProvider);
-  final service = InterstitialAdService(repo);
+  final networkService = ref.read(appNetworkServiceProvider);
+  final prefs = ref.read(sharedPreferencesProvider);
+  final service = InterstitialAdService(
+    repo,
+    networkService: networkService,
+    prefs: prefs,
+  );
   ref.onDispose(() => service.dispose());
   return service;
 });
@@ -592,7 +667,8 @@ final interstitialAdServiceProvider = Provider<InterstitialAdService>((ref) {
 final rewardedAdServiceProvider = Provider<RewardedAdService>((ref) {
   final repo = ref.watch(premiumRepositoryProvider);
   final prefs = ref.watch(sharedPreferencesProvider);
-  final service = RewardedAdService(repo, prefs);
+  final networkService = ref.read(appNetworkServiceProvider);
+  final service = RewardedAdService(repo, prefs, networkService);
   ref.onDispose(() => service.dispose());
   return service;
 });
@@ -603,7 +679,7 @@ final rewardedAdServiceProvider = Provider<RewardedAdService>((ref) {
 
 /// Guard function to ensure device is trusted before accessing sensitive services
 void guardTrusted(Ref ref) {
-  final state = ref.watch(deviceTrustControllerProvider);
+  final state = ref.read(deviceTrustControllerProvider);
 
   // ✅ FIXED: Allow unknown/verifying to avoid startup race conditions.
   // Only throw if explicitly blocked or restricted.
@@ -632,3 +708,6 @@ void disposeProviders(Ref ref) {
     debugPrint('⚠️ Error disposing providers: $e');
   }
 }
+final publisherLogoMapProvider = Provider<Map<String, String>>((ref) {
+  return SourceLogos.logos;
+});

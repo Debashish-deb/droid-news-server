@@ -13,6 +13,14 @@ class SpeechChunk {
     required this.startIndex,
     required this.endIndex,
     this.language = 'en',
+    this.articleCategory = 'general',
+    this.synthesisProfileKey = '',
+    this.isArticleLead = false,
+    this.isParagraphStart = false,
+    this.isParagraphEnd = false,
+    this.minorPauseCount = 0,
+    this.majorPauseCount = 0,
+    this.pauseBoundary = 'none',
     this.audioPath,
     this.durationMs,
     this.fileSizeBytes,
@@ -31,6 +39,14 @@ class SpeechChunk {
       startIndex: map['startIndex'] as int,
       endIndex: map['endIndex'] as int,
       language: map['language'] as String? ?? 'en',
+      articleCategory: map['articleCategory'] as String? ?? 'general',
+      synthesisProfileKey: map['synthesisProfileKey'] as String? ?? '',
+      isArticleLead: map['isArticleLead'] as bool? ?? false,
+      isParagraphStart: map['isParagraphStart'] as bool? ?? false,
+      isParagraphEnd: map['isParagraphEnd'] as bool? ?? false,
+      minorPauseCount: map['minorPauseCount'] as int? ?? 0,
+      majorPauseCount: map['majorPauseCount'] as int? ?? 0,
+      pauseBoundary: map['pauseBoundary'] as String? ?? 'none',
       audioPath: map['audioPath'] as String?,
       durationMs: map['durationMs'] as int?,
       fileSizeBytes: map['fileSizeBytes'] as int?,
@@ -58,6 +74,14 @@ class SpeechChunk {
   final int startIndex;
   final int endIndex;
   final String language;
+  final String articleCategory;
+  final String synthesisProfileKey;
+  final bool isArticleLead;
+  final bool isParagraphStart;
+  final bool isParagraphEnd;
+  final int minorPauseCount;
+  final int majorPauseCount;
+  final String pauseBoundary;
   
 
   String? audioPath; 
@@ -76,7 +100,7 @@ class SpeechChunk {
   
   /// Generate content hash from text (for cache key)
   String get textHash {
-    final bytes = utf8.encode('$text|$language');
+    final bytes = utf8.encode('$text|$language|$synthesisProfileKey');
     return sha256.convert(bytes).toString();
   }
   
@@ -137,6 +161,14 @@ class SpeechChunk {
     int? startIndex,
     int? endIndex,
     String? language,
+    String? articleCategory,
+    String? synthesisProfileKey,
+    bool? isArticleLead,
+    bool? isParagraphStart,
+    bool? isParagraphEnd,
+    int? minorPauseCount,
+    int? majorPauseCount,
+    String? pauseBoundary,
     String? audioPath,
     int? durationMs,
     int? fileSizeBytes,
@@ -153,6 +185,14 @@ class SpeechChunk {
       startIndex: startIndex ?? this.startIndex,
       endIndex: endIndex ?? this.endIndex,
       language: language ?? this.language,
+      articleCategory: articleCategory ?? this.articleCategory,
+      synthesisProfileKey: synthesisProfileKey ?? this.synthesisProfileKey,
+      isArticleLead: isArticleLead ?? this.isArticleLead,
+      isParagraphStart: isParagraphStart ?? this.isParagraphStart,
+      isParagraphEnd: isParagraphEnd ?? this.isParagraphEnd,
+      minorPauseCount: minorPauseCount ?? this.minorPauseCount,
+      majorPauseCount: majorPauseCount ?? this.majorPauseCount,
+      pauseBoundary: pauseBoundary ?? this.pauseBoundary,
       audioPath: audioPath ?? this.audioPath,
       durationMs: durationMs ?? this.durationMs,
       fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
@@ -172,6 +212,14 @@ class SpeechChunk {
       'startIndex': startIndex,
       'endIndex': endIndex,
       'language': language,
+      'articleCategory': articleCategory,
+      'synthesisProfileKey': synthesisProfileKey,
+      'isArticleLead': isArticleLead,
+      'isParagraphStart': isParagraphStart,
+      'isParagraphEnd': isParagraphEnd,
+      'minorPauseCount': minorPauseCount,
+      'majorPauseCount': majorPauseCount,
+      'pauseBoundary': pauseBoundary,
       'audioPath': audioPath,
       'durationMs': durationMs,
       'fileSizeBytes': fileSizeBytes,

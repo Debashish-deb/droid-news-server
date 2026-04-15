@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/design_tokens.dart' show AppColors;
+import '../../../../core/theme/theme_skeleton.dart';
 import '../../../../domain/entities/news_thread.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class NewsThreadCard extends StatefulWidget {
-
-  const NewsThreadCard({
-    required this.thread,
-    required this.onTap,
-    super.key,
-  });
+  const NewsThreadCard({required this.thread, required this.onTap, super.key});
   final NewsThread thread;
   final VoidCallback onTap;
 
@@ -16,7 +13,8 @@ class NewsThreadCard extends StatefulWidget {
   State<NewsThreadCard> createState() => _NewsThreadCardState();
 }
 
-class _NewsThreadCardState extends State<NewsThreadCard> with SingleTickerProviderStateMixin {
+class _NewsThreadCardState extends State<NewsThreadCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   bool _isPressed = false;
@@ -28,9 +26,10 @@ class _NewsThreadCardState extends State<NewsThreadCard> with SingleTickerProvid
       vsync: this,
       duration: const Duration(milliseconds: 150),
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.98).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.98,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -46,7 +45,6 @@ class _NewsThreadCardState extends State<NewsThreadCard> with SingleTickerProvid
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    
     const List<BoxShadow> darkShadows = [
       BoxShadow(
         color: Color(0x80000000),
@@ -95,21 +93,20 @@ class _NewsThreadCardState extends State<NewsThreadCard> with SingleTickerProvid
         },
         child: AnimatedBuilder(
           animation: _scaleAnimation,
-          builder: (context, child) => Transform.scale(
-            scale: _scaleAnimation.value,
-            child: child,
-          ),
+          builder: (context, child) =>
+              Transform.scale(scale: _scaleAnimation.value, child: child),
           child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            margin: ThemeSkeleton.shared.insetsSymmetric(
+              horizontal: 20,
+              vertical: 16,
+            ),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0F2F5),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: _isPressed 
-                ? const [] 
-                : shadows,
+              color: isDark ? AppColors.darkSurface : const Color(0xFFF0F2F5),
+              borderRadius: ThemeSkeleton.shared.circular(24),
+              boxShadow: _isPressed ? const [] : shadows,
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: ThemeSkeleton.shared.circular(24),
               child: Stack(
                 children: [
                   Container(
@@ -117,9 +114,15 @@ class _NewsThreadCardState extends State<NewsThreadCard> with SingleTickerProvid
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: isDark 
-                          ? [Colors.white.withValues(alpha: 0.05), Colors.black.withValues(alpha: 0.2)]
-                          : [Colors.white.withValues(alpha: 0.8), Colors.grey.withValues(alpha: 0.1)],
+                        colors: isDark
+                            ? [
+                                Colors.white.withValues(alpha: 0.05),
+                                Colors.black.withValues(alpha: 0.2),
+                              ]
+                            : [
+                                Colors.white.withValues(alpha: 0.8),
+                                Colors.grey.withValues(alpha: 0.1),
+                              ],
                       ),
                     ),
                   ),
@@ -135,8 +138,13 @@ class _NewsThreadCardState extends State<NewsThreadCard> with SingleTickerProvid
                               width: double.infinity,
                               memCacheHeight: 440, // Optimize memory
                               fit: BoxFit.cover,
-                              placeholder: (_, _) => Container(color: isDark ? Colors.grey[900] : Colors.grey[200]),
-                              errorWidget: (_, _, _) => const SizedBox(height: 220),
+                              placeholder: (_, _) => Container(
+                                color: isDark
+                                    ? Colors.grey[900]
+                                    : Colors.grey[200],
+                              ),
+                              errorWidget: (_, _, _) =>
+                                  const SizedBox(height: ThemeSkeleton.size220),
                             ),
                             Positioned.fill(
                               child: Container(
@@ -158,18 +166,29 @@ class _NewsThreadCardState extends State<NewsThreadCard> with SingleTickerProvid
                                 top: 16,
                                 right: 16,
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  padding: ThemeSkeleton.shared.insetsSymmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.black.withValues(alpha: 0.6),
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: ThemeSkeleton.shared.circular(
+                                      20,
+                                    ),
                                     border: Border.all(color: Colors.white24),
                                     backgroundBlendMode: BlendMode.overlay,
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.layers_rounded, color: Colors.white, size: 14),
-                                      const SizedBox(width: 6),
+                                      const Icon(
+                                        Icons.layers_rounded,
+                                        color: Colors.white,
+                                        size: 14,
+                                      ),
+                                      const SizedBox(
+                                        width: ThemeSkeleton.size6,
+                                      ),
                                       Text(
                                         '${widget.thread.relatedArticles.length + 1} Coverage',
                                         style: const TextStyle(
@@ -185,25 +204,31 @@ class _NewsThreadCardState extends State<NewsThreadCard> with SingleTickerProvid
                           ],
                         ),
                       Padding(
-                        padding: const EdgeInsets.all(20),
+                        padding: ThemeSkeleton.shared.insetsAll(20),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: const BoxDecoration(
+                                  padding: ThemeSkeleton.shared.insetsAll(2),
+                                  decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: Colors.redAccent,
+                                    color: theme.colorScheme.primary,
                                   ),
-                                  child: const Icon(Icons.newspaper, size: 12, color: Colors.white),
+                                  child: const Icon(
+                                    Icons.newspaper,
+                                    size: 12,
+                                    color: Colors.white,
+                                  ),
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: ThemeSkeleton.size8),
                                 Text(
                                   article.source.toUpperCase(),
                                   style: theme.textTheme.labelSmall?.copyWith(
-                                    color: isDark ? Colors.grey[400] : Colors.grey[700],
+                                    color: isDark
+                                        ? Colors.grey[400]
+                                        : Colors.grey[700],
                                     fontWeight: FontWeight.bold,
                                     letterSpacing: 1.1,
                                   ),
@@ -212,12 +237,14 @@ class _NewsThreadCardState extends State<NewsThreadCard> with SingleTickerProvid
                                 Text(
                                   _timeAgo(article.publishedAt),
                                   style: theme.textTheme.labelSmall?.copyWith(
-                                    color: isDark ? Colors.grey[600] : Colors.grey[500],
+                                    color: isDark
+                                        ? Colors.grey[600]
+                                        : Colors.grey[500],
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: ThemeSkeleton.size12),
                             Text(
                               article.title,
                               style: theme.textTheme.titleLarge?.copyWith(
@@ -228,15 +255,21 @@ class _NewsThreadCardState extends State<NewsThreadCard> with SingleTickerProvid
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: ThemeSkeleton.size16),
                             if (hasRelated)
                               Container(
-                                padding: const EdgeInsets.all(12),
+                                padding: ThemeSkeleton.shared.insetsAll(12),
                                 decoration: BoxDecoration(
-                                  color: isDark ? Colors.black26 : Colors.white60,
-                                  borderRadius: BorderRadius.circular(16),
+                                  color: isDark
+                                      ? Colors.black26
+                                      : Colors.white60,
+                                  borderRadius: ThemeSkeleton.shared.circular(
+                                    16,
+                                  ),
                                   border: Border.all(
-                                    color: isDark ? Colors.white10 : Colors.black12,
+                                    color: isDark
+                                        ? Colors.white10
+                                        : Colors.black12,
                                   ),
                                 ),
                                 child: Column(
@@ -247,32 +280,48 @@ class _NewsThreadCardState extends State<NewsThreadCard> with SingleTickerProvid
                                       style: TextStyle(
                                         fontSize: 10,
                                         fontWeight: FontWeight.w900,
-                                        color: isDark ? Colors.white38 : Colors.black38,
+                                        color: isDark
+                                            ? Colors.white38
+                                            : Colors.black38,
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
-                                    ...widget.thread.relatedArticles.take(2).map((rel) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 6),
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.subdirectory_arrow_right_rounded, 
-                                            size: 14, 
-                                            color: isDark ? Colors.grey : Colors.grey[800]
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Expanded(
-                                            child: Text(
-                                              rel.source,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                color: isDark ? Colors.white70 : Colors.black87,
-                                              ),
+                                    const SizedBox(height: ThemeSkeleton.size8),
+                                    ...widget.thread.relatedArticles
+                                        .take(2)
+                                        .map(
+                                          (rel) => Padding(
+                                            padding: ThemeSkeleton.shared
+                                                .insetsOnly(bottom: 6),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons
+                                                      .subdirectory_arrow_right_rounded,
+                                                  size: 14,
+                                                  color: isDark
+                                                      ? Colors.grey
+                                                      : Colors.grey[800],
+                                                ),
+                                                const SizedBox(
+                                                  width: ThemeSkeleton.size6,
+                                                ),
+                                                Expanded(
+                                                  child: Text(
+                                                    rel.source,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: isDark
+                                                          ? Colors.white70
+                                                          : Colors.black87,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    )),
+                                        ),
                                   ],
                                 ),
                               ),
@@ -291,11 +340,9 @@ class _NewsThreadCardState extends State<NewsThreadCard> with SingleTickerProvid
   }
 
   String _timeAgo(DateTime date) {
-
     final diff = DateTime.now().difference(date);
     if (diff.inHours < 1) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     return '${diff.inDays}d ago';
   }
 }
-

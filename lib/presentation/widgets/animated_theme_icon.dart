@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/theme_skeleton.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/theme_providers.dart'
     show currentThemeModeProvider, navIconColorProvider;
 import '../../core/enums/theme_mode.dart';
 
-/// Premium animated icon widget with enhanced performance, gradient support,
-/// and smooth theme-aware transitions
 class AnimatedThemeIcon extends ConsumerStatefulWidget {
   const AnimatedThemeIcon(
     this.icon, {
@@ -73,24 +72,12 @@ class _AnimatedThemeIconState extends ConsumerState<AnimatedThemeIcon>
     );
 
     if (widget.enablePulseEffect) {
-      _scaleAnimation = Tween<double>(
-        begin: 1.0,
-        end: 1.2,
-      ).animate(
-        CurvedAnimation(
-          parent: _controller,
-          curve: Curves.easeInOutSine,
-        ),
+      _scaleAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
       );
 
-      _opacityAnimation = Tween<double>(
-        begin: 1.0,
-        end: 0.5,
-      ).animate(
-        CurvedAnimation(
-          parent: _controller,
-          curve: Curves.easeInOutSine,
-        ),
+      _opacityAnimation = Tween<double>(begin: 1.0, end: 0.5).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
       );
     }
   }
@@ -128,7 +115,6 @@ class _AnimatedThemeIconState extends ConsumerState<AnimatedThemeIcon>
       return widget.color!;
     }
 
-    // Fallback to theme color
     final theme = Theme.of(context);
     return theme.iconTheme.color ?? theme.colorScheme.onSurface;
   }
@@ -157,7 +143,6 @@ class _AnimatedThemeIconState extends ConsumerState<AnimatedThemeIcon>
       semanticLabel: widget.semanticLabel,
     );
 
-    // Apply gradient if specified
     if (widget.gradient != null) {
       iconWidget = ShaderMask(
         shaderCallback: (bounds) => widget.gradient!.createShader(bounds),
@@ -178,14 +163,13 @@ class _AnimatedThemeIconState extends ConsumerState<AnimatedThemeIcon>
       );
     }
 
-    // Build the container with optional background
     return Container(
       padding: widget.padding,
       decoration: BoxDecoration(
         color: backgroundColor,
         shape: widget.shape,
         borderRadius: widget.shape == BoxShape.rectangle
-            ? widget.borderRadius ?? BorderRadius.circular(8)
+            ? widget.borderRadius ?? ThemeSkeleton.shared.circular(8)
             : null,
         border: widget.border,
         gradient: _isHovering && widget.hoverBackgroundColor == null
@@ -217,9 +201,10 @@ class _AnimatedThemeIconState extends ConsumerState<AnimatedThemeIcon>
       return _buildIcon(context);
     }
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
         Color? animatedColor;
         if (widget.enableColorTransition) {
           animatedColor = Color.lerp(
@@ -244,6 +229,7 @@ class _AnimatedThemeIconState extends ConsumerState<AnimatedThemeIcon>
           ),
         );
       },
+    ),
     );
   }
 
@@ -305,7 +291,7 @@ class PremiumThemeIcon extends ConsumerWidget {
     this.semanticLabel,
     this.enableGlowEffect = true,
     this.enableTransition = true,
-    this.padding = const EdgeInsets.all(4),
+    this.padding = ThemeSkeleton.insetsAll4,
   });
 
   final IconData icon;
@@ -325,15 +311,13 @@ class PremiumThemeIcon extends ConsumerWidget {
 
     Color getColor() {
       switch (themeMode) {
-        case AppThemeMode.light:
-          return lightColor ?? Colors.black87;
         case AppThemeMode.dark:
-        case AppThemeMode.amoled:
           return darkColor ?? Colors.white;
         case AppThemeMode.bangladesh:
           return bangladeshColor ?? const Color(0xFF006A4E);
         case AppThemeMode.system:
-          final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+          final brightness =
+              WidgetsBinding.instance.platformDispatcher.platformBrightness;
           return brightness == Brightness.dark
               ? (darkColor ?? Colors.white)
               : (lightColor ?? Colors.black87);
@@ -362,13 +346,12 @@ class PremiumThemeIcon extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       hoverBackgroundColor: selectionColor.withValues(alpha: 0.1),
       padding: padding,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: ThemeSkeleton.shared.circular(12),
       semanticLabel: semanticLabel,
     );
   }
 }
 
-/// Animated icon with gradient support for premium UI elements
 class GradientThemeIcon extends StatelessWidget {
   const GradientThemeIcon(
     this.icon, {
@@ -391,18 +374,16 @@ class GradientThemeIcon extends StatelessWidget {
     final defaultGradient = LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.secondary,
-      ],
+      colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
     );
 
     return AnimatedThemeIcon(
       icon,
       size: size,
       gradient: gradient ?? defaultGradient,
-      animationDuration:
-          enableAnimation ? const Duration(milliseconds: 500) : Duration.zero,
+      animationDuration: enableAnimation
+          ? const Duration(milliseconds: 500)
+          : Duration.zero,
       enableColorTransition: enableAnimation,
       shadows: [
         Shadow(
@@ -416,7 +397,6 @@ class GradientThemeIcon extends StatelessWidget {
   }
 }
 
-/// Floating action button style animated icon
 class FloatingThemeIcon extends ConsumerWidget {
   const FloatingThemeIcon(
     this.icon, {
@@ -452,9 +432,10 @@ class FloatingThemeIcon extends ConsumerWidget {
       enableHoverEffect: true,
       enablePulseEffect: true,
       backgroundColor: backgroundColor ?? selectionColor,
-      hoverBackgroundColor: backgroundColor?.withValues(alpha: 0.9) ??
+      hoverBackgroundColor:
+          backgroundColor?.withValues(alpha: 0.9) ??
           selectionColor.withValues(alpha: 0.9),
-      padding: const EdgeInsets.all(12),
+      padding: ThemeSkeleton.shared.insetsAll(12),
       border: Border.all(
         color: Colors.white.withValues(alpha: 0.2),
         width: 1.5,

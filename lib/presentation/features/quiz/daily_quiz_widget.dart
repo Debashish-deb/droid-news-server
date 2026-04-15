@@ -6,8 +6,7 @@ import 'dart:ui';
 
 import 'package:audioplayers/audioplayers.dart' show AssetSource, AudioPlayer;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'
-    show rootBundle;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:confetti/confetti.dart';
 import '../../providers/theme_providers.dart';
 import '../../providers/app_settings_providers.dart';
@@ -16,8 +15,10 @@ import '../../../core/theme/theme.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/app_settings_providers.dart' show settingsRepositoryProvider;
+import '../../providers/app_settings_providers.dart'
+    show settingsRepositoryProvider;
 import '../settings/widgets/settings_3d_widgets.dart';
+import '../../widgets/premium_screen_header.dart';
 
 class QuizQuestion {
   QuizQuestion({
@@ -61,7 +62,7 @@ class _DailyQuizWidgetState extends ConsumerState<DailyQuizWidget> {
     final repo = ref.read(settingsRepositoryProvider);
     final streakResult = await repo.getQuizStreak();
     final highScoreResult = await repo.getQuizHighScore();
-    
+
     setState(() {
       _streak = streakResult.getOrElse(0);
       _highScore = highScoreResult.getOrElse(0);
@@ -104,34 +105,28 @@ class _DailyQuizWidgetState extends ConsumerState<DailyQuizWidget> {
       pool.shuffle();
       final selected = pool.take(5).toList();
 
-      final qs =
-          selected.map((item) {
-            final question = item['question']?.toString() ?? '<no prompt>';
-            List<String> opts = [];
-            final rawOpts = item['options'];
-            if (rawOpts is List) {
-              opts = rawOpts.map((o) => o.toString()).toList();
-            } else if (rawOpts is Map) {
-              final entries =
-                  (rawOpts as Map<String, dynamic>).entries.toList()..sort(
-                    (a, b) =>
-                        int.tryParse(a.key)!.compareTo(int.tryParse(b.key)!),
-                  );
-              opts = entries.map((e) => e.value.toString()).toList();
-            }
-            final correctRaw = item['correct'];
-            String correct;
-            if (correctRaw is int && correctRaw < opts.length) {
-              correct = opts[correctRaw];
-            } else {
-              correct = correctRaw.toString();
-            }
-            return QuizQuestion(
-              prompt: question,
-              options: opts,
-              correct: correct,
+      final qs = selected.map((item) {
+        final question = item['question']?.toString() ?? '<no prompt>';
+        List<String> opts = [];
+        final rawOpts = item['options'];
+        if (rawOpts is List) {
+          opts = rawOpts.map((o) => o.toString()).toList();
+        } else if (rawOpts is Map) {
+          final entries = (rawOpts as Map<String, dynamic>).entries.toList()
+            ..sort(
+              (a, b) => int.tryParse(a.key)!.compareTo(int.tryParse(b.key)!),
             );
-          }).toList();
+          opts = entries.map((e) => e.value.toString()).toList();
+        }
+        final correctRaw = item['correct'];
+        String correct;
+        if (correctRaw is int && correctRaw < opts.length) {
+          correct = opts[correctRaw];
+        } else {
+          correct = correctRaw.toString();
+        }
+        return QuizQuestion(prompt: question, options: opts, correct: correct);
+      }).toList();
 
       setState(() {
         _questions = qs;
@@ -193,21 +188,15 @@ class _DailyQuizWidgetState extends ConsumerState<DailyQuizWidget> {
     final loc = AppLocalizations.of(context);
     final themeState = ref.watch(themeProvider);
     final AppThemeMode mode = themeState.mode;
-    final bool isDark = mode == AppThemeMode.dark;
+    final bool isDark =
+        mode == AppThemeMode.bangladesh ||
+        Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
     final gradientColors = AppGradients.getBackgroundGradient(mode);
-    
- 
-    final floater = ref.watch(floatingTextStyleProvider);
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        title: Text(loc.dailyQuiz, style: floater(fontSize: 20)),
+      appBar: PremiumScreenHeader(
+        title: loc.dailyQuiz,
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -227,14 +216,14 @@ class _DailyQuizWidgetState extends ConsumerState<DailyQuizWidget> {
           ),
         ],
       ),
-      body:
-          _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _showResult
-              ? _buildSummary(context) 
-              : _buildQuizView(context, gradientColors, isDark), 
-      bottomNavigationBar:
-          (_loading || _showResult) ? null : _buildFooterNav(theme),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _showResult
+          ? _buildSummary(context)
+          : _buildQuizView(context, gradientColors, isDark),
+      bottomNavigationBar: (_loading || _showResult)
+          ? null
+          : _buildFooterNav(theme),
     );
   }
 
@@ -245,8 +234,8 @@ class _DailyQuizWidgetState extends ConsumerState<DailyQuizWidget> {
   ) {
     final q = _questions[_current];
     final theme = Theme.of(context);
-   final glassColor = ref.watch(glassColorProvider);
-    
+    final glassColor = ref.watch(glassColorProvider);
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -266,7 +255,10 @@ class _DailyQuizWidgetState extends ConsumerState<DailyQuizWidget> {
           ),
         ),
         // 2. Dark Overlay
-        if (isDark) Positioned.fill(child: Container(color: Colors.black.withValues(alpha: 0.6))),
+        if (isDark)
+          Positioned.fill(
+            child: Container(color: Colors.black.withValues(alpha: 0.6)),
+          ),
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -275,17 +267,13 @@ class _DailyQuizWidgetState extends ConsumerState<DailyQuizWidget> {
                 LinearProgressIndicator(
                   value: (_current + 1) / _questions.length,
                   minHeight: 6,
-                  backgroundColor: glassColor, 
+                  backgroundColor: glassColor,
                   valueColor: AlwaysStoppedAnimation(
                     theme.colorScheme.secondary,
                   ),
                 ),
                 const SizedBox(height: 16),
-                Expanded(
-                  child: _glassCard(
-                    child: _buildQuestion(q, theme),
-                  ),
-                ),
+                Expanded(child: _glassCard(child: _buildQuestion(q, theme))),
                 const SizedBox(height: 16),
               ],
             ),
@@ -325,10 +313,16 @@ class _DailyQuizWidgetState extends ConsumerState<DailyQuizWidget> {
               onTap: () => _answer(opt),
               label: opt,
               isSelected: isCorrect, // Green/Primary style if correct
-              isDestructive: _answered && opt != q.correct && opt == /* selected? No track of selected wrong answer */ q.correct ? false : false, // Complex logic omitted, just use primary for correct
-              // If answered, incorrect ones should maybe be dimmed or red? 
+              isDestructive:
+                  _answered &&
+                      opt != q.correct &&
+                      opt == /* selected? No track of selected wrong answer */
+                          q.correct
+                  ? false
+                  : false, // Complex logic omitted, just use primary for correct
+              // If answered, incorrect ones should maybe be dimmed or red?
               // Current logic: only correct gets highlight.
-              width: 300, 
+              width: 300,
             ),
           );
         }),
@@ -425,10 +419,7 @@ class _DailyQuizWidgetState extends ConsumerState<DailyQuizWidget> {
     );
   }
 
-
-  Widget _glassCard({
-    required Widget child,
-  }) {
+  Widget _glassCard({required Widget child}) {
     final glassColor = ref.watch(glassColorProvider);
     final borderColor = ref.watch(borderColorProvider);
     return ClipRRect(

@@ -55,7 +55,7 @@ void main() {
       final orchestrator = SyncOrchestrator.disabled(prefs);
       final notifier = AppSettingsNotifier(
         prefs,
-        syncService,
+        () => syncService,
         orchestrator,
         fakeNotifications,
       );

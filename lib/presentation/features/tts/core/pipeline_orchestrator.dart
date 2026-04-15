@@ -24,6 +24,7 @@ class PipelineOrchestrator {
     required String title,
     required String content,
     String language = 'en',
+    String category = 'general',
     String? author,
     String? imageSource,
     bool contentIsCleaned = false,
@@ -42,6 +43,7 @@ class PipelineOrchestrator {
       final chunks = ChunkEngine.createChunks(
         cleanedContent,
         language: language,
+        category: category,
         title: title,
         author: author,
         imageSource: imageSource,
@@ -58,6 +60,8 @@ class PipelineOrchestrator {
       final session = TtsSession.create(
         articleId: articleId,
         articleTitle: title,
+        articleCategory: category,
+        articleLanguage: language,
       ).copyWith(totalChunks: chunks.length, state: TtsSessionState.chunking);
 
       _logger.info('[Pipeline] ✅ Pipeline complete: ${chunks.length} chunks');

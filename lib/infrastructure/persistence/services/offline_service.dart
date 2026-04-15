@@ -4,7 +4,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import 'package:http/http.dart' as http;
-import '../../../core/utils/analytics_service.dart' as AnalyticsService show logEvent;
+import '../../../core/utils/analytics_service.dart'
+    as analytics_service
+    show logEvent;
 import "../../../domain/entities/news_article.dart";
 import '../../../core/utils/analytics_service.dart';
 
@@ -12,15 +14,19 @@ import '../../../core/utils/analytics_service.dart';
 class OfflineService {
   const OfflineService();
 
-  Future<bool> downloadArticleInstance(NewsArticle article) => downloadArticle(article);
-  Future<bool> isArticleDownloadedInstance(String url) => isArticleDownloaded(url);
-  Future<List<NewsArticle>> getDownloadedArticlesInstance() => getDownloadedArticles();
+  Future<bool> downloadArticleInstance(NewsArticle article) =>
+      downloadArticle(article);
+  Future<bool> isArticleDownloadedInstance(String url) =>
+      isArticleDownloaded(url);
+  Future<List<NewsArticle>> getDownloadedArticlesInstance() =>
+      getDownloadedArticles();
   Future<bool> deleteArticleInstance(String url) => deleteArticle(url);
   Future<bool> clearAllInstance() => clearAll();
   Future<int> getStorageUsedInstance() => getStorageUsed();
   Future<int> getDownloadedCountInstance() => getDownloadedCount();
 
   static Database? _database;
+  static const String _databaseName = 'offline_articles.db';
   static const String _tableName = 'offline_articles';
   static const String _imagesDir = 'offline_images';
 
@@ -28,7 +34,7 @@ class OfflineService {
     if (_database != null) return;
 
     final documentsDir = await getApplicationDocumentsDirectory();
-    final dbPath = path.join(documentsDir.path, 'offline_articles.db');
+    final dbPath = path.join(documentsDir.path, _databaseName);
 
     _database = await openDatabase(
       dbPath,
@@ -85,7 +91,7 @@ class OfflineService {
       const maxArticles = 100;
       await _enforceMaxCacheSize(maxArticles);
 
-      await AnalyticsService.logEvent(
+      await analytics_service.logEvent(
         name: 'article_downloaded',
         parameters: {'url': article.url},
       );
@@ -145,7 +151,7 @@ class OfflineService {
 
       await _database!.delete(_tableName, where: 'url = ?', whereArgs: [url]);
 
-      await AnalyticsService.logEvent(
+      await analytics_service.logEvent(
         name: 'article_deleted',
         parameters: {'url': url},
       );
@@ -159,7 +165,9 @@ class OfflineService {
 
   static Future<void> _enforceMaxCacheSize(int maxLimit) async {
     try {
-      final countResult = await _database!.rawQuery('SELECT COUNT(*) as count FROM $_tableName');
+      final countResult = await _database!.rawQuery(
+        'SELECT COUNT(*) as count FROM $_tableName',
+      );
       final count = Sqflite.firstIntValue(countResult) ?? 0;
 
       if (count > maxLimit) {
@@ -178,9 +186,13 @@ class OfflineService {
           if (localImagePath != null && localImagePath.isNotEmpty) {
             await _deleteImage(localImagePath);
           }
-          await _database!.delete(_tableName, where: 'url = ?', whereArgs: [url]);
+          await _database!.delete(
+            _tableName,
+            where: 'url = ?',
+            whereArgs: [url],
+          );
         }
-        
+
         debugPrint('Cache eviction: Removed $excess old articles.');
       }
     } catch (e) {
@@ -209,12 +221,33 @@ class OfflineService {
     }
   }
 
+  static Future<void> closeDatabase() async {
+    final db = _database;
+    _database = null;
+    if (db != null && db.isOpen) {
+      await db.close();
+    }
+  }
+
+  static Future<void> deleteStorage() async {
+    await closeDatabase();
+
+    final documentsDir = await getApplicationDocumentsDirectory();
+    final dbPath = path.join(documentsDir.path, _databaseName);
+    await deleteDatabase(dbPath);
+
+    final imagesDir = Directory(path.join(documentsDir.path, _imagesDir));
+    if (await imagesDir.exists()) {
+      await imagesDir.delete(recursive: true);
+    }
+  }
+
   static Future<int> getStorageUsed() async {
     try {
       int totalSize = 0;
 
       final documentsDir = await getApplicationDocumentsDirectory();
-      final dbPath = path.join(documentsDir.path, 'offline_articles.db');
+      final dbPath = path.join(documentsDir.path, _databaseName);
       final dbFile = File(dbPath);
       if (await dbFile.exists()) {
         totalSize += await dbFile.length();
@@ -246,7 +279,6 @@ class OfflineService {
       return 0;
     }
   }
-
 
   static Future<String> _downloadImage(String imageUrl) async {
     try {
@@ -292,9 +324,9 @@ class OfflineService {
       source: map['source'] as String? ?? '',
       publishedAt:
           map['publishedDate'] != null &&
-                  (map['publishedDate'] as String).isNotEmpty
-              ? DateTime.parse(map['publishedDate'] as String)
-              : DateTime.now(),
+              (map['publishedDate'] as String).isNotEmpty
+          ? DateTime.parse(map['publishedDate'] as String)
+          : DateTime.now(),
     );
   }
 

@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_classes_with_only_static_members
+
 // lib/features/onboarding/onboarding_screen.dart
 //
 // PERF FIXES vs original:
@@ -17,6 +19,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../core/navigation/app_paths.dart';
+import '../../../core/theme/theme.dart' show AppColorsExtension;
+
+extension _CtxColors on BuildContext {
+  AppColorsExtension get colors =>
+      Theme.of(this).extension<AppColorsExtension>()!;
+}
 
 class _T {
   static const double displaySize = 38.0;
@@ -30,16 +38,10 @@ class _T {
   static const Duration press = Duration(milliseconds: 90);
   static const Duration release = Duration(milliseconds: 480);
 
-  static const List<Color> slideAccents = [
-    Color(0xFF2563EB),
-    Color(0xFF059669),
-    Color(0xFFDC2626),
-  ];
-  static const List<Color> slideAccentsDark = [
-    Color(0xFF3B82F6),
-    Color(0xFF10B981),
-    Color(0xFFF42A41),
-  ];
+  static List<Color> slideAccents(BuildContext context) {
+    final c = context.colors;
+    return [c.slideBlue, c.slideGreen, c.slideRed];
+  }
 }
 
 class _PageData {
@@ -178,11 +180,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final pages = _getPages(loc);
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accent = isDark
-        ? _T.slideAccentsDark[_currentIndex]
-        : _T.slideAccents[_currentIndex];
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final accents = _T.slideAccents(context);
+    final accent = accents[_currentIndex];
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
@@ -234,9 +236,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                         HapticFeedback.selectionClick();
                       },
                       itemBuilder: (ctx, i) {
-                        final pageAccent = isDark
-                            ? _T.slideAccentsDark[i]
-                            : _T.slideAccents[i];
+                        final pageAccent = accents[i];
 
                         // Non-active pages: skip AnimatedBuilder entirely.
                         // Active page: AnimatedBuilder wraps only the
@@ -558,7 +558,11 @@ class _AnimationBlock extends StatelessWidget {
             fit: BoxFit.contain,
             errorBuilder: (_, _, _) => CustomPaint(
               size: const Size(180, 180),
-              painter: _NewspaperPainter(accent: accent, isDark: isDark),
+              painter: _NewspaperPainter(
+                accent: accent,
+                isDark: isDark,
+                colors: context.colors,
+              ),
             ),
           ),
         ),
@@ -568,13 +572,19 @@ class _AnimationBlock extends StatelessWidget {
 }
 
 class _NewspaperPainter extends CustomPainter {
-  const _NewspaperPainter({required this.accent, required this.isDark});
+  const _NewspaperPainter({
+    required this.accent,
+    required this.isDark,
+    required this.colors,
+  });
   final Color accent;
   final bool isDark;
+  final AppColorsExtension colors;
+
   @override
   void paint(Canvas canvas, Size s) {
-    final base = isDark ? Colors.white : Colors.black;
-    final bg = isDark ? const Color(0xFF1C1C2A) : const Color(0xFFF8F8F0);
+    final base = colors.textPrimary;
+    final bg = colors.card;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(
@@ -753,36 +763,43 @@ class _Tag extends StatelessWidget {
   final Color accent;
   final bool isDark;
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(20),
-      color: isDark ? const Color(0x0FFFFFFF) : const Color(0x0A000000),
-      border: Border.all(
-        color: isDark ? const Color(0x1AFFFFFF) : const Color(0x14000000),
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: isDark
+            ? colors.textPrimary.withValues(alpha: 0.06)
+            : colors.textPrimary.withValues(alpha: 0.04),
+        border: Border.all(
+          color: colors.textPrimary.withValues(alpha: isDark ? 0.12 : 0.08),
+        ),
       ),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 5,
-          height: 5,
-          decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: _T.captionSize,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.3,
-            color: isDark ? const Color(0xB3FFFFFF) : const Color(0x8C000000),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 5,
+            height: 5,
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
           ),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: _T.captionSize,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
+              color: colors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ─── Bottom actions ───────────────────────────────────────
@@ -830,9 +847,7 @@ class _BottomActions extends StatelessWidget {
                         ? accent
                         : i < currentIndex
                         ? accent.withValues(alpha: 0.40)
-                        : isDark
-                        ? const Color(0x1FFFFFFF)
-                        : const Color(0x1A000000),
+                        : context.colors.textHint.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(2),
                     boxShadow: i == currentIndex
                         ? [
@@ -915,17 +930,17 @@ class _CTAButtonState extends State<_CTAButton> {
             children: [
               Text(
                 widget.label,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: context.colors.bg,
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.2,
                 ),
               ),
               const SizedBox(width: 10),
-              const Icon(
+              Icon(
                 Icons.arrow_forward_rounded,
-                color: Colors.white,
+                color: context.colors.bg,
                 size: 18,
               ),
             ],
@@ -947,9 +962,9 @@ class _SkipButton extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: isDark ? const Color(0x12FFFFFF) : const Color(0x0D000000),
+        color: context.colors.textPrimary.withValues(alpha: 0.05),
         border: Border.all(
-          color: isDark ? const Color(0x1FFFFFFF) : const Color(0x14000000),
+          color: context.colors.textPrimary.withValues(alpha: 0.1),
         ),
       ),
       child: Text(
@@ -958,7 +973,7 @@ class _SkipButton extends StatelessWidget {
           fontSize: _T.labelSize,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.2,
-          color: isDark ? const Color(0x8CFFFFFF) : const Color(0x66000000),
+          color: context.colors.textSecondary,
         ),
       ),
     ),

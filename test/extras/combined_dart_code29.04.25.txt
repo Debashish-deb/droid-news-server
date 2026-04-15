@@ -105,7 +105,7 @@ class AppLocalizations {
   String get feedback => _t('প্রতিক্রিয়া', 'Feedback');
   String get rateApp => _t('অ্যাপ রেট দিন', 'Rate this App');
   String get contactSupport => _t('সহায়তা যোগাযোগ', 'Contact Support');
-  String get contactEmail => 'customerservice@dsmobiles.com';
+  String get contactEmail => 'support@appcraftr.store';
   String get mailClientError => _t('মেইল ক্লায়েন্ট চালু করা যায়নি।', 'Could not launch mail client.');
   String get storeOpenError => _t('স্টোর খুলতে অক্ষম।', 'Unable to open store.');
   String get viewArticle => _t('নিবন্ধ দেখুন', 'View Article');
@@ -2845,14 +2845,14 @@ class _AboutScreenState extends State<AboutScreen> {
   Future<void> _launchEmail() async {
     final uri = Uri(
       scheme: 'mailto',
-      path: 'support@dsmobiles.com',
+      path: 'support@appcraftr.store',
       queryParameters: {'subject': 'BDNewsHub App Inquiry'},
     );
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
   Future<void> _launchWebsite() async {
-    final uri = Uri.parse('https://www.dsmobiles.com');
+    final uri = Uri.parse('https://www.appcraftr.store');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -2954,14 +2954,14 @@ class _AboutScreenState extends State<AboutScreen> {
                 children: [
                   _contactRow(
                     context,
-                    label: 'support@dsmobiles.com',
+                    label: 'support@appcraftr.store',
                     icon: Icons.email,
                     onTap: _launchEmail,
                   ),
                   const SizedBox(height: 12),
                   _contactRow(
                     context,
-                    label: 'www.dsmobiles.com',
+                    label: 'www.appcraftr.store',
                     icon: Icons.language,
                     onTap: _launchWebsite,
                   ),
@@ -2977,7 +2977,7 @@ class _AboutScreenState extends State<AboutScreen> {
             ),
             const SizedBox(height: 4),
             Center(
-              child: Text('© ${DateTime.now().year} DreamSD Group',
+              child: Text('© ${DateTime.now().year} AppCraftr',
                   style: theme.textTheme.labelSmall
                       ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.5))),
             ),
@@ -6855,7 +6855,7 @@ class HelpScreen extends StatelessWidget {
   Future<void> _launchEmail() async {
     final Uri emailUri = Uri(
       scheme: 'mailto',
-      path: 'support@dsmobiles.com',
+      path: 'support@appcraftr.store',
       queryParameters: {'subject': 'Help & Support Inquiry'},
     );
     if (await canLaunchUrl(emailUri)) {
@@ -6864,7 +6864,7 @@ class HelpScreen extends StatelessWidget {
   }
 
   Future<void> _launchWebsite() async {
-    final Uri websiteUri = Uri.parse('https://www.dsmobiles.com');
+    final Uri websiteUri = Uri.parse('https://www.appcraftr.store');
     if (await canLaunchUrl(websiteUri)) {
       await launchUrl(websiteUri, mode: LaunchMode.externalApplication);
     }
@@ -9093,7 +9093,7 @@ class AppLocalizations {
   String get feedback => _t('প্রতিক্রিয়া', 'Feedback');
   String get rateApp => _t('অ্যাপ রেট দিন', 'Rate this App');
   String get contactSupport => _t('সহায়তা যোগাযোগ', 'Contact Support');
-  String get contactEmail => 'customerservice@dsmobiles.com';
+  String get contactEmail => 'support@appcraftr.store';
   String get mailClientError => _t('মেইল ক্লায়েন্ট চালু করা যায়নি।', 'Could not launch mail client.');
   String get storeOpenError => _t('স্টোর খুলতে অক্ষম।', 'Unable to open store.');
   String get viewArticle => _t('নিবন্ধ দেখুন', 'View Article');

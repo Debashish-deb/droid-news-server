@@ -459,7 +459,6 @@ class SavedArticlesService {
         'offline_maintenance',
         'Offline Maintenance',
         description: 'Reminders for stale offline article cleanup',
-        importance: Importance.defaultImportance,
       ),
     );
 

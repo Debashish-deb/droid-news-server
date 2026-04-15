@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
+
+import 'adaptive_loading_placeholder.dart';
 
 class LoadingWidget extends StatelessWidget {
   const LoadingWidget({
@@ -15,24 +16,10 @@ class LoadingWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final bool isDark = theme.brightness == Brightness.dark;
-
-    return Semantics(
-      label: 'Loading content',
-      child: Shimmer.fromColors(
-        baseColor: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-        highlightColor: isDark ? Colors.grey.shade600 : Colors.grey.shade100,
-        child: Container(
-          height: height,
-          width: width,
-          decoration: BoxDecoration(
-            color: theme.cardColor,
-            borderRadius: BorderRadius.circular(radius),
-          ),
-        ),
-      ),
+    return AdaptiveLoadingPlaceholder(
+      height: height,
+      width: width,
+      borderRadius: radius,
     );
   }
 }
-

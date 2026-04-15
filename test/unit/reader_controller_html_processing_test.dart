@@ -30,10 +30,17 @@ void main() {
       expect(processed.html.contains('share-tools'), isFalse);
       expect(processed.html.contains('প্রকাশ:'), isFalse);
       expect(
-        processed.html.contains('ইসরায়েলে ক্লাস্টার ব্যালিস্টিক'),
+        processed.chunks.any(
+          (chunk) => chunk.text.contains('ইসরায়েলে ক্লাস্টার ব্যালিস্টিক'),
+        ),
         isTrue,
       );
-      expect(processed.html.contains('যুদ্ধ নতুন ধাপে প্রবেশ করেছে'), isTrue);
+      expect(
+        processed.chunks.any(
+          (chunk) => chunk.text.contains('যুদ্ধ নতুন ধাপে প্রবেশ করেছে'),
+        ),
+        isTrue,
+      );
       expect(processed.chunks, isNotEmpty);
     });
 

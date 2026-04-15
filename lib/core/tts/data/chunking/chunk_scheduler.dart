@@ -18,7 +18,7 @@ class ChunkScheduler {
   /// Builds a UI chunk list from [text].
   ///
   /// One [TtsChunk] is emitted per *sentence* (not per arbitrary character
-  /// window), so that [TtsRepositoryImpl] can map engine `sentenceStart`
+  /// window), so that the playback runtime can map engine `sentenceStart`
   /// events directly to chunk indices without any secondary alignment step.
   ///
   /// [title] and [author] are prepended as dedicated chunks when provided so

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// High-performance animated text widget that smoothly transitions
-/// text color during theme changes
 class AnimatedThemeText extends StatelessWidget {
   const AnimatedThemeText(
     this.data, {
@@ -23,7 +21,7 @@ class AnimatedThemeText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedDefaultTextStyle(
-      duration: const Duration(milliseconds: 500), 
+      duration: const Duration(milliseconds: 500),
       curve: Curves.easeInOutCubic,
       style: style ?? DefaultTextStyle.of(context).style,
       textAlign: textAlign,
@@ -34,4 +32,3 @@ class AnimatedThemeText extends StatelessWidget {
     );
   }
 }
-

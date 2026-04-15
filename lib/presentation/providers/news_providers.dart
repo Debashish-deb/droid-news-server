@@ -13,7 +13,6 @@ import '../../core/persistence/offline_handler.dart';
 import '../../infrastructure/ai/ranking/pipeline/ranking_pipeline.dart';
 import '../../infrastructure/ai/engine/quantized_tfidf_engine.dart';
 import '../../core/di/providers.dart';
-import '../../infrastructure/services/ml/categorization_helper.dart';
 // import '../../infrastructure/services/ml/enhanced_ai_categorizer.dart'; // Removed usage
 
 @immutable
@@ -98,8 +97,11 @@ class NewsNotifier extends StateNotifier<NewsState> {
   Locale? _lastLocale;
   final Map<String, int> _loadTokens = <String, int>{};
   final Map<String, int> _streamSignatures = <String, int>{};
+  final Map<String, int> _loadingRefCounts = <String, int>{};
   final Set<String> _firstNonEmptyEmissionLogged = <String>{};
   final Set<String> _networkSyncInFlightKeys = <String>{};
+  final Map<String, DateTime> _lastSuccessfulNetworkSyncAt =
+      <String, DateTime>{};
   static const int _pageSize = 20;
   static const int _maxRankInput = 220;
 
@@ -141,6 +143,19 @@ class NewsNotifier extends StateNotifier<NewsState> {
     }
   }
 
+  bool hadRecentSuccessfulNetworkSync(
+    String category,
+    Locale locale, {
+    Duration within = const Duration(seconds: 3),
+  }) {
+    final completedAt =
+        _lastSuccessfulNetworkSyncAt['$category:${locale.languageCode}'];
+    if (completedAt == null) {
+      return false;
+    }
+    return DateTime.now().difference(completedAt) <= within;
+  }
+
   Future<void> loadNews(
     String category,
     Locale locale, {
@@ -158,38 +173,41 @@ class NewsNotifier extends StateNotifier<NewsState> {
     _lastLocale = locale;
     _ensureCategorySlot(category);
 
-    // 1. Ensure we are watching the stream for this category
-    _setupStreamSubscription(category, locale);
+    try {
+      // 1. Ensure we are watching the stream for this category
+      _setupStreamSubscription(category, locale);
 
-    // 2. Clear previous errors for this category
-    final newErrors = Map<String, String?>.from(state.errors);
-    newErrors[category] = null;
-    if (force) {
-      final newPagination = Map<String, bool>.from(state.pagination);
-      final newPages = Map<String, int>.from(state.pages);
-      newPagination[category] = true;
-      newPages[category] = 1;
-      state = state.copyWith(
-        errors: newErrors,
-        pagination: newPagination,
-        pages: newPages,
-      );
-    } else {
-      state = state.copyWith(errors: newErrors);
-    }
+      // 2. Clear previous errors for this category
+      _setCategoryError(category, null);
+      if (force) {
+        final newPagination = Map<String, bool>.from(state.pagination);
+        final newPages = Map<String, int>.from(state.pages);
+        newPagination[category] = true;
+        newPages[category] = 1;
+        state = state.copyWith(pagination: newPagination, pages: newPages);
+      }
 
-    // 3. Trigger background sync
-    final isLoading = state.loading[category] ?? false;
-    final syncKey = '$category:${locale.languageCode}';
-    if (syncWithNetwork &&
-        !isLoading &&
-        !_networkSyncInFlightKeys.contains(syncKey)) {
-      _networkSyncInFlightKeys.add(syncKey);
-      unawaited(
-        _syncWithNetwork(category, locale, force: force).whenComplete(() {
-          _networkSyncInFlightKeys.remove(syncKey);
-        }),
-      );
+      // 3. Trigger background sync
+      final syncKey = '$category:${locale.languageCode}';
+      if (syncWithNetwork && !_networkSyncInFlightKeys.contains(syncKey)) {
+        _networkSyncInFlightKeys.add(syncKey);
+        _refreshCategoryLoading(category);
+        unawaited(
+          _syncWithNetwork(category, locale, force: force).whenComplete(() {
+            _networkSyncInFlightKeys.remove(syncKey);
+            if (mounted) {
+              _refreshCategoryLoading(category);
+            }
+          }),
+        );
+      }
+    } catch (e) {
+      _diag('loadNews failed before sync', <String, Object?>{
+        'category': category,
+        'locale': locale.languageCode,
+        'error': '$e',
+      });
+      _setCategoryError(category, 'Unable to load news right now.');
     }
   }
 
@@ -208,6 +226,7 @@ class NewsNotifier extends StateNotifier<NewsState> {
     }
 
     _streamLocales[category] = locale;
+    _refreshCategoryLoading(category);
     final subscriptionLanguageCode = locale.languageCode;
     _diag('stream subscription active', <String, Object?>{
       'category': category,
@@ -215,83 +234,99 @@ class NewsNotifier extends StateNotifier<NewsState> {
       'hadSubscription': hasSubscription,
     });
 
-    _streamSubs[category] = _newsRepository.watchArticles(category, locale).listen((
-      articles,
-    ) async {
-      // Ignore late emissions from an older locale subscription.
-      if (_streamLocales[category]?.languageCode != subscriptionLanguageCode) {
-        return;
-      }
+    _streamSubs[category] = _newsRepository
+        .watchArticles(category, locale)
+        .listen(
+          (articles) async {
+            // Ignore late emissions from an older locale subscription.
+            if (_streamLocales[category]?.languageCode !=
+                subscriptionLanguageCode) {
+              return;
+            }
 
-      final signature = _buildStreamSignature(articles);
-      if (_streamSignatures[category] == signature) return;
+            final signature = _buildStreamSignature(articles);
+            if (_streamSignatures[category] == signature) return;
 
-      // Guard: Don't replace a populated feed with an empty stream emission.
-      // This prevents the race condition where rapid DB writes during sync
-      // cause intermediate empty states to clear the UI.
-      final existingArticles = state.getArticles(category);
-      if (articles.isEmpty && existingArticles.isNotEmpty) {
-        _diag('skipping empty stream emission', <String, Object?>{
-          'category': category,
-          'existingCount': existingArticles.length,
-        });
-        return;
-      }
+            // Guard: Don't replace a populated feed with an empty stream emission.
+            // This prevents the race condition where rapid DB writes during sync
+            // cause intermediate empty states to clear the UI.
+            final existingArticles = state.getArticles(category);
+            if (articles.isEmpty && existingArticles.isNotEmpty) {
+              _diag('skipping empty stream emission', <String, Object?>{
+                'category': category,
+                'existingCount': existingArticles.length,
+              });
+              return;
+            }
 
-      final nextToken = (_loadTokens[category] ?? 0) + 1;
-      _loadTokens[category] = nextToken;
+            final nextToken = (_loadTokens[category] ?? 0) + 1;
+            _loadTokens[category] = nextToken;
 
-      // Apply AI ranking pipeline with error handling to prevent
-      // isolate crashes from clearing the feed.
-      List<NewsArticle> ranked;
-      final rankingInput = articles.length > _maxRankInput
-          ? articles.take(_maxRankInput).toList(growable: false)
-          : articles;
-      try {
-        ranked = await _rankingPipeline.rank(rankingInput);
-      } catch (e) {
-        _diag('ranking failed', <String, Object?>{
-          'category': category,
-          'error': '$e',
-        });
-        ranked = rankingInput; // Fallback: use unranked articles
-      }
+            // Apply AI ranking pipeline with error handling to prevent
+            // isolate crashes from clearing the feed.
+            List<NewsArticle> ranked;
+            final rankingInput = articles.length > _maxRankInput
+                ? articles.take(_maxRankInput).toList(growable: false)
+                : articles;
+            try {
+              ranked = await _rankingPipeline.rank(
+                rankingInput,
+                prioritizeBangladesh: _isHomeLatestFeed(category),
+              );
+            } catch (e) {
+              _diag('ranking failed', <String, Object?>{
+                'category': category,
+                'error': '$e',
+              });
+              ranked = rankingInput; // Fallback: use unranked articles
+            }
 
-      if (_isHomeLatestFeed(category)) {
-        ranked = _prioritizeBangladeshFeed(ranked);
-      }
+            if (!mounted) return;
 
-      if (!mounted) return;
+            final isStaleEmission = _loadTokens[category] != nextToken;
+            if (isStaleEmission) {
+              final existing = state.getArticles(category);
+              final canRescueColdStart = ranked.isNotEmpty && existing.isEmpty;
+              if (!canRescueColdStart) return;
+              _diag(
+                'applying stale non-empty stream emission to avoid startup empty-state race',
+                <String, Object?>{
+                  'category': category,
+                  'rankedCount': ranked.length,
+                },
+              );
+            }
 
-      final isStaleEmission = _loadTokens[category] != nextToken;
-      if (isStaleEmission) {
-        final existing = state.getArticles(category);
-        final canRescueColdStart = ranked.isNotEmpty && existing.isEmpty;
-        if (!canRescueColdStart) return;
-        _diag(
-          'applying stale non-empty stream emission to avoid startup empty-state race',
-          <String, Object?>{'category': category, 'rankedCount': ranked.length},
+            if (ranked.isNotEmpty &&
+                !_firstNonEmptyEmissionLogged.contains(category)) {
+              _firstNonEmptyEmissionLogged.add(category);
+              _diag('first non-empty stream emission', <String, Object?>{
+                'category': category,
+                'locale': subscriptionLanguageCode,
+                'count': ranked.length,
+                'staleEmission': isStaleEmission,
+                'newestPublishedAt': ranked.first.publishedAt.toIso8601String(),
+              });
+            }
+            _streamSignatures[category] = signature;
+
+            final newArticles = Map<String, List<NewsArticle>>.from(
+              state.articles,
+            );
+            newArticles[category] = ranked;
+
+            state = state.copyWith(articles: newArticles);
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            _diag('stream subscription failed', <String, Object?>{
+              'category': category,
+              'locale': subscriptionLanguageCode,
+              'error': '$error',
+            });
+            if (!mounted) return;
+            _setCategoryError(category, 'Unable to load news right now.');
+          },
         );
-      }
-
-      if (ranked.isNotEmpty &&
-          !_firstNonEmptyEmissionLogged.contains(category)) {
-        _firstNonEmptyEmissionLogged.add(category);
-        _diag('first non-empty stream emission', <String, Object?>{
-          'category': category,
-          'locale': subscriptionLanguageCode,
-          'count': ranked.length,
-          'staleEmission': isStaleEmission,
-          'newestPublishedAt': ranked.first.publishedAt.toIso8601String(),
-        });
-      }
-      _streamSignatures[category] = signature;
-
-      final newArticles = Map<String, List<NewsArticle>>.from(state.articles);
-      newArticles[category] = ranked;
-
-      state = state.copyWith(articles: newArticles);
-    });
   }
 
   @override
@@ -329,10 +364,8 @@ class NewsNotifier extends StateNotifier<NewsState> {
       'locale': locale.languageCode,
       'force': force,
     });
-    final newLoading = Map<String, bool>.from(state.loading);
-    newLoading[category] = true;
-    state = state.copyWith(loading: newLoading);
     var syncedCount = 0;
+    var syncSucceeded = false;
 
     try {
       final syncScopeCategory = category.toLowerCase() == 'all'
@@ -344,27 +377,35 @@ class NewsNotifier extends StateNotifier<NewsState> {
         category: syncScopeCategory,
       );
       if (!mounted) return;
-      result.fold((failure) {
-        if (state.getArticles(category).isNotEmpty) return;
-        final newErrors = Map<String, String?>.from(state.errors);
-        newErrors[category] = failure.userMessage;
-        state = state.copyWith(errors: newErrors);
-      }, (count) => syncedCount = count);
+      result.fold(
+        (failure) {
+          if (state.getArticles(category).isNotEmpty) return;
+          final newErrors = Map<String, String?>.from(state.errors);
+          newErrors[category] = failure.userMessage;
+          state = state.copyWith(errors: newErrors);
+        },
+        (count) {
+          syncedCount = count;
+          syncSucceeded = true;
+        },
+      );
     } catch (e) {
       _diag('sync failed', <String, Object?>{
         'category': category,
         'error': '$e',
       });
       if (mounted && state.getArticles(category).isEmpty) {
-        final newErrors = Map<String, String?>.from(state.errors);
-        newErrors[category] = 'Failed to refresh news. Please try again.';
-        state = state.copyWith(errors: newErrors);
+        _setCategoryError(
+          category,
+          'Failed to refresh news. Please try again.',
+        );
       }
     } finally {
+      if (syncSucceeded) {
+        _lastSuccessfulNetworkSyncAt['$category:${locale.languageCode}'] =
+            DateTime.now();
+      }
       if (mounted) {
-        final resetLoading = Map<String, bool>.from(state.loading);
-        resetLoading[category] = false;
-        state = state.copyWith(loading: resetLoading);
         _diag('network sync end', <String, Object?>{
           'category': category,
           'locale': locale.languageCode,
@@ -379,76 +420,115 @@ class NewsNotifier extends StateNotifier<NewsState> {
   Future<void> loadMoreNews(String category, Locale locale) async {
     if (state.loading[category] == true || !state.hasMore(category)) return;
 
-    final updatedLoading = Map<String, bool>.from(state.loading);
-    updatedLoading[category] = true;
-    state = state.copyWith(loading: updatedLoading);
+    _setCategoryLoading(category, true);
 
-    final currentArticles = state.getArticles(category);
-    final nextPage = state.pageFor(category) + 1;
+    try {
+      final currentArticles = state.getArticles(category);
+      final nextPage = state.pageFor(category) + 1;
 
-    final result = await _newsRepository.getArticlesByCategory(
-      category,
-      page: nextPage,
-      language: locale.languageCode,
-    );
-    if (!mounted) return;
+      final result = await _newsRepository.getArticlesByCategory(
+        category,
+        page: nextPage,
+        language: locale.languageCode,
+      );
+      if (!mounted) return;
 
-    await result.fold<Future<void>>(
-      (failure) async {
-        final newLoading = Map<String, bool>.from(state.loading);
-        newLoading[category] = false;
-        final newErrors = Map<String, String?>.from(state.errors);
-        newErrors[category] = failure.userMessage;
-        state = state.copyWith(loading: newLoading, errors: newErrors);
-      },
-      (newArticles) async {
-        if (newArticles.isEmpty) {
+      await result.fold<Future<void>>(
+        (failure) async {
+          _setCategoryLoading(category, false);
+          _setCategoryError(category, failure.userMessage);
+        },
+        (newArticles) async {
+          if (newArticles.isEmpty) {
+            final updatedPagination = Map<String, bool>.from(state.pagination);
+            updatedPagination[category] = false;
+
+            _setCategoryLoading(category, false);
+
+            state = state.copyWith(pagination: updatedPagination);
+            return;
+          }
+
+          // Rank new batch
+          final ranked = await _rankingPipeline.rank(
+            newArticles,
+            prioritizeBangladesh: _isHomeLatestFeed(category),
+          );
+
+          // Prevent duplicates
+          final Set<String> existingUrls = currentArticles
+              .map((a) => a.url)
+              .toSet();
+          final List<NewsArticle> uniqueNew = ranked
+              .where((a) => !existingUrls.contains(a.url))
+              .toList();
+
+          final allArticles = Map<String, List<NewsArticle>>.from(
+            state.articles,
+          );
+          allArticles[category] = [...currentArticles, ...uniqueNew];
+
           final updatedPagination = Map<String, bool>.from(state.pagination);
-          updatedPagination[category] = false;
+          updatedPagination[category] = newArticles.length >= _pageSize;
+          final updatedPages = Map<String, int>.from(state.pages);
+          updatedPages[category] = nextPage;
 
-          final newLoading = Map<String, bool>.from(state.loading);
-          newLoading[category] = false;
+          _setCategoryLoading(category, false);
 
           state = state.copyWith(
-            loading: newLoading,
+            articles: allArticles,
             pagination: updatedPagination,
+            pages: updatedPages,
           );
-          return;
-        }
+        },
+      );
+    } catch (e) {
+      _diag('loadMore failed', <String, Object?>{
+        'category': category,
+        'locale': locale.languageCode,
+        'error': '$e',
+      });
+      _setCategoryLoading(category, false);
+      _setCategoryError(category, 'Unable to load more news right now.');
+    }
+  }
 
-        // Rank new batch
-        var ranked = await _rankingPipeline.rank(newArticles);
-        if (_isHomeLatestFeed(category)) {
-          ranked = _prioritizeBangladeshFeed(ranked);
-        }
+  void _setCategoryError(String category, String? message) {
+    final newErrors = Map<String, String?>.from(state.errors);
+    newErrors[category] = message;
+    state = state.copyWith(errors: newErrors);
+  }
 
-        // Prevent duplicates
-        final Set<String> existingUrls = currentArticles
-            .map((a) => a.url)
-            .toSet();
-        final List<NewsArticle> uniqueNew = ranked
-            .where((a) => !existingUrls.contains(a.url))
-            .toList();
+  void _setCategoryLoading(String category, bool isLoading) {
+    final currentCount = _loadingRefCounts[category] ?? 0;
+    final nextCount = isLoading
+        ? currentCount + 1
+        : (currentCount <= 1 ? 0 : currentCount - 1);
 
-        final allArticles = Map<String, List<NewsArticle>>.from(state.articles);
-        allArticles[category] = [...currentArticles, ...uniqueNew];
+    if (nextCount == 0) {
+      _loadingRefCounts.remove(category);
+    } else {
+      _loadingRefCounts[category] = nextCount;
+    }
 
-        final newLoading = Map<String, bool>.from(state.loading);
-        newLoading[category] = false;
+    _refreshCategoryLoading(category);
+  }
 
-        final updatedPagination = Map<String, bool>.from(state.pagination);
-        updatedPagination[category] = newArticles.length >= _pageSize;
-        final updatedPages = Map<String, int>.from(state.pages);
-        updatedPages[category] = nextPage;
+  void _refreshCategoryLoading(String category) {
+    final newLoading = Map<String, bool>.from(state.loading);
+    final activeLocaleCode = _streamLocales[category]?.languageCode;
+    final hasActiveLocaleSync =
+        activeLocaleCode != null &&
+        _networkSyncInFlightKeys.contains('$category:$activeLocaleCode');
+    final hasScopedLoading = (_loadingRefCounts[category] ?? 0) > 0;
+    final nextLoading = hasActiveLocaleSync || hasScopedLoading;
 
-        state = state.copyWith(
-          articles: allArticles,
-          loading: newLoading,
-          pagination: updatedPagination,
-          pages: updatedPages,
-        );
-      },
-    );
+    if (newLoading[category] == nextLoading) {
+      return;
+    }
+
+    newLoading[category] = nextLoading;
+    state = state.copyWith(loading: newLoading);
   }
 
   void _ensureCategorySlot(String category) {
@@ -498,80 +578,21 @@ class NewsNotifier extends StateNotifier<NewsState> {
   }
 
   int _buildStreamSignature(List<NewsArticle> articles) {
-    var hash = articles.length;
-    for (final article in articles) {
-      hash = Object.hash(
-        hash,
-        article.url,
-        article.publishedAt.microsecondsSinceEpoch,
-      );
-    }
-    return hash;
+    if (articles.isEmpty) return 0;
+    // High-performance signature check: length + first item + last item
+    // This avoids iterating through hundreds of items on every DB emission.
+    final first = articles.first;
+    final last = articles.last;
+    return Object.hash(
+      articles.length,
+      first.url,
+      first.publishedAt.microsecondsSinceEpoch,
+      last.url,
+      last.publishedAt.microsecondsSinceEpoch,
+    );
   }
 
   bool _isHomeLatestFeed(String category) => category == 'latest';
-
-  List<NewsArticle> _prioritizeBangladeshFeed(List<NewsArticle> articles) {
-    if (articles.length < 10) return articles;
-
-    final bangladesh = <NewsArticle>[];
-    final other = <NewsArticle>[];
-
-    for (final article in articles) {
-      if (_isBangladeshFocused(article)) {
-        bangladesh.add(article);
-      } else {
-        other.add(article);
-      }
-    }
-
-    if (bangladesh.isEmpty || other.isEmpty) return articles;
-
-    // 4:1 mix keeps the feed primarily Bangladesh-focused while still surfacing
-    // some global stories.
-    const bangladeshRun = 4;
-    final mixed = <NewsArticle>[];
-    var bdIndex = 0;
-    var otherIndex = 0;
-
-    while (bdIndex < bangladesh.length || otherIndex < other.length) {
-      for (var i = 0; i < bangladeshRun && bdIndex < bangladesh.length; i++) {
-        mixed.add(bangladesh[bdIndex++]);
-      }
-      if (otherIndex < other.length) {
-        mixed.add(other[otherIndex++]);
-      }
-      if (bdIndex >= bangladesh.length && otherIndex < other.length) {
-        mixed.addAll(other.skip(otherIndex));
-        break;
-      }
-      if (otherIndex >= other.length && bdIndex < bangladesh.length) {
-        mixed.addAll(bangladesh.skip(bdIndex));
-        break;
-      }
-    }
-
-    return mixed;
-  }
-
-  bool _isBangladeshFocused(NewsArticle article) {
-    if (CategorizationHelper.isBangladeshCentric(
-      title: article.title,
-      description: article.description,
-      content: article.fullContent.isNotEmpty
-          ? article.fullContent
-          : article.snippet,
-    )) {
-      return true;
-    }
-
-    final source = article.source.toLowerCase();
-    final url = article.url.toLowerCase();
-    return source.contains('bangladesh') ||
-        source.contains('dhaka') ||
-        source.contains('bdnews') ||
-        url.contains('.bd/');
-  }
 }
 
 /// Main news provider

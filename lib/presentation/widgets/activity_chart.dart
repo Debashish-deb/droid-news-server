@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/theme_skeleton.dart';
 
-/// Simple activity chart for weekly reading stats
 class ActivityChart extends StatelessWidget {
   const ActivityChart({
     required this.data,
@@ -11,7 +11,7 @@ class ActivityChart extends StatelessWidget {
   });
 
   final List<double> data;
-  final List<String> labels; 
+  final List<String> labels;
   final double height;
   final Color barColor;
 
@@ -25,11 +25,10 @@ class ActivityChart extends StatelessWidget {
         children: List.generate(data.length, (index) {
           return Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              padding: ThemeSkeleton.shared.insetsSymmetric(horizontal: 4),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-              
                   Expanded(
                     child: TweenAnimationBuilder<double>(
                       duration: Duration(milliseconds: 800 + (index * 100)),
@@ -43,10 +42,13 @@ class ActivityChart extends StatelessWidget {
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
-                                colors: [barColor.withValues(alpha: 0.8), barColor],
+                                colors: [
+                                  barColor.withValues(alpha: 0.8),
+                                  barColor,
+                                ],
                               ),
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(4),
+                              borderRadius: BorderRadius.vertical(
+                                top: ThemeSkeleton.shared.radius(4),
                               ),
                             ),
                           ),
@@ -54,8 +56,8 @@ class ActivityChart extends StatelessWidget {
                       },
                     ),
                   ),
-                  const SizedBox(height: 8),
-              
+                  const SizedBox(height: ThemeSkeleton.size8),
+
                   Text(
                     labels[index],
                     style: TextStyle(
@@ -72,4 +74,3 @@ class ActivityChart extends StatelessWidget {
     );
   }
 }
-

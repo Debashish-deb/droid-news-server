@@ -22,7 +22,7 @@ class SessionManager {
   Future<bool> validateSession() async {
     final bool isAppDisabled = _remoteConfig.getBool('kill_switch_enabled');
     if (isAppDisabled) {
-      debugPrint('🚨 GLOBAL KILL SWITCH TRIGGERED');
+      debugPrint(' GLOBAL KILL SWITCH TRIGGERED');
       return false;
     }
 
@@ -32,7 +32,7 @@ class SessionManager {
     final effectiveMinTrust = minTrust > 0 ? minTrust : 0.4;
 
     if (trustScore < effectiveMinTrust) {
-      debugPrint('🚨 DEVICE TRUST SCORE TOO LOW: $trustScore < $effectiveMinTrust');
+      debugPrint(' DEVICE TRUST SCORE TOO LOW: $trustScore < $effectiveMinTrust');
       return false;
     }
 

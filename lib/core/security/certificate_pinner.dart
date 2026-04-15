@@ -49,7 +49,6 @@ class CertificatePinner {
     if (kReleaseMode) return false; // ABSOLUTE — cannot be overridden
     return const bool.fromEnvironment(
       'ALLOW_INSECURE_CERTS',
-      defaultValue: false, // Opt-in even in debug
     );
   }
 

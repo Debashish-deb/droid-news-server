@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../presentation/providers/tab_providers.dart';
 import '../presentation/widgets/bottom_nav_bar.dart' show BottomNavBar;
+import '../presentation/widgets/premium_background.dart';
 
 /// Root shell screen that hosts the [StatefulNavigationShell].
 ///
@@ -89,24 +92,22 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // `PopScope` is the modern replacement for deprecated `WillPopScope`.
-    // `canPop: false` always intercepts the back gesture so our handler runs.
-    // `onPopInvokedWithResult` fires after the pop decision; we use a custom
-    // flow so we control navigation manually inside `_onPopRequested`.
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return; // PopScope already handled it (canPop was true)
+        if (didPop) return;
         final navigator = Navigator.of(context);
         final allow = await _onPopRequested();
         if (allow && mounted) {
-          // Re-invoke the system back so the OS can exit the app
           navigator.pop();
         }
       },
       child: Scaffold(
-        extendBody: true, // content draws behind the translucent nav bar
-        body: widget.navigationShell,
+        backgroundColor: Colors.transparent,
+        extendBody: true,
+        body: PremiumBackground(
+          child: RepaintBoundary(child: widget.navigationShell),
+        ),
         bottomNavigationBar: BottomNavBar(
           navigationShell: widget.navigationShell,
         ),

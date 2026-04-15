@@ -1,4 +1,3 @@
-import 'dart:async' show unawaited;
 import 'package:firebase_core/firebase_core.dart';
 
 import 'package:flutter/foundation.dart';
@@ -9,7 +8,6 @@ import '../navigation/app_paths.dart';
 import '../security/security_service.dart';
 import '../services/splash_service.dart';
 import 'firebase_bootstrapper.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 enum StartupState { loading, ready, firebaseUnavailable, blocked }
 
@@ -66,31 +64,17 @@ class StartupBootstrapRunner {
   StartupBootstrapRunner({
     required SharedPreferences prefs,
     required SecurityService securityService,
-    required GoogleSignIn googleSignIn,
     this.firebaseTimeout = const Duration(milliseconds: 10000),
     this.sslTimeout = const Duration(milliseconds: 5000),
   }) : _prefs = prefs,
-       _securityService = securityService,
-       _googleSignIn = googleSignIn;
+       _securityService = securityService;
 
   final SharedPreferences _prefs;
   final SecurityService _securityService;
-  final GoogleSignIn _googleSignIn;
   final Duration firebaseTimeout;
   final Duration sslTimeout;
 
-  Future<StartupSnapshot> bootstrap() async {
-    // Do not let Google account pre-warm block first route resolution.
-    unawaited(
-      _googleSignIn
-          .signInSilently()
-          .timeout(const Duration(seconds: 10))
-          .catchError((e) {
-            debugPrint('⚠️ Google pre-warm failed: $e');
-            return null;
-          }),
-    );
-
+  Future<StartupSnapshot> bootstrap({String? resolvedInitialRoute}) async {
     Object? firebaseError;
     var firebaseReady = Firebase.apps.isNotEmpty;
 
@@ -116,11 +100,15 @@ class StartupBootstrapRunner {
       );
     }
 
-    String resolvedRoute = AppPaths.home;
-    try {
-      resolvedRoute = await SplashService(prefs: _prefs).resolveInitialRoute();
-    } catch (error) {
-      debugPrint('⚠️ Startup route resolution failed: $error');
+    var resolvedRoute = resolvedInitialRoute ?? AppPaths.home;
+    if (resolvedInitialRoute == null) {
+      try {
+        resolvedRoute = await SplashService(
+          prefs: _prefs,
+        ).resolveInitialRoute();
+      } catch (error) {
+        debugPrint('⚠️ Startup route resolution failed: $error');
+      }
     }
 
     if (!firebaseReady) {

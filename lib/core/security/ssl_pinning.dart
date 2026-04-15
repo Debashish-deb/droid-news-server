@@ -4,11 +4,9 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
 
-import '../errors/security_exception.dart';
 import 'certificate_pinner.dart';
 
 class SSLPinning {
@@ -20,30 +18,7 @@ class SSLPinning {
   static bool _isInitialized = false;
 
   static Future<void> initialize() async {
-    if (_isInitialized) {
-      return;
-    }
-
-    // Keep the trust store empty so pinned hosts must pass fingerprint checks.
-    _strictContext = SecurityContext();
-    for (final policy in CertificatePinner.policies) {
-      final assetPath = policy.certificateAssetPath;
-      if (assetPath == null) {
-        continue;
-      }
-
-      try {
-        await rootBundle.load(assetPath);
-      } catch (error) {
-        throw SecurityException(
-          'Pinned certificate asset missing for ${policy.host}: $assetPath',
-          'missing_pinned_certificate_asset',
-        );
-      }
-    }
-
-    _isInitialized = true;
-    if (kDebugMode) debugPrint('🔐 SSL pinning initialized');
+    _ensureInitialized();
   }
 
   static http.Client createHttpClient() {
@@ -110,13 +85,8 @@ class SSLPinning {
   static HttpClient _buildDefaultHttpClient() => HttpClient();
 
   static HttpClient _buildStrictHttpClient() {
-    final strictContext = _strictContext;
-    if (strictContext == null) {
-      throw const SecurityException(
-        'SSLPinning not initialized before strict client request.',
-        'ssl_pinning_not_initialized',
-      );
-    }
+    _ensureInitialized();
+    final strictContext = _strictContext!;
 
     final client = HttpClient(context: strictContext);
     client.badCertificateCallback = (cert, host, port) {
@@ -129,12 +99,14 @@ class SSLPinning {
       uri.scheme == 'https' && CertificatePinner.isPinnedHost(uri.host);
 
   static void _ensureInitialized() {
-    if (!_isInitialized) {
-      throw const SecurityException(
-        'HTTP client requested before SSL pinning initialization.',
-        'ssl_pinning_not_initialized',
-      );
+    if (_isInitialized) {
+      return;
     }
+
+    // Keep the trust store empty so pinned hosts must pass fingerprint checks.
+    _strictContext = SecurityContext();
+    _isInitialized = true;
+    if (kDebugMode) debugPrint('🔐 SSL pinning initialized');
   }
 }
 

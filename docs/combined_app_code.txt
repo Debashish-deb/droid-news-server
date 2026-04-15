@@ -331,7 +331,7 @@ abstract class AppLocalizations {
   /// No description provided for @contactEmail.
   ///
   /// In en, this message translates to:
-  /// **'customerservice@dsmobiles.com'**
+  /// **'support@appcraftr.store'**
   String get contactEmail;
 
   /// No description provided for @mailClientError.
@@ -691,7 +691,7 @@ abstract class AppLocalizations {
   /// No description provided for @companyFooter.
   ///
   /// In en, this message translates to:
-  /// **'© {year} DreamSD Group'**
+  /// **'© {year} AppCraftr'**
   String companyFooter(Object year);
 
   /// No description provided for @magazines.
@@ -2984,7 +2984,7 @@ class AppLocalizationsBn extends AppLocalizations {
   String get contactSupport => 'সহায়তা দলের সাথে যোগাযোগ করুন';
 
   @override
-  String get contactEmail => 'customerservice@dsmobiles.com';
+  String get contactEmail => 'support@appcraftr.store';
 
   @override
   String get mailClientError => 'মেইল ক্লায়েন্ট খুলতে ব্যর্থ হয়েছে।';
@@ -3172,7 +3172,7 @@ class AppLocalizationsBn extends AppLocalizations {
 
   @override
   String companyFooter(Object year) {
-    return '© $year ড্রিমএসডি গ্রুপ';
+    return '© $year AppCraftr';
   }
 
   @override
@@ -4420,7 +4420,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get contactSupport => 'Contact Support';
 
   @override
-  String get contactEmail => 'customerservice@dsmobiles.com';
+  String get contactEmail => 'support@appcraftr.store';
 
   @override
   String get mailClientError => 'Could not launch mail client.';
@@ -4605,7 +4605,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String companyFooter(Object year) {
-    return '© $year DreamSD Group';
+    return '© $year AppCraftr';
   }
 
   @override
@@ -30115,8 +30115,8 @@ class RemoteConfigService {
   
       await _remoteConfig.setDefaults(<String, dynamic>{
         'premium_whitelist': jsonEncode([
-          'admin@bdnewsreader.com',
-          'support@bdnewsreader.com',
+          'support@appcraftr.store',
+          'support@appcraftr.store',
         ]), 
         'enable_special_offers': false,
         'welcome_message': 'Welcome to BD News Reader',
@@ -42329,7 +42329,7 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
   }
 
   Future<void> _openPrivacyPolicy() async {
-    const url = 'https://droid-e9db9.web.app/privacy.html';
+    const url = 'https://www.appcraftr.store/privacy.html';
     final uri = Uri.parse(url);
     
     try {
@@ -42348,7 +42348,7 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
   }
 
   Future<void> _openTermsOfService() async {
-    const url = 'https://droid-e9db9.web.app/terms.html';
+    const url = 'https://www.appcraftr.store/terms.html';
     final uri = Uri.parse(url);
     
     try {
@@ -48365,7 +48365,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
     final AppLocalizations loc = AppLocalizations.of(context);
     final Uri emailUri = Uri(
       scheme: 'mailto',
-      path: 'customerservice@dsmobiles.com',
+      path: 'support@appcraftr.store',
       queryParameters: <String, dynamic>{'subject': loc.helpInquiry},
     );
     if (await canLaunchUrl(emailUri)) {
@@ -48379,7 +48379,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
   }
 
   Future<void> _launchWebsite() async {
-    final Uri uri = Uri.parse('https://www.dsmobiles.com');
+    final Uri uri = Uri.parse('https://www.appcraftr.store');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -48532,25 +48532,25 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       _buildContactTile(
-                        label: 'customerservice@dsmobiles.com',
+                        label: 'support@appcraftr.store',
                         icon: Icons.email,
                         onTap: _launchEmail,
                         isDark: isActuallyDark,
                         onLongPress:
                             () => _copyToClipboard(
-                              'customerservice@dsmobiles.com',
+                              'support@appcraftr.store',
                               'Email',
                             ),
                       ),
                       const SizedBox(height: 12),
                       _buildContactTile(
-                        label: 'www.dsmobiles.com',
+                        label: 'www.appcraftr.store',
                         icon: Icons.language,
                         onTap: _launchWebsite,
                         isDark: isActuallyDark,
                         onLongPress:
                             () => _copyToClipboard(
-                              'https://www.dsmobiles.com',
+                              'https://www.appcraftr.store',
                               'Website',
                             ),
                       ),
@@ -48570,7 +48570,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '© ${localizeNumber(DateTime.now().year.toString(), langCode)} DreamSD Group',
+                        '© ${localizeNumber(DateTime.now().year.toString(), langCode)} AppCraftr',
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: tertiaryTextColor,
                           fontFamily: AppTypography.fontFamily,
@@ -68639,7 +68639,7 @@ class HelpScreen extends ConsumerWidget {
   Future<void> _launchEmail(String subject) async {
     final Uri emailUri = Uri(
       scheme: 'mailto',
-      path: 'customerservice@dsmobiles.com',
+      path: 'support@appcraftr.store',
       queryParameters: <String, dynamic>{'subject': subject},
     );
     if (await canLaunchUrl(emailUri)) {
@@ -68648,7 +68648,7 @@ class HelpScreen extends ConsumerWidget {
   }
 
   Future<void> _launchWebsite() async {
-    final Uri websiteUri = Uri.parse('https://www.dsmobiles.com');
+    final Uri websiteUri = Uri.parse('https://www.appcraftr.store');
     if (await canLaunchUrl(websiteUri)) {
       await launchUrl(websiteUri, mode: LaunchMode.externalApplication);
     }

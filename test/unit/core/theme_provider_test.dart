@@ -2,6 +2,7 @@ import 'package:bdnewsreader/presentation/providers/app_settings_providers.dart'
     show AppSettingsNotifier;
 import 'package:bdnewsreader/presentation/providers/language_providers.dart'
     show LanguageNotifier;
+import 'package:bdnewsreader/application/identity/entitlement_policy.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,6 +23,10 @@ import 'theme_provider_test.mocks.dart';
 
 @GenerateMocks([SharedPreferences])
 void main() {
+  Future<void> waitForThemePersist() {
+    return Future<void>.delayed(const Duration(milliseconds: 260));
+  }
+
   provideDummy<Either<AppFailure, AppThemeMode>>(
     const Right(AppThemeMode.system),
   );
@@ -32,16 +37,14 @@ void main() {
   late ThemeNotifier themeNotifier;
   late SettingsRepositoryImpl repository;
   late _MockSyncOrchestrator mockSync;
-  late _MockPremiumRepository mockPremiumRepository;
+  late _MockPremiumRepository freePremiumRepository;
 
   setUp(() {
     mockPrefs = MockSharedPreferences();
-    mockPremiumRepository = _MockPremiumRepository();
-    // No need to stub mockPremiumRepository.premiumStatusStream here
-    // because it's already overridden in the _MockPremiumRepository class.
+    freePremiumRepository = _MockPremiumRepository();
 
-    repository = SettingsRepositoryImpl(mockPrefs);
     mockSync = _MockSyncOrchestrator();
+    repository = SettingsRepositoryImpl(mockPrefs);
     // Default mock behavior
     when(mockPrefs.getString('theme')).thenReturn(null);
     when(mockPrefs.getDouble('reader_line_height')).thenReturn(null);
@@ -51,41 +54,83 @@ void main() {
   });
 
   test('Initializes with system default when no prefs', () async {
-    themeNotifier = ThemeNotifier(repository, mockSync, mockPremiumRepository);
+    themeNotifier = ThemeNotifier(repository, mockSync, freePremiumRepository);
     await themeNotifier.initialize();
     expect(themeNotifier.current.mode, AppThemeMode.system);
   });
 
-  test('Initializes with stored legacy dark theme as system', () async {
+  test('Initializes with stored dark theme preserved as dark', () async {
     when(mockPrefs.getString('theme')).thenReturn(AppThemeMode.dark.name);
-    themeNotifier = ThemeNotifier(repository, mockSync, mockPremiumRepository);
+    themeNotifier = ThemeNotifier(repository, mockSync, freePremiumRepository);
     await themeNotifier.initialize();
-    expect(themeNotifier.current.mode, AppThemeMode.system);
+    expect(themeNotifier.current.mode, AppThemeMode.dark);
   });
 
-  test('setTheme normalizes legacy dark selection to system', () async {
-    themeNotifier = ThemeNotifier(repository, mockSync, mockPremiumRepository);
+  test('setTheme persists dark for free users', () async {
+    themeNotifier = ThemeNotifier(repository, mockSync, freePremiumRepository);
     await themeNotifier.initialize();
 
     await themeNotifier.setTheme(AppThemeMode.dark);
+    await waitForThemePersist();
 
-    expect(themeNotifier.current.mode, AppThemeMode.system);
-    verifyNever(mockPrefs.setString('theme', any));
+    expect(themeNotifier.current.mode, AppThemeMode.dark);
+    verify(mockPrefs.setString('theme', AppThemeMode.dark.name)).called(1);
   });
 
-  test('setTheme keeps amoled selection and persists it', () async {
-    themeNotifier = ThemeNotifier(repository, mockSync, mockPremiumRepository);
+  test('legacy amoled theme normalizes to dark', () async {
+    when(mockPrefs.getString('theme')).thenReturn('amoled');
+    themeNotifier = ThemeNotifier(repository, mockSync, freePremiumRepository);
     await themeNotifier.initialize();
 
-    await themeNotifier.setTheme(AppThemeMode.amoled);
+    expect(themeNotifier.current.mode, AppThemeMode.dark);
+  });
 
-    expect(themeNotifier.current.mode, AppThemeMode.amoled);
-    verify(mockPrefs.setString('theme', AppThemeMode.amoled.name)).called(1);
+  test('legacy light theme normalizes to system', () async {
+    when(mockPrefs.getString('theme')).thenReturn('light');
+    themeNotifier = ThemeNotifier(repository, mockSync, freePremiumRepository);
+    await themeNotifier.initialize();
+
+    expect(themeNotifier.current.mode, AppThemeMode.system);
+  });
+
+  test('setTheme allows dark for free users', () async {
+    themeNotifier = ThemeNotifier(repository, mockSync, freePremiumRepository);
+    await themeNotifier.initialize();
+
+    await themeNotifier.setTheme(AppThemeMode.dark);
+    await waitForThemePersist();
+
+    expect(
+      EntitlementPolicy.canUseTheme(SubscriptionTier.free, AppThemeMode.dark),
+      isTrue,
+    );
+    expect(themeNotifier.current.mode, AppThemeMode.dark);
+    verify(mockPrefs.setString('theme', AppThemeMode.dark.name)).called(1);
+  });
+
+  test('setTheme persists bangladesh theme for free users', () async {
+    themeNotifier = ThemeNotifier(repository, mockSync, freePremiumRepository);
+    await themeNotifier.initialize();
+
+    await themeNotifier.setTheme(AppThemeMode.bangladesh);
+    await waitForThemePersist();
+
+    expect(
+      EntitlementPolicy.canUseTheme(
+        SubscriptionTier.free,
+        AppThemeMode.bangladesh,
+      ),
+      isTrue,
+    );
+    expect(themeNotifier.current.mode, AppThemeMode.bangladesh);
+    verify(
+      mockPrefs.setString('theme', AppThemeMode.bangladesh.name),
+    ).called(1);
   });
 
   test('Reader preferences update correctly', () async {
     when(mockPrefs.getDouble('reader_contrast')).thenReturn(1.5);
-    themeNotifier = ThemeNotifier(repository, mockSync, mockPremiumRepository);
+    themeNotifier = ThemeNotifier(repository, mockSync, freePremiumRepository);
     themeNotifier.initializeSync();
     expect(themeNotifier.current.readerContrast, 1.5);
   });

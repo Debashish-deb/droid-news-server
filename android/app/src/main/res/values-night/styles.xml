@@ -20,9 +20,6 @@
         <!-- GPU rendering active from the very first frame -->
         <item name="android:hardwareAccelerated">true</item>
 
-        <!-- Never let the OS invert our carefully chosen dark palette -->
-        <item name="android:forceDarkAllowed">false</item>
-
         <!-- True edge-to-edge: extend behind both system bars -->
         <item name="android:windowFullscreen">false</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
@@ -31,10 +28,6 @@
 
         <!-- Light icons are wrong on dark — use white/light icon tints -->
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
-
-        <!-- Render behind notch / punch-hole camera -->
-        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
 
         <!-- Strip all title/action bar chrome -->
         <item name="android:windowNoTitle">true</item>
@@ -67,10 +60,6 @@
 
         <!-- White/light icon tints for dark backgrounds -->
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
-
-        <!-- Continue rendering behind display cutout -->
-        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
 
         <!-- Smooth shared-element and page transitions -->
         <item name="android:windowActivityTransitions">true</item>
@@ -84,9 +73,6 @@
         <!-- No title bar chrome -->
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBar">false</item>
-
-        <!-- Prevent OS from auto-darkening our already-dark UI -->
-        <item name="android:forceDarkAllowed">false</item>
 
     </style>
 

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../domain/entities/news_article.dart';
 import '../../../providers/news_providers.dart';
 import '../../../../application/ai/ai_service.dart';
+import '../../../providers/feature_providers.dart'
+    show localLearningEngineProvider;
 
 import '../../../../core/utils/source_logos.dart';
 
@@ -197,6 +199,7 @@ class SearchIntelligenceNotifier
       'latest news',
       'trending now',
     ];
+    seeded.insertAll(0, _ref.read(localLearningEngineProvider).topQueries(limit: 6));
 
     for (final topic in topics) {
       final label = topic.label.trim();

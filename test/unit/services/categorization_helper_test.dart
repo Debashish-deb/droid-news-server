@@ -127,9 +127,18 @@ void main() {
     test(
       'TC-CAT-008: AI shadow collection is enabled only for home feed categories',
       () {
-        expect(CategorizationHelper.shouldCollectAiSignalsForFeed('latest'), true);
-        expect(CategorizationHelper.shouldCollectAiSignalsForFeed('home'), true);
-        expect(CategorizationHelper.shouldCollectAiSignalsForFeed('mixed'), true);
+        expect(
+          CategorizationHelper.shouldCollectAiSignalsForFeed('latest'),
+          true,
+        );
+        expect(
+          CategorizationHelper.shouldCollectAiSignalsForFeed('home'),
+          true,
+        );
+        expect(
+          CategorizationHelper.shouldCollectAiSignalsForFeed('mixed'),
+          true,
+        );
 
         expect(
           CategorizationHelper.shouldCollectAiSignalsForFeed('national'),
@@ -143,17 +152,14 @@ void main() {
       },
     );
 
-    test(
-      'TC-CAT-009: Bengali entertainment soft markers are detected',
-      () {
-        final hasSoft = CategorizationHelper.hasEntertainmentSoftKeywords(
-          title: 'নতুন সিনেমার ট্রেলার প্রকাশ, শোবিজ তারকাদের উচ্ছ্বাস',
-          description: 'ওটিটি প্ল্যাটফর্মে মুক্তি পাবে জনপ্রিয় অভিনেত্রীর ছবি',
-        );
+    test('TC-CAT-009: Bengali entertainment soft markers are detected', () {
+      final hasSoft = CategorizationHelper.hasEntertainmentSoftKeywords(
+        title: 'নতুন সিনেমার ট্রেলার প্রকাশ, শোবিজ তারকাদের উচ্ছ্বাস',
+        description: 'ওটিটি প্ল্যাটফর্মে মুক্তি পাবে জনপ্রিয় অভিনেত্রীর ছবি',
+      );
 
-        expect(hasSoft, isTrue);
-      },
-    );
+      expect(hasSoft, isTrue);
+    });
 
     test(
       'TC-CAT-010: Bengali entertainment headline categorizes as entertainment',
@@ -258,5 +264,41 @@ void main() {
         expect(hasInternational, isFalse);
       },
     );
+
+    test(
+      'TC-CAT-018: Governance story with interview/media wording stays national',
+      () {
+        final result = CategorizationHelper.categorizeByKeywords(
+          title: 'জাতীয় সংসদে বাজেট নিয়ে সাক্ষাৎকার দিলেন অর্থমন্ত্রী',
+          description:
+              'সরকারি নীতিমালা ও স্থানীয় প্রশাসনের ভূমিকা নিয়ে আলোচনা',
+        );
+
+        expect(result.category, 'national');
+      },
+    );
+
+    test(
+      'TC-CAT-019: Bangladesh mention needs strong dominance to become international',
+      () {
+        final result = CategorizationHelper.categorizeByKeywords(
+          title:
+              'ঢাকায় বাংলাদেশ-ভারত বৈঠকে কৃষি ও জ্বালানি সহায়তা নিয়ে আলোচনা',
+          description:
+              'বাংলাদেশ সরকারের অগ্রাধিকার ও স্থানীয় বাস্তবায়ন পরিকল্পনা তুলে ধরা হয়',
+        );
+
+        expect(result.category, 'national');
+      },
+    );
+
+    test('TC-CAT-020: Entertainment label requires hard showbiz evidence', () {
+      final result = CategorizationHelper.categorizeByKeywords(
+        title: 'মন্ত্রণালয়ের প্রেস কনফারেন্সে মিডিয়ার প্রশ্ন',
+        description: 'নীতিমালা বাস্তবায়ন নিয়ে সাক্ষাৎকার দিয়েছেন সচিব',
+      );
+
+      expect(result.category, 'national');
+    });
   });
 }

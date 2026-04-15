@@ -7,7 +7,7 @@ import 'failure.dart';
 /// Responsibility Principle. Each use case should do one thing and do it well.
 ///
 /// Type parameters:
-/// - [Type]: The success result type
+/// - [Result]: The success result type
 /// - [Params]: The parameters required to execute the use case
 ///
 /// Example:
@@ -23,13 +23,13 @@ import 'failure.dart';
 ///   }
 /// }
 /// ```
-abstract class UseCase<Type, Params> {
+abstract class UseCase<Result, Params> {
   /// Executes the use case with the given [params].
   ///
   /// Returns an [Either] with:
   /// - [Left] containing an [AppFailure] if the operation failed
-  /// - [Right] containing the result of type [Type] if successful
-  Future<Either<AppFailure, Type>> execute(Params params);
+  /// - [Right] containing the result of type [Result] if successful
+  Future<Either<AppFailure, Result>> execute(Params params);
 }
 
 /// Use this class when a use case doesn't require any parameters.
@@ -60,8 +60,9 @@ class NoParams {
 /// ```dart
 /// final result = await useCase.execute(params);
 /// ```
-abstract class CallableUseCase<Type, Params> implements UseCase<Type, Params> {
-  Future<Either<AppFailure, Type>> call(Params params) => execute(params);
+abstract class CallableUseCase<Result, Params>
+    implements UseCase<Result, Params> {
+  Future<Either<AppFailure, Result>> call(Params params) => execute(params);
 }
 
 /// Base class for synchronous use cases.
@@ -81,9 +82,9 @@ abstract class CallableUseCase<Type, Params> implements UseCase<Type, Params> {
 ///   }
 /// }
 /// ```
-abstract class SyncUseCase<Type, Params> {
+abstract class SyncUseCase<Result, Params> {
   /// Executes the synchronous use case with the given [params].
-  Either<AppFailure, Type> execute(Params params);
+  Either<AppFailure, Result> execute(Params params);
 }
 
 /// Base class for stream-based use cases.
@@ -104,10 +105,10 @@ abstract class SyncUseCase<Type, Params> {
 ///   }
 /// }
 /// ```
-abstract class StreamUseCase<Type, Params> {
+abstract class StreamUseCase<Result, Params> {
   /// Executes the stream use case with the given [params].
   ///
   /// Returns a stream of [Either] values, allowing for error handling
   /// at each emission.
-  Stream<Either<AppFailure, Type>> execute(Params params);
+  Stream<Either<AppFailure, Result>> execute(Params params);
 }

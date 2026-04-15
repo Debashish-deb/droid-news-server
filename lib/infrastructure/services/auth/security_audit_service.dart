@@ -30,8 +30,9 @@ class SecurityAuditService {
         'appVersion': appVersion,
         'platform': Platform.isAndroid ? 'android' : 'ios',
       });
-    } catch (e) {
-   }
+    } catch (_) {
+      // Intentionally swallow: audit log failures must never crash the app.
+    }
   }
 
   /// Get app version

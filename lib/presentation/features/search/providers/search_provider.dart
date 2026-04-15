@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/di/providers.dart' as di;
 import '../../../../domain/entities/news_article.dart';
 import '../../../../domain/repositories/search_repository.dart';
 import '../../../providers/app_settings_providers.dart'
     show searchRepositoryProvider;
+import '../../../providers/feature_providers.dart'
+    show localLearningEngineProvider;
 
 class SearchState {
   SearchState({
@@ -36,10 +39,11 @@ class SearchState {
 }
 
 class SearchNotifier extends StateNotifier<SearchState> {
-  SearchNotifier(this._repository) : super(SearchState()) {
+  SearchNotifier(this._repository, this._ref) : super(SearchState()) {
     _loadRecentSearches();
   }
   final SearchRepository _repository;
+  final Ref _ref;
   int _activeSearchToken = 0;
 
   Future<void> _loadRecentSearches() async {
@@ -64,6 +68,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
     // Save search query
     await _repository.saveRecentSearch(normalized);
+    _ref.read(localLearningEngineProvider).trackSearchSubmit(normalized);
     if (token != _activeSearchToken) return;
     await _loadRecentSearches();
     if (token != _activeSearchToken) return;
@@ -90,6 +95,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
   /// Sets activeTopicQuery and showGoogleFallback if no internal results.
   Future<void> searchByTopic(String topic) async {
     final int token = ++_activeSearchToken;
+    _ref.read(localLearningEngineProvider).trackSuggestionClick(topic);
     state = state.copyWith(
       isLoading: true,
       showGoogleFallback: false,
@@ -131,5 +137,21 @@ final searchProvider = StateNotifierProvider<SearchNotifier, SearchState>((
   ref,
 ) {
   final repo = ref.watch(searchRepositoryProvider);
-  return SearchNotifier(repo);
+  return SearchNotifier(repo, ref);
+});
+
+final searchControllerProvider = StateProvider<String>((ref) => '');
+
+final publisherSuggestionsProvider = Provider<List<MapEntry<String, String>>>((
+  ref,
+) {
+  final query = ref.watch(searchControllerProvider).toLowerCase().trim();
+  if (query.isEmpty) return const [];
+
+  return ref
+      .watch(di.publisherLogoMapProvider)
+      .entries
+      .where((e) => e.key.toLowerCase().contains(query))
+      .take(6)
+      .toList();
 });

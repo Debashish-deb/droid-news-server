@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +13,7 @@ import '../../providers/subscription_providers.dart';
 import '../../widgets/error_widget.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../core/theme/theme.dart';
-import 'package:pay/pay.dart';
+import '../../widgets/premium_screen_header.dart';
 
 // ─── Design Tokens ──────────────────────────────────────────────────────────
 
@@ -29,16 +28,7 @@ class _TierColors {
   // Tier accents (Gradients not in main theme)
   static const freeStart = Color(0xFF3A3A52);
   static const freeEnd = Color(0xFF252538);
-  static const proStart = Color(0xFF1A47A8);
-  static const proEnd = Color(0xFF0D2260);
-
-  // Gold (some overlaps with theme, keeping for gradient consistency)
-  static const goldEnd = Color(0xFF7A5520);
 }
-
-const bool _kEnableTokenizedGooglePay = bool.fromEnvironment(
-  'ENABLE_GOOGLE_PAY_TOKENIZED',
-);
 
 // ─── Screen ─────────────────────────────────────────────────────────────────
 
@@ -57,7 +47,8 @@ class _SubscriptionManagementScreenState
   Subscription? _subscription;
   AppFailure? _error;
   Map<SubscriptionTier, List<String>>? _availableTiers;
-  Map<SubscriptionTier, String> _planPriceLabels = const {};
+  String _proLifetimePrice = PremiumPlanConfig.proLifetimeDisplayPrice;
+  String _proYearlyPrice = PremiumPlanConfig.proYearlyDisplayPrice;
   bool _isTrialEligible = false;
   SubscriptionTier? _actionLoading;
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
@@ -112,7 +103,7 @@ class _SubscriptionManagementScreenState
     final tiersResult =
         results[1] as Either<AppFailure, Map<SubscriptionTier, List<String>>>;
     final trialResult = results[2] as Either<AppFailure, bool>;
-    final planPrices = results[3] as Map<SubscriptionTier, String>;
+    final planPrices = results[3] as ({String lifetime, String yearly});
 
     if (mounted) {
       setState(() {
@@ -120,69 +111,59 @@ class _SubscriptionManagementScreenState
         subResult.fold((f) => _error = f, (s) => _subscription = s);
         tiersResult.fold((f) => _error ??= f, (t) => _availableTiers = t);
         trialResult.fold((f) => null, (e) => _isTrialEligible = e);
-        _planPriceLabels = planPrices;
+        _proLifetimePrice = planPrices.lifetime;
+        _proYearlyPrice = planPrices.yearly;
       });
       _entryController.forward();
     }
   }
 
-  Future<Map<SubscriptionTier, String>> _resolvePlanPrices() async {
-    final prices = <SubscriptionTier, String>{
-      SubscriptionTier.pro: PremiumPlanConfig.proLifetimeDisplayPrice,
-      SubscriptionTier.proPlus: PremiumPlanConfig.proYearlyDisplayPrice,
-    };
+  Future<({String lifetime, String yearly})> _resolvePlanPrices() async {
+    var lifetime = PremiumPlanConfig.proLifetimeDisplayPrice;
+    var yearly = PremiumPlanConfig.proYearlyDisplayPrice;
 
     try {
       final iap = InAppPurchase.instance;
       final available = await iap.isAvailable();
-      if (!available) return prices;
+      if (!available) {
+        return (lifetime: lifetime, yearly: yearly);
+      }
 
       final response = await iap.queryProductDetails(
         PremiumPlanConfig.primaryProductIds,
       );
       for (final product in response.productDetails) {
         if (product.id == PremiumPlanConfig.proLifetimeProductId) {
-          prices[SubscriptionTier.pro] = product.price;
+          lifetime = product.price;
         } else if (product.id == PremiumPlanConfig.proYearlyProductId) {
-          prices[SubscriptionTier.proPlus] = product.price;
+          yearly = product.price;
         }
       }
     } catch (_) {
       // Keep deterministic fallback pricing labels when Store query fails.
     }
 
-    return prices;
+    return (lifetime: lifetime, yearly: yearly);
   }
 
   void _listenToPurchaseUpdates() {
     _purchaseSub?.cancel();
     _purchaseSub = InAppPurchase.instance.purchaseStream.listen(
       (purchases) async {
+        var shouldReload = false;
         for (final purchase in purchases) {
+          if (purchase.status == PurchaseStatus.pending) {
+            shouldReload = true;
+            continue;
+          }
+
           if (purchase.status == PurchaseStatus.purchased ||
-              purchase.status == PurchaseStatus.restored ||
-              purchase.status == PurchaseStatus.pending) {
-            final result = await ref
-                .read(subscriptionRepositoryProvider)
-                .processStorePurchase(purchase);
+              purchase.status == PurchaseStatus.restored) {
+            shouldReload = true;
+            continue;
+          }
 
-            if (!mounted) return;
-
-            result.fold(
-              (f) {
-                if (purchase.status != PurchaseStatus.pending) {
-                  _showSnack(f.userMessage, isError: true);
-                }
-              },
-              (s) {
-                setState(() => _subscription = s);
-                if (purchase.status == PurchaseStatus.purchased ||
-                    purchase.status == PurchaseStatus.restored) {
-                  _showSnack(AppLocalizations.of(context).purchaseSuccess);
-                }
-              },
-            );
-          } else if (purchase.status == PurchaseStatus.error) {
+          if (purchase.status == PurchaseStatus.error) {
             final message =
                 purchase.error?.message ?? 'Purchase could not be completed.';
             if (mounted) {
@@ -191,8 +172,16 @@ class _SubscriptionManagementScreenState
           }
         }
 
-        if (mounted) {
+        if (mounted && shouldReload) {
+          final purchaseSuccessMessage = AppLocalizations.of(
+            context,
+          ).purchaseSuccess;
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+          if (!mounted) return;
           await _loadSubscriptionInfo();
+          if (_subscription?.tier.isPremium == true) {
+            _showSnack(purchaseSuccessMessage);
+          }
         }
       },
       onError: (e) {
@@ -203,11 +192,11 @@ class _SubscriptionManagementScreenState
     );
   }
 
-  Future<void> _upgradeTo(SubscriptionTier tier) async {
-    setState(() => _actionLoading = tier);
+  Future<void> _buyPremiumProduct(String productId) async {
+    setState(() => _actionLoading = SubscriptionTier.pro);
     final result = await ref
         .read(subscriptionRepositoryProvider)
-        .upgradeSubscription(tier);
+        .purchasePremiumProduct(productId);
     if (!mounted) return;
 
     result.fold(
@@ -221,7 +210,9 @@ class _SubscriptionManagementScreenState
           _actionLoading = null;
         });
         _showSnack(
-          AppLocalizations.of(context).upgradeInitiated(tier.displayName),
+          AppLocalizations.of(
+            context,
+          ).upgradeInitiated(SubscriptionTier.pro.displayName),
         );
       },
     );
@@ -250,75 +241,7 @@ class _SubscriptionManagementScreenState
   }
 
   void _showSnack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          msg,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        backgroundColor: isError
-            ? context.colors.errorRed
-            : context.colors.successGreen,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-
-  Future<void> _onGooglePayResult(
-    SubscriptionTier tier,
-    Map<String, dynamic> result,
-  ) async {
-    final token = _extractGooglePayToken(result);
-    if (token == null) {
-      _showSnack('Google Pay failed: No token received', isError: true);
-      return;
-    }
-
-    setState(() => _actionLoading = tier);
-    final repository = ref.read(subscriptionRepositoryProvider);
-    final upgradeResult = await repository.upgradeWithGooglePay(
-      tier: tier,
-      paymentToken: token,
-    );
-
-    if (!mounted) return;
-
-    upgradeResult.fold(
-      (f) {
-        setState(() => _actionLoading = null);
-        _showSnack(f.userMessage, isError: true);
-      },
-      (_) {
-        setState(() => _actionLoading = null);
-        _showSnack('Payment submitted! Processing...');
-        _loadSubscriptionInfo(); // Refresh to show pending state
-      },
-    );
-  }
-
-  String? _extractGooglePayToken(Map<String, dynamic> result) {
-    final paymentMethodData = result['paymentMethodData'];
-    if (paymentMethodData is Map) {
-      final tokenizationData = paymentMethodData['tokenizationData'];
-      if (tokenizationData is Map) {
-        final token = tokenizationData['token'];
-        if (token is String && token.trim().isNotEmpty) {
-          return token;
-        }
-      }
-    }
-
-    final directToken = result['token'];
-    if (directToken is String && directToken.trim().isNotEmpty) {
-      return directToken;
-    }
-
-    return null;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -332,16 +255,14 @@ class _SubscriptionManagementScreenState
 
     return Scaffold(
       backgroundColor: context.colors.bg,
-      extendBodyBehindAppBar: true,
-      appBar: _PremiumAppBar(title: loc.manageSubscription),
+      appBar: PremiumScreenHeader(title: loc.manageSubscription),
       body: _buildBody(loc, purchaseActivationAvailable),
     );
   }
 
-  Widget _buildBody(
-    AppLocalizations loc,
-    bool purchaseActivationAvailable,
-  ) {
+  Widget _buildBody(AppLocalizations loc, bool purchaseActivationAvailable) {
+    final theme = Theme.of(context);
+
     if (_isLoading) {
       return Center(
         child: CircularProgressIndicator(
@@ -378,7 +299,7 @@ class _SubscriptionManagementScreenState
             ),
             slivers: [
               // top spacing for app bar
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+              const SliverToBoxAdapter(child: SizedBox(height: 116)),
 
               // ── Current Plan Hero ──
               SliverToBoxAdapter(
@@ -436,19 +357,24 @@ class _SubscriptionManagementScreenState
                       return _PlanCard(
                         tier: entry.key,
                         features: entry.value,
-                        priceLabel:
-                            _planPriceLabels[entry.key] ??
-                            (entry.key == SubscriptionTier.proPlus
-                                ? PremiumPlanConfig.proYearlyDisplayPrice
-                                : PremiumPlanConfig.proLifetimeDisplayPrice),
+                        priceLabel: entry.key == SubscriptionTier.pro
+                            ? _proLifetimePrice
+                            : '',
+                        secondaryPriceLabel: entry.key == SubscriptionTier.pro
+                            ? _proYearlyPrice
+                            : null,
                         isCurrent: entry.key == _subscription!.tier,
                         isTrialEligible: _isTrialEligible,
                         isLoading: _actionLoading == entry.key,
-                        purchaseActivationAvailable: purchaseActivationAvailable,
-                        onUpgrade: () => _upgradeTo(entry.key),
+                        purchaseActivationAvailable:
+                            purchaseActivationAvailable,
+                        onUpgrade: () => _buyPremiumProduct(
+                          PremiumPlanConfig.proLifetimeProductId,
+                        ),
+                        onSecondaryUpgrade: () => _buyPremiumProduct(
+                          PremiumPlanConfig.proYearlyProductId,
+                        ),
                         onTrial: _startTrial,
-                        onGooglePayResult: (result) =>
-                            _onGooglePayResult(entry.key, result),
                       );
                     }, childCount: _availableTiers!.length),
                   ),
@@ -465,14 +391,24 @@ class _SubscriptionManagementScreenState
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.08),
+                        color: theme.colorScheme.primary.withValues(
+                          alpha: 0.08,
+                        ),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.3,
+                          ),
+                        ),
                       ),
                       child: Text(
                         '⚙ ${FirebaseAuth.instance.currentUser?.email} · '
                         '${_subscription?.tier.name}',
-                        style: const TextStyle(color: Colors.red, fontSize: 11),
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
@@ -480,59 +416,6 @@ class _SubscriptionManagementScreenState
 
               const SliverToBoxAdapter(child: SizedBox(height: 40)),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Premium App Bar ─────────────────────────────────────────────────────────
-
-class _PremiumAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _PremiumAppBar({required this.title});
-  final String title;
-
-  @override
-  Size get preferredSize => const Size.fromHeight(64);
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          color: context.colors.bg.withValues(alpha: 0.75),
-          child: SafeArea(
-            bottom: false,
-            child: SizedBox(
-              height: 64,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Positioned(
-                    left: 4,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        size: 20,
-                      ),
-                      color: context.colors.textPrimary,
-                      onPressed: () => Navigator.of(context).maybePop(),
-                    ),
-                  ),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: context.colors.textPrimary,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
       ),
@@ -549,7 +432,7 @@ class _CurrentPlanHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tier = subscription.tier;
-    final colors = _tierGradient(tier);
+    final colors = _tierGradient(context, tier);
     final isPro = tier != SubscriptionTier.free;
 
     return Container(
@@ -701,27 +584,26 @@ class _PlanCard extends StatelessWidget {
     required this.purchaseActivationAvailable,
     required this.onUpgrade,
     required this.onTrial,
-    required this.onGooglePayResult,
+    this.secondaryPriceLabel,
+    this.onSecondaryUpgrade,
   });
 
   final SubscriptionTier tier;
   final List<String> features;
   final String priceLabel;
+  final String? secondaryPriceLabel;
   final bool isCurrent;
   final bool isTrialEligible;
   final bool isLoading;
   final bool purchaseActivationAvailable;
   final VoidCallback onUpgrade;
+  final VoidCallback? onSecondaryUpgrade;
   final VoidCallback onTrial;
-  final void Function(Map<String, dynamic>) onGooglePayResult;
 
   @override
   Widget build(BuildContext context) {
-    final isGold = tier == SubscriptionTier.proPlus;
     final isPro = tier == SubscriptionTier.pro;
-    final accent = isGold
-        ? context.colors.goldStart
-        : (isPro ? const Color(0xFF4F8EF7) : context.colors.textHint);
+    final accent = isPro ? context.colors.proBlue : context.colors.textHint;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -735,9 +617,6 @@ class _PlanCard extends StatelessWidget {
                 : context.colors.cardBorder,
             width: isCurrent ? 1.5 : 1,
           ),
-          boxShadow: isGold && !isCurrent
-              ? [BoxShadow(color: context.colors.goldGlow, blurRadius: 20)]
-              : [],
         ),
         child: Padding(
           padding: const EdgeInsets.all(20.0),
@@ -814,13 +693,22 @@ class _PlanCard extends StatelessWidget {
               if (!isCurrent && tier.isPremium) ...[
                 const SizedBox(height: 16),
                 _CTAButton(
-                  tier: tier,
-                  priceLabel: priceLabel,
+                  label: 'Premium Lifetime · $priceLabel',
                   isLoading: isLoading,
-                  isGold: isGold,
                   accent: accent,
                   onTap: purchaseActivationAvailable ? onUpgrade : null,
                 ),
+                if (secondaryPriceLabel != null) ...[
+                  const SizedBox(height: 8),
+                  _CTAButton(
+                    label: 'Premium Yearly · ${secondaryPriceLabel!}',
+                    isLoading: isLoading,
+                    accent: accent,
+                    onTap: purchaseActivationAvailable
+                        ? onSecondaryUpgrade
+                        : null,
+                  ),
+                ],
                 if (isTrialEligible && tier == SubscriptionTier.pro) ...[
                   const SizedBox(height: 8),
                   Align(
@@ -839,19 +727,6 @@ class _PlanCard extends StatelessWidget {
                     ),
                   ),
                 ],
-                if (!kIsWeb &&
-                    defaultTargetPlatform == TargetPlatform.android &&
-                    _kEnableTokenizedGooglePay &&
-                    purchaseActivationAvailable) ...[
-                  const SizedBox(height: 12),
-                  _GooglePayCTA(
-                    tier: tier,
-                    isGold: isGold,
-                    accent: accent,
-                    isLoading: isLoading,
-                    onResult: onGooglePayResult,
-                  ),
-                ],
               ],
             ],
           ),
@@ -861,124 +736,31 @@ class _PlanCard extends StatelessWidget {
   }
 }
 
-class _GooglePayCTA extends StatelessWidget {
-  const _GooglePayCTA({
-    required this.tier,
-    required this.isGold,
-    required this.accent,
-    required this.isLoading,
-    required this.onResult,
-  });
-
-  final SubscriptionTier tier;
-  final bool isGold;
-  final Color accent;
-  final bool isLoading;
-  final void Function(Map<String, dynamic>) onResult;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isLoading) {
-      return Container(
-        height: 48,
-        decoration: BoxDecoration(
-          color: accent.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: accent),
-          ),
-        ),
-      );
-    }
-
-    return GooglePayButton(
-      paymentConfiguration: PaymentConfiguration.fromJsonString('''{
-        "provider": "google_pay",
-        "data": {
-          "environment": "TEST",
-          "apiVersion": 2,
-          "apiVersionMinor": 0,
-          "allowedPaymentMethods": [
-            {
-              "type": "CARD",
-              "tokenizationSpecification": {
-                "type": "PAYMENT_GATEWAY",
-                "parameters": {
-                  "gateway": "example",
-                  "gatewayMerchantId": "exampleGatewayMerchantId"
-                }
-              },
-              "parameters": {
-                "allowedCardNetworks": ["VISA", "MASTERCARD"],
-                "allowedAuthMethods": ["PAN_ONLY", "CRYPTOGRAM_3DS"]
-              }
-            }
-          ],
-          "merchantInfo": {
-            "merchantName": "Example Merchant"
-          },
-          "transactionInfo": {
-            "countryCode": "US",
-            "currencyCode": "USD"
-          }
-        }
-      }'''),
-      paymentItems: [
-        PaymentItem(
-          label: tier.displayName,
-          amount: tier == SubscriptionTier.proPlus ? '1.99' : '6.99',
-          status: PaymentItemStatus.final_price,
-        ),
-      ],
-      margin: const EdgeInsets.only(top: 15.0),
-      onPaymentResult: onResult,
-    );
-  }
-}
-
 // ─── CTA Button ──────────────────────────────────────────────────────────────
 
 class _CTAButton extends StatelessWidget {
   const _CTAButton({
-    required this.tier,
-    required this.priceLabel,
+    required this.label,
     required this.isLoading,
-    required this.isGold,
     required this.accent,
     required this.onTap,
   });
 
-  final SubscriptionTier tier;
-  final String priceLabel;
+  final String label;
   final bool isLoading;
-  final bool isGold;
   final Color accent;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final label =
-        '${AppLocalizations.of(context).upgradeToTier(tier.displayName)} · $priceLabel';
-
     return SizedBox(
       height: 46,
       width: double.infinity,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          gradient: isGold
-              ? LinearGradient(
-                  colors: [context.colors.goldStart, context.colors.goldMid],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: isGold ? null : accent.withValues(alpha: 0.15),
-          border: isGold ? null : Border.all(color: accent.withValues(alpha: 0.35)),
+          color: accent.withValues(alpha: 0.15),
+          border: Border.all(color: accent.withValues(alpha: 0.35)),
         ),
         child: TextButton(
           onPressed: isLoading ? null : onTap,
@@ -993,7 +775,7 @@ class _CTAButton extends StatelessWidget {
                   height: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: isGold ? Colors.white : accent,
+                    color: accent,
                   ),
                 )
               : Row(
@@ -1004,7 +786,7 @@ class _CTAButton extends StatelessWidget {
                         label,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: isGold ? Colors.white : accent,
+                          color: accent,
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
                           letterSpacing: 0.1,
@@ -1140,16 +922,15 @@ class _FeaturePill extends StatelessWidget {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-List<Color> _tierGradient(SubscriptionTier tier) {
+List<Color> _tierGradient(BuildContext context, SubscriptionTier tier) {
+  final colors = context.colors;
+  final shadow = Theme.of(context).colorScheme.shadow;
   switch (tier) {
-    case SubscriptionTier.proPlus:
-      return [
-        const Color(0xFFD4A853),
-        const Color(0xFFB8893C),
-        _TierColors.goldEnd,
-      ];
     case SubscriptionTier.pro:
-      return [_TierColors.proStart, _TierColors.proEnd];
+      return [
+        colors.proBlue,
+        Color.alphaBlend(shadow.withValues(alpha: 0.58), colors.proBlue),
+      ];
     case SubscriptionTier.free:
       return [_TierColors.freeStart, _TierColors.freeEnd];
   }
@@ -1157,8 +938,6 @@ List<Color> _tierGradient(SubscriptionTier tier) {
 
 IconData _tierIcon(SubscriptionTier tier) {
   switch (tier) {
-    case SubscriptionTier.proPlus:
-      return Icons.diamond_rounded;
     case SubscriptionTier.pro:
       return Icons.bolt_rounded;
     case SubscriptionTier.free:

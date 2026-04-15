@@ -8,6 +8,7 @@
     <!-- Debug builds don't expose activities externally -->
     <!-- tools:replace required to override main manifest setting -->
     <application android:usesCleartextTraffic="true" tools:replace="android:usesCleartextTraffic,android:enableOnBackInvokedCallback" android:enableOnBackInvokedCallback="true">
+        <meta-data android:name="io.flutter.embedding.android.ImpellerBackend" android:value="opengles" />
         <!-- No activities defined here, inherits from main manifest -->
     </application>
 </manifest>

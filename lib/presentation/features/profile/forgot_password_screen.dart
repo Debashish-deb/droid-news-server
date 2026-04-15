@@ -38,8 +38,7 @@ import 'dart:ui';
 import '../../../core/theme/theme.dart';
 import '../../providers/theme_providers.dart';
 import '../../../l10n/generated/app_localizations.dart';
-import '../common/app_bar.dart';
-import '../../widgets/glass_icon_button.dart';
+import '../../widgets/premium_screen_header.dart';
 
 // ─────────────────────────────────────────────
 // STATUS ENUM  (replaces fragile string detection)
@@ -137,9 +136,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       return;
     }
     if (!_isValidEmail(email)) {
-      _statusNotifier.value = _StatusState.idle.withError(
-        loc.invalidEmail,
-      );
+      _statusNotifier.value = _StatusState.idle.withError(loc.invalidEmail);
       return;
     }
 
@@ -151,9 +148,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     final online = await _hasNetwork();
     if (!online) {
       _submitting = false;
-      _statusNotifier.value = _StatusState.idle.withError(
-        loc.checkConnection,
-      );
+      _statusNotifier.value = _StatusState.idle.withError(loc.checkConnection);
       return;
     }
 
@@ -195,35 +190,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final mode = ref.watch(currentThemeModeProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColors = AppGradients.getBackgroundGradient(mode);
     final textColor =
         Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        toolbarHeight: 64,
-        title: AppBarTitle(loc.forgotPassword),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 8),
-          child: Center(
-            child: GlassIconButton(
-              icon: Icons.arrow_back,
-              onPressed: () => Navigator.of(context).pop(),
-              isDark: isDark,
-            ),
-          ),
-        ),
-        systemOverlayStyle: isDark
-            ? SystemUiOverlayStyle.light
-            : SystemUiOverlayStyle.dark,
-      ),
+      appBar: PremiumScreenHeader(title: loc.forgotPassword),
       body: Stack(
         fit: StackFit.expand,
         children: [

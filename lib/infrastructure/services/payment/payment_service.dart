@@ -1,24 +1,27 @@
 import 'dart:async';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
-// import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/architecture/failure.dart';
 import 'receipt_verification_service.dart'
     show ReceiptVerificationResult, ReceiptVerificationService;
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Service responsible for handling in-app purchase operations.
 ///
 /// This service wraps the `in_app_purchase` plugin and provides
 /// a clean interface for the repository layer.
 
+typedef GooglePayProcessor =
+    Future<Map<String, dynamic>> Function(Map<String, dynamic> payload);
+
 class PaymentService {
-  PaymentService(this._iap, {FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  PaymentService(this._iap, {GooglePayProcessor? googlePayProcessor})
+    : _googlePayProcessor = googlePayProcessor;
   final InAppPurchase _iap;
+  final GooglePayProcessor? _googlePayProcessor;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
-  final FirebaseFirestore _firestore;
 
   bool get isPurchaseActivationAvailable =>
       ReceiptVerificationService.isBackendVerificationAvailable;
@@ -113,6 +116,66 @@ class PaymentService {
     }
   }
 
+  /// Process a payment through Google Pay asynchronously.
+  Future<void> processGooglePayPayment({
+    required String psp,
+    required double total,
+    required String currency,
+    required String paymentToken,
+    required String userId,
+  }) async {
+    final payload = <String, dynamic>{
+      'psp': psp,
+      'total': total,
+      'currency': currency,
+      'paymentToken': paymentToken,
+      'userId': userId,
+    };
+
+    try {
+      final result = await (_googlePayProcessor != null
+          ? _googlePayProcessor(payload)
+          : _callGooglePayBackend(payload));
+      if (result['success'] != true) {
+        throw PurchaseFailure(
+          result['message']?.toString() ??
+              'Google Pay payment could not be processed.',
+        );
+      }
+    } on FirebaseFunctionsException catch (e, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('❌ Google Pay backend error: ${e.code} ${e.message}');
+      }
+      throw PurchaseFailure(
+        e.message ?? 'Google Pay payment failed.',
+        e.code,
+        stackTrace,
+      );
+    } catch (e, stackTrace) {
+      if (e is AppFailure) rethrow;
+      if (kDebugMode) {
+        debugPrint('❌ Error processing Google Pay: $e');
+      }
+      throw PurchaseFailure(e.toString(), null, stackTrace);
+    }
+  }
+
+  Future<Map<String, dynamic>> _callGooglePayBackend(
+    Map<String, dynamic> payload,
+  ) async {
+    if (Firebase.apps.isEmpty) {
+      throw const PurchaseFailure(
+        'Google Pay backend is unavailable right now.',
+      );
+    }
+
+    final callable = FirebaseFunctions.instance.httpsCallable(
+      'processGooglePayPayment',
+    );
+    final response = await callable.call<Map<String, dynamic>>(payload);
+    return response.data;
+  }
+
   ///  Verify purchase details
   ///
   /// Calls backend for server-side validation
@@ -140,52 +203,12 @@ class PaymentService {
       }
 
       final verifier = ReceiptVerificationService();
-      return await verifier.verify(verificationData, userId);
+      return await verifier.verifyPurchase(purchase, userId);
     } catch (e) {
       if (kDebugMode) {
         debugPrint('❌ Error verifying purchase: $e');
       }
       return ReceiptVerificationResult.error;
-    }
-  }
-
-  /// Process Google Pay payment by writing to Firestore
-  /// The Firebase Extension will pick this up and process it.
-  Future<void> processGooglePayPayment({
-    required String psp,
-    required double total,
-    required String currency,
-    required String paymentToken,
-    required String userId,
-  }) async {
-    try {
-      if (kDebugMode) {
-        debugPrint('💳 Processing Google Pay payment for user: $userId');
-      }
-
-      // Add to 'payments' collection (adjust path based on extension config)
-      await _firestore.collection('payments').add({
-        'userId': userId,
-        'psp': psp,
-        'total': total,
-        'currency': currency,
-        'paymentToken': paymentToken,
-        'status': 'PENDING',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    } on FirebaseException catch (e, stackTrace) {
-      if (kDebugMode) {
-        debugPrint('❌ Error writing Google Pay info to Firestore: $e');
-      }
-      final message = e.code == 'permission-denied'
-          ? 'Google Pay backend is not configured for this build (Firestore permissions).'
-          : 'Google Pay submission failed: ${e.message ?? e.code}';
-      throw PurchaseFailure(message, e.code, stackTrace);
-    } catch (e, stackTrace) {
-      if (kDebugMode) {
-        debugPrint('❌ Error writing Google Pay info to Firestore: $e');
-      }
-      throw PurchaseFailure(e.toString(), null, stackTrace);
     }
   }
 

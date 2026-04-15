@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class WT {
   WT._();
 
-  static const double headerHeight = 82.0;
+  static const double headerHeight = 92.0;
   static const double toolbarHeight = 72.0;
   static const double progressHeight = 3.0;
 
@@ -16,7 +16,7 @@ class WT {
 
   /// Minimum milliseconds between progress-bar setState calls.
   static const int progressThrottleMs = 16; // ~1 frame
-  
+
   /// Scroll-save debounce duration.
   static const Duration scrollSaveDebounce = Duration(milliseconds: 500);
 }

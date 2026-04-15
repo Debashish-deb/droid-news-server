@@ -13,8 +13,8 @@ class AppLogger {
 
   AppLogger._();
   static final Logger _logger = Logger(
-    printer: PrettyPrinter(
-      methodCount: 0,
+    level: kDebugMode ? Level.warning : Level.info, // Only warnings/errors in debug mode
+    printer: SimplePrinter(
       printTime: true,
     ),
   );

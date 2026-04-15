@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/theme_skeleton.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import "../../domain/entities/news_article.dart";
 
@@ -26,7 +27,7 @@ class HorizontalSlider extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: ThemeSkeleton.insetsH12V6,
           child: Text(
             title,
             style: Theme.of(
@@ -37,10 +38,11 @@ class HorizontalSlider extends StatelessWidget {
         SizedBox(
           height: 115,
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: ThemeSkeleton.insetsH12,
             scrollDirection: Axis.horizontal,
             itemCount: articles.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 10),
+            separatorBuilder: (_, _) =>
+                const SizedBox(width: ThemeSkeleton.size10),
             itemBuilder: (_, int i) {
               final NewsArticle article = articles[i];
               final String? img = article.imageUrl;
@@ -51,17 +53,51 @@ class HorizontalSlider extends StatelessWidget {
                   width: 280,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                    borderRadius: ThemeSkeleton.shared.circular(14),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.15),
+                    ),
                   ),
-                  padding: const EdgeInsets.all(6),
+                  padding: ThemeSkeleton.shared.insetsAll(6),
                   child: Row(
                     children: <Widget>[
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child:
-                            img == null || img.isEmpty
-                                ? Container(
+                        borderRadius: ThemeSkeleton.shared.circular(10),
+                        child: img == null || img.isEmpty
+                            ? Container(
+                                width: 85,
+                                height: 85,
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: _fallbackGradient,
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.newspaper,
+                                  color: Colors.white70,
+                                  size: 32,
+                                ),
+                              )
+                            : CachedNetworkImage(
+                                imageUrl: img,
+                                memCacheWidth: 255,
+                                memCacheHeight: 255,
+                                width: 85,
+                                height: 85,
+                                fit: BoxFit.cover,
+                                placeholder: (_, _) => Container(
+                                  width: 85,
+                                  height: 85,
+                                  color: Colors.white.withValues(alpha: 0.05),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (_, _, _) => Container(
                                   width: 85,
                                   height: 85,
                                   decoration: const BoxDecoration(
@@ -76,42 +112,10 @@ class HorizontalSlider extends StatelessWidget {
                                     color: Colors.white70,
                                     size: 32,
                                   ),
-                                )
-                                : CachedNetworkImage(
-                                  imageUrl: img,
-                                  memCacheWidth: 255,
-                                  memCacheHeight: 255,
-                                  width: 85,
-                                  height: 85,
-                                  fit: BoxFit.cover,
-                                  placeholder: (_, _) => Container(
-                                    width: 85,
-                                    height: 85,
-                                    color: Colors.white.withValues(alpha: 0.05),
-                                    child: const Center(
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    ),
-                                  ),
-                                  errorWidget:
-                                      (_, _, _) => Container(
-                                        width: 85,
-                                        height: 85,
-                                        decoration: const BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: _fallbackGradient,
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ),
-                                        ),
-                                        child: const Icon(
-                                          Icons.newspaper,
-                                          color: Colors.white70,
-                                          size: 32,
-                                        ),
-                                      ),
                                 ),
+                              ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: ThemeSkeleton.size10),
                       Expanded(
                         child: Text(
                           article.title,
@@ -132,4 +136,3 @@ class HorizontalSlider extends StatelessWidget {
     );
   }
 }
-

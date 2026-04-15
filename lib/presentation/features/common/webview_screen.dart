@@ -1,69 +1,69 @@
-// lib/features/webview/webview_screen.dart
-//
-// ╔══════════════════════════════════════════════════════════╗
-// ║  PREMIUM WEBVIEW READER – ANDROID-OPTIMISED v2           ║
-// ║                                                          ║
-// ║  Optimisation layers applied                             ║
-// ║  • ValueNotifier hot-paths (progress, header opacity)    ║
-// ║    → eliminates full-tree setState on every scroll/load  ║
-// ║  • RepaintBoundary around every independently-animated   ║
-// ║    subtree (header, progress bar, bottom bar)            ║
-// ║  • Android WebView: adaptive composition pipeline         ║
-// ║    (hybrid on constrained/problematic hosts)             ║
-// ║  • Hardware-accel flags + DOM/DB storage + safe browsing ║
-// ║  • Throttled progress updates (≤16 ms cadence)           ║
-// ║  • Debounced scroll-position saves (500 ms)              ║
-// ║  • compute() isolate for ad-pattern JS injection         ║
-// ║  • SchedulerBinding.addPostFrameCallback for restore     ║
-// ║  • const constructors end-to-end                         ║
-// ║  • Weak-ref diagnostics (no GC-retain)                   ║
-// ║  • PopScope double-back on Android back gesture          ║
-// ║  • Proper cancellation: timers, streams, subscriptions   ║
-// ╚══════════════════════════════════════════════════════════╝
-
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'widgets/webview/webview_reader_fallback.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../application/identity/entitlement_policy.dart';
 import '../../../core/config/performance_config.dart';
 import '../../../core/di/providers.dart'
     show
+        appDatabaseProvider,
         appNetworkServiceProvider,
         debugDiagnosticsServiceProvider,
+        rewardedAdServiceProvider,
+        subscriptionRepositoryProvider,
         structuredLoggerProvider;
+import '../../../core/navigation/navigation_helper.dart';
 import '../../../core/navigation/url_safety_policy.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../domain/entities/news_article.dart';
+import '../../../domain/entities/tts_quota_status.dart';
+import '../../../platform/persistence/app_database.dart' show ArticlesCompanion;
+import '../../../core/utils/url_identity.dart';
 import '../../../core/utils/webview_blocking.dart';
-import '../../../core/tts/data/extractors/webview_text_extractor.dart';
+import '../../../core/utils/webview_policy.dart';
 import '../../../core/telemetry/debug_diagnostics_service.dart';
+import '../../../core/telemetry/structured_logger.dart';
 import '../../../core/tts/domain/entities/tts_state.dart';
+import '../../../infrastructure/network/app_network_service.dart'
+    show NetworkQuality;
 import '../../providers/premium_providers.dart'
-    show isPremiumStateProvider, shouldShowAdsProvider;
+    show
+        entitlementSnapshotProvider,
+        isPremiumStateProvider,
+        publisherAdBlockingEnabledProvider,
+        shouldShowAdsProvider;
 import '../../providers/favorites_providers.dart' show favoritesProvider;
 import '../../providers/saved_articles_provider.dart'
     show savedArticlesProvider;
 import '../../providers/feature_providers.dart'
-    show ttsManagerProvider, userInterestProvider;
+    show
+        appTtsCoordinatorProvider,
+        authServiceProvider,
+        localLearningEngineProvider;
 import '../../providers/app_settings_providers.dart' show dataSaverProvider;
-import '../../../application/ai/ranking/user_interest_service.dart';
+import '../../widgets/banner_ad_widget.dart';
+import '../../../application/ai/ranking/local_learning_engine.dart';
 import '../reader/controllers/reader_controller.dart';
 import '../reader/ui/native_reader_view.dart';
 import '../../../core/tts/presentation/providers/tts_controller.dart';
+import '../../../core/tts/presentation/widgets/reader_tts_settings_sheet.dart';
 import '../tts/domain/models/speech_chunk.dart';
 import '../tts/domain/models/tts_session.dart';
-import '../tts/services/tts_manager.dart';
-import '../tts/ui/mini_player_widget.dart';
-import '../tts/ui/tts_settings_sheet.dart';
+import '../tts/services/app_tts_coordinator.dart';
+import '../tts/services/tts_preference_keys.dart';
 import 'webview_args.dart';
 import 'widgets/webview_tokens.dart';
 import 'widgets/webview_header.dart';
@@ -73,6 +73,100 @@ import 'widgets/webview_translate_sheet.dart';
 enum _FeedNavDirection { next, previous }
 
 enum _FeedNavTtsCarryState { inactive, playing, paused }
+
+enum _ReaderTtsUnlockAction { watchAd, goPremium }
+
+@visibleForTesting
+bool isReaderSourceReadyForToggle({
+  required bool hasController,
+  required bool mainFrameLoading,
+  required DateTime? lastLoadStopAt,
+  required Duration settleDelay,
+  required DateTime now,
+}) {
+  if (!hasController || mainFrameLoading || lastLoadStopAt == null) {
+    return false;
+  }
+  return now.difference(lastLoadStopAt) >= settleDelay;
+}
+
+@visibleForTesting
+bool shouldShowReaderLoadingOverlay({
+  required bool isReader,
+  required bool isLoading,
+}) {
+  return isReader && isLoading;
+}
+
+@visibleForTesting
+bool shouldUseLightweightWebViewMode({
+  required bool isPublisherMode,
+  required bool dataSaver,
+  required bool lowPowerMode,
+  required bool isLowEndDevice,
+  required NetworkQuality networkQuality,
+}) {
+  if (dataSaver || lowPowerMode || isLowEndDevice) {
+    return true;
+  }
+  if (networkQuality == NetworkQuality.poor ||
+      networkQuality == NetworkQuality.offline) {
+    return true;
+  }
+  return isPublisherMode && networkQuality == NetworkQuality.fair;
+}
+
+@visibleForTesting
+bool shouldBlockCleartextSubresource({
+  required Uri? pageUri,
+  required Uri? requestUri,
+}) {
+  if (requestUri == null) return false;
+  if (requestUri.scheme.toLowerCase() != 'http') return false;
+  if (requestUri.host.trim().isEmpty) return false;
+
+  final pageScheme = (pageUri?.scheme ?? '').toLowerCase();
+  return pageScheme == 'https';
+}
+
+@visibleForTesting
+bool shouldAutoAdvanceReaderTts({
+  required bool autoPlayEnabled,
+  required bool isPublisherOrigin,
+  required bool isReaderMode,
+  required bool hasNextArticle,
+  required bool navigationInFlight,
+  required bool unlockPromptInFlight,
+}) {
+  return autoPlayEnabled &&
+      !isPublisherOrigin &&
+      isReaderMode &&
+      hasNextArticle &&
+      !navigationInFlight &&
+      !unlockPromptInFlight;
+}
+
+@visibleForTesting
+bool shouldPromoteWebViewToVisuallyReady({
+  required bool mainFrameLoading,
+  required double progress,
+  required DateTime? loadStartedAt,
+  required DateTime? lastProgressChangedAt,
+  required Duration plateauDelay,
+  required Duration minLoadTime,
+  required DateTime now,
+}) {
+  if (!mainFrameLoading || progress < 0.95) {
+    return false;
+  }
+  if (loadStartedAt == null || lastProgressChangedAt == null) {
+    return false;
+  }
+  if (now.difference(loadStartedAt) < minLoadTime) {
+    return false;
+  }
+  return now.difference(lastProgressChangedAt) >= plateauDelay;
+}
 
 // Tokens moved to WebviewTokens
 
@@ -121,7 +215,11 @@ String _buildBaseContentScript(Object? _) => '''
   }
 
   safeAppendStyle('bd-reader-base-style', `
-    body { -webkit-font-smoothing: antialiased; }
+    html, body, main, #main, #content, [role="main"], .main-content, .body-content {
+      background-color: transparent !important;
+      background: transparent !important;
+      -webkit-font-smoothing: antialiased;
+    }
     p, li, article, .article-body, .story-body {
       text-align: justify !important;
       line-height: 1.65 !important;
@@ -158,12 +256,12 @@ String _buildBaseContentScript(Object? _) => '''
 })();
 ''';
 
-/// Premium-only aggressive ad cleanup script.
-String _buildPremiumContentScript(Object? _) =>
+/// Aggressive publisher ad/tracker cleanup script.
+String _buildAdBlockingContentScript(Object? _) =>
     '''
 (function() {
-  if (window.__bdPremiumScriptApplied) return;
-  window.__bdPremiumScriptApplied = true;
+  if (window.__bdAdBlockingScriptApplied) return;
+  window.__bdAdBlockingScriptApplied = true;
 
   const safeAppendStyle = (id, css) => {
     const append = () => {
@@ -202,7 +300,11 @@ String _buildPremiumContentScript(Object? _) =>
   }
 
   safeAppendStyle('bd-reader-base-style', `
-    body { -webkit-font-smoothing: antialiased; }
+    html, body, main, #main, #content, [role="main"], .main-content, .body-content {
+      background-color: transparent !important;
+      background: transparent !important;
+      -webkit-font-smoothing: antialiased;
+    }
     p, li, article, .article-body, .story-body {
       text-align: justify !important;
       line-height: 1.65 !important;
@@ -221,8 +323,8 @@ String _buildPremiumContentScript(Object? _) =>
     h1, h2, h3 { line-height: 1.3 !important; margin: 1.2em 0 0.4em !important; }
   `);
 
-  safeAppendStyle('bd-premium-ad-style', `
-    $kPremiumAdCssSelectors {
+  safeAppendStyle('bd-webview-ad-style', `
+    $kWebViewAdCssSelectors {
       display:none!important;height:0!important;pointer-events:none!important;
     }
   `);
@@ -247,7 +349,9 @@ String _buildPremiumContentScript(Object? _) =>
     if (!document.body) return false;
     const adHostHints = [
       'doubleclick', 'googlesyndication', 'googleadservices', 'taboola',
-      'outbrain', 'mgid', 'teads', 'adnxs', 'adservice', 'adserver', 'pubmatic'
+      'outbrain', 'mgid', 'teads', 'adnxs', 'adservice', 'adserver', 'pubmatic',
+      'bilsyndication', 'safeframe', 'googleads', 'googletagservices',
+      'vidoomy', '3lift', 'bidswitch', '360yield', 'adform', 'prebid', 'hbopenbid'
     ];
 
     const looksLikeAdElement = (node) => {
@@ -320,7 +424,7 @@ String _buildPremiumContentScript(Object? _) =>
     const hideAdResidue = (root) => {
       if (!root || !root.querySelectorAll) return;
       const nodes = root.querySelectorAll(
-        '[id*="ad-"],[id^="ad_"],[class*=" ad-"],[class^="ad_"],[class*="advert"],[class*="sponsor"],[id*="sponsor"],[class*="ad-placeholder"],[id*="ad-placeholder"],[class*="dfp"],[id*="dfp"],[class*="google_ads"],[id*="google_ads"],iframe,ins.adsbygoogle'
+        '[id*="ad-"],[id^="ad_"],[class*=" ad-"],[class^="ad_"],[class*="advert"],[class*="sponsor"],[id*="sponsor"],[class*="ad-placeholder"],[id*="ad-placeholder"],[class*="dfp"],[id*="dfp"],[class*="google_ads"],[id*="google_ads"],[id*="google_ads_iframe"],[class*="adsbygoogle"],iframe[src*="safeframe"],iframe[src*="bilsyndication"],script[src*="bilsyndication"],iframe[src*="vidoomy"],script[src*="vidoomy"],iframe[src*="pubmatic"],script[src*="pubmatic"],iframe[src*="3lift"],script[src*="3lift"],iframe[src*="bidswitch"],script[src*="bidswitch"],iframe[src*="360yield"],script[src*="360yield"],iframe[src*="adform"],script[src*="adform"],iframe,ins.adsbygoogle'
       );
       nodes.forEach((node) => {
         if (looksLikeAdElement(node)) {
@@ -366,6 +470,7 @@ class WebViewScreen extends ConsumerStatefulWidget {
 
   String get url => args.url.toString();
   String get title => args.title;
+  WebViewOrigin get origin => args.origin;
   List<NewsArticle>? get articles => args.hasFeedContext ? args.articles : null;
   int? get initialIndex => args.hasFeedContext ? args.initialIndex : null;
 
@@ -375,13 +480,19 @@ class WebViewScreen extends ConsumerStatefulWidget {
 
 class _WebViewScreenState extends ConsumerState<WebViewScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
+  static final Set<String> _runtimeHybridCompositionHosts = <String>{};
+  static const Duration _readerDomSettleDelay = Duration(milliseconds: 650);
+  static const Duration _visualReadyPlateauDelay = Duration(seconds: 2);
+  static const Duration _visualReadyMinLoadTime = Duration(seconds: 4);
+  static const Duration _autoTtsNextArticleDelay = Duration(seconds: 4);
+
   // ── Controllers ─────────────────────────────
   InAppWebViewController? _ctrl;
   late PullToRefreshController _ptrCtrl;
-  late UserInterestService _userInterest;
-  late TtsManager _ttsManager;
-  final WebViewTextExtractor _webViewTextExtractor = WebViewTextExtractor();
+  late LocalLearningEngine _learningEngine;
+  late AppTtsCoordinator _ttsCoordinator;
   StreamSubscription<SpeechChunk?>? _ttsSubscription;
+  StreamSubscription<TtsSession?>? _ttsSessionSubscription;
 
   // ── Hot-path ValueNotifiers (no full rebuild) ──
   final _progressNotifier = ValueNotifier<double>(0.0);
@@ -393,6 +504,8 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
   late NewsArticle _currentArticle;
   bool _showFindBar = false;
   bool _showScrollToTop = false;
+  bool _isDisposing = false;
+  bool _didTrackOpenEvent = false;
   final TextEditingController _findController = TextEditingController();
   int _findMatchesCount = 0;
   int _findActiveMatchIndex = 0;
@@ -401,14 +514,21 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
 
   // ── Debounce ─────────────────────────────────
   Timer? _scrollSaveTimer;
+  Timer? _snapshotCacheTimer;
+  Timer? _webViewBannerRefreshTimer;
+  Timer? _visualReadyTimer;
+  Timer? _autoTtsNextArticleTimer;
   String? _scheduledScrollSaveUrl;
   int _lastProgressUpdateMs = 0; // throttle guard
+  int _webViewBannerRefreshTick = 0;
+  static const Duration _webViewBannerRefreshInterval = Duration(minutes: 2);
 
   // ── Diagnostics (weak-ish via nullable ref) ──
   final String _diagnosticWebViewId =
       'webview_${DateTime.now().microsecondsSinceEpoch}';
   DebugDiagnosticsService? _diagnostics;
   bool _diagnosticRegistered = false;
+  final StructuredLogger _safeLogger = StructuredLogger();
 
   // ── Reader / TTS nav flags ───────────────────
   bool _pendingReaderRefreshAfterArticleNav = false;
@@ -417,54 +537,169 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
   Completer<void>? _pendingPageLoadCompleter;
   String? _pendingPageLoadUrl;
   bool? _lastKnownDataSaver;
-  bool? _lastKnownAdFreeState;
+  bool? _lastKnownAdBlockingState;
+  NetworkQuality? _lastKnownNetworkQuality;
   String? _lastAppliedWebViewPolicyKey;
+  String? _lastInjectedWebViewPolicyKey;
   String? _lastLoggedRenderPolicyKey;
   Uri? _lastPolicyUri;
+  bool _pullToRefreshDisposed = false;
+  final Set<String> _cachedSnapshotUrls = <String>{};
+  String? _transientRetryBudgetUrl;
+  int _transientRetryCount = 0;
+  String? _activeMainFrameUrl;
+  DateTime? _mainFrameLoadStartedAt;
+  DateTime? _lastMainFrameLoadStopAt;
+  DateTime? _lastProgressChangedAt;
+  bool _mainFrameLoading = true;
+  double _lastObservedProgress = 0.0;
+  final Set<String> _rewardedTtsUnlocks = <String>{};
+  final Set<String> _cleartextHostsWarned = <String>{};
+  bool _rewardedUnlockFlowInFlight = false;
+  bool _autoTtsAdvanceInFlight = false;
+  String? _lastAutoTtsCompletedSessionId;
+
+  bool get _isActiveState => mounted && !_isDisposing;
+
+  StructuredLogger get _runtimeLogger {
+    if (!_isActiveState) return _safeLogger;
+    try {
+      return ref.read(structuredLoggerProvider);
+    } catch (_) {
+      return _safeLogger;
+    }
+  }
+
+  PullToRefreshController _createPullToRefreshController() {
+    return PullToRefreshController(
+      settings: PullToRefreshSettings(color: WT.progressGold),
+      onRefresh: _refreshCurrentPage,
+    );
+  }
+
+  void _recreatePullToRefreshControllerIfNeeded() {
+    if (!_pullToRefreshDisposed || _isDisposing) return;
+    _ptrCtrl = _createPullToRefreshController();
+    _pullToRefreshDisposed = false;
+  }
+
+  Future<void> _safeExitScreen() async {
+    if (!mounted) return;
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+    await SystemNavigator.pop();
+  }
 
   // ── Pre-computed JS (generated once off-thread) ──
   String? _cachedBaseContentScript;
-  String? _cachedPremiumContentScript;
+  String? _cachedAdBlockingContentScript;
+  final Map<String, String> _policyScriptCache = <String, String>{};
+
+  static const Set<String> _kAggressiveAdUrlHints = <String>{
+    'doubleclick',
+    'googlesyndication',
+    'googleadservices',
+    'googletagservices',
+    'bilsyndication',
+    'safeframe',
+    'taboola',
+    'outbrain',
+    'mgid',
+    'teads',
+    'adnxs',
+    'adform',
+    'pubmatic',
+    'vidoomy',
+    '3lift',
+    'bidswitch',
+    '360yield',
+    'prebid',
+    'hbopenbid',
+    'adsbygoogle',
+    'amazon-adsystem',
+    'criteo',
+    'rubiconproject',
+    'openx',
+  };
 
   // ── Android-tuned WebView settings ───────────
+  bool _computeLightweightWebViewMode({
+    required bool dataSaver,
+    required NetworkQuality networkQuality,
+    PerformanceConfig? perf,
+  }) {
+    return shouldUseLightweightWebViewMode(
+      isPublisherMode: _allowPublisherReaderFallback,
+      dataSaver: dataSaver,
+      lowPowerMode: perf?.lowPowerMode ?? false,
+      isLowEndDevice: perf?.isLowEndDevice ?? false,
+      networkQuality: networkQuality,
+    );
+  }
+
   InAppWebViewSettings _buildWebViewSettings({
-    required bool isPremium,
+    required bool adBlockingEnabled,
     required PerformanceConfig perf,
     required bool dataSaver,
+    required NetworkQuality networkQuality,
     Uri? currentUri,
   }) {
+    final publisherMode = _allowPublisherReaderFallback;
     final conservativePolicy = _shouldUseConservativePolicy(currentUri);
+    final runtimeHybridFallback = _shouldUseRuntimeHybridFallback(currentUri);
+    final lightweightMode = _computeLightweightWebViewMode(
+      dataSaver: dataSaver,
+      networkQuality: networkQuality,
+      perf: perf,
+    );
     final blockers = buildWebViewContentBlockers(
-      isPremium: isPremium,
+      enableAdBlocking: adBlockingEnabled,
       conservative: conservativePolicy,
       dataSaver: dataSaver,
+      lightweightMode: lightweightMode,
     );
-    final useHybridComposition =
-        perf.isEmulator ||
-        perf.isLowEndDevice ||
-        perf.lowPowerMode ||
-        conservativePolicy;
+    final mixedMode = publisherMode
+        ? MixedContentMode.MIXED_CONTENT_COMPATIBILITY_MODE
+        : MixedContentMode.MIXED_CONTENT_NEVER_ALLOW;
+    final useHybridComposition = shouldUseHybridCompositionForWebView(
+      isEmulator: perf.isEmulator,
+      isLowEndDevice: perf.isLowEndDevice,
+      lowPowerMode: perf.lowPowerMode,
+      preferRuntimeHybridComposition: runtimeHybridFallback,
+    );
 
     final renderPolicyKey =
-        'host=${(currentUri?.host ?? '').toLowerCase()}|hybrid=$useHybridComposition|emulator=${perf.isEmulator}|lowEnd=${perf.isLowEndDevice}|lowPower=${perf.lowPowerMode}|conservative=$conservativePolicy';
+        'host=${(currentUri?.host ?? '').toLowerCase()}|hybrid=$useHybridComposition|emulator=${perf.isEmulator}|lowEnd=${perf.isLowEndDevice}|lowPower=${perf.lowPowerMode}|conservative=$conservativePolicy|runtimeHybrid=$runtimeHybridFallback';
     if (_lastLoggedRenderPolicyKey != renderPolicyKey) {
       _lastLoggedRenderPolicyKey = renderPolicyKey;
-      ref
-          .read(structuredLoggerProvider)
-          .info('WebView rendering policy', <String, dynamic>{
-            'host': (currentUri?.host ?? '').toLowerCase(),
-            'useHybridComposition': useHybridComposition,
-            'isEmulator': perf.isEmulator,
-            'isLowEnd': perf.isLowEndDevice,
-            'lowPowerMode': perf.lowPowerMode,
-            'conservativePolicy': conservativePolicy,
-          });
+      _runtimeLogger.info('WebView rendering policy', <String, dynamic>{
+        'host': (currentUri?.host ?? '').toLowerCase(),
+        'useHybridComposition': useHybridComposition,
+        'isEmulator': perf.isEmulator,
+        'isLowEnd': perf.isLowEndDevice,
+        'lowPowerMode': perf.lowPowerMode,
+        'conservativePolicy': conservativePolicy,
+        'runtimeHybridFallback': runtimeHybridFallback,
+        'publisherMode': publisherMode,
+        'lightweightMode': lightweightMode,
+        'networkQuality': networkQuality.name,
+      });
     }
 
     return InAppWebViewSettings(
       // ── Rendering ────────────────────────────────────────────
       preferredContentMode: UserPreferredContentMode.MOBILE,
       useHybridComposition: useHybridComposition,
+      layoutAlgorithm: publisherMode
+          ? LayoutAlgorithm.TEXT_AUTOSIZING
+          : LayoutAlgorithm.NORMAL,
+      useShouldOverrideUrlLoading: true,
+      useOnDownloadStart: true,
+      applicationNameForUserAgent: 'BDNewsReader/1.0',
+      transparentBackground: true,
       // blockNetworkImages: dataSaver, // Removed - unsupported parameter
 
       // ── Storage / capabilities ───────────────────────────────
@@ -472,8 +707,8 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
       allowContentAccess: false,
 
       // ── Safe browsing + mixed content ────────────────────────
-      mixedContentMode: MixedContentMode.MIXED_CONTENT_NEVER_ALLOW,
-      thirdPartyCookiesEnabled: !isPremium,
+      mixedContentMode: mixedMode,
+      thirdPartyCookiesEnabled: !(adBlockingEnabled || lightweightMode),
 
       // ── Viewport ─────────────────────────────────────────────
       supportZoom: false,
@@ -482,8 +717,42 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
       disableDefaultErrorPage: true,
 
       // ── Ad content blocking ──────────────────────────────────
-      useShouldInterceptRequest: blockers.isNotEmpty,
+      useShouldInterceptRequest: blockers.isNotEmpty || lightweightMode,
       contentBlockers: blockers,
+    );
+  }
+
+  bool _shouldBlockSubresourceRequest(
+    WebResourceRequest request, {
+    required bool adBlockingEnabled,
+    required bool dataSaver,
+    required bool lightweightMode,
+    Uri? pageUri,
+  }) {
+    if (!adBlockingEnabled && !dataSaver && !lightweightMode) return false;
+    if (request.isForMainFrame ?? false) return false;
+    final requestUri = _safeUri(request.url.toString());
+    if (shouldBlockCleartextSubresource(
+      pageUri: pageUri,
+      requestUri: requestUri,
+    )) {
+      return true;
+    }
+    final lowerUrl = requestUri?.toString().toLowerCase() ?? '';
+
+    if (adBlockingEnabled &&
+        (_kAggressiveAdUrlHints.any(lowerUrl.contains) ||
+            RegExp(
+              r'[?&](adunit|ad_slot|adslot|ad_id|adtag|ads)=',
+            ).hasMatch(lowerUrl))) {
+      return true;
+    }
+    return shouldBlockHeavyThirdPartySubresource(
+      pageUri: pageUri,
+      requestUri: requestUri,
+      adBlockingEnabled: adBlockingEnabled,
+      dataSaver: dataSaver,
+      lightweightMode: lightweightMode,
     );
   }
 
@@ -504,55 +773,78 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
       }
     }
     _currentArticle = _resolveArticle();
+    _activeMainFrameUrl = _currentArticle.url;
 
-    _ptrCtrl = PullToRefreshController(
-      settings: PullToRefreshSettings(color: WT.progressGold),
-      onRefresh: () async => _ctrl?.reload(),
-    );
+    _ptrCtrl = _createPullToRefreshController();
+    _pullToRefreshDisposed = false;
 
     // Generate content-injection scripts off the main thread.
     compute(_buildBaseContentScript, null).then((script) {
       _cachedBaseContentScript = script;
     });
-    compute(_buildPremiumContentScript, null).then((script) {
-      _cachedPremiumContentScript = script;
+    compute(_buildAdBlockingContentScript, null).then((script) {
+      _cachedAdBlockingContentScript = script;
     });
 
     if (kDebugMode || kProfileMode) {
       _diagnostics = ref.read(debugDiagnosticsServiceProvider);
     }
+
+    _startWebViewBannerRefreshTimer();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Safe to call ref.read after first frame; avoids initState ref pitfalls.
-    _userInterest = ref.read(userInterestProvider);
-    _ttsManager = ref.read(ttsManagerProvider);
-    _lastKnownAdFreeState ??= !ref.read(shouldShowAdsProvider);
+    _learningEngine = ref.read(localLearningEngineProvider);
+    _ttsCoordinator = ref.read(appTtsCoordinatorProvider);
+    if (!_didTrackOpenEvent) {
+      _learningEngine.trackOpen(_currentArticle);
+      _didTrackOpenEvent = true;
+    }
+    _lastKnownAdBlockingState ??= ref.read(publisherAdBlockingEnabledProvider);
     _syncTtsFeedNavigationHooks();
-    _ttsSubscription ??= _ttsManager.currentChunk.listen((SpeechChunk? chunk) {
+    _ttsSubscription ??= _ttsCoordinator.currentChunk.listen((
+      SpeechChunk? chunk,
+    ) {
       if (!mounted) return;
       if (chunk != null && _ctrl != null) {
         unawaited(_highlightText(chunk.text));
       }
       setState(() {});
     });
+    _ttsSessionSubscription ??= _ttsCoordinator.sessionStream.listen(
+      _handleTtsSessionUpdate,
+    );
   }
 
   @override
   void dispose() {
+    _isDisposing = true;
     WidgetsBinding.instance.removeObserver(this);
     if (_pendingPageLoadCompleter != null &&
         !_pendingPageLoadCompleter!.isCompleted) {
       _pendingPageLoadCompleter!.complete();
     }
+    _visualReadyTimer?.cancel();
     _scrollSaveTimer?.cancel();
-    _saveScrollPositionSync(); // best-effort; no await in dispose
+    _snapshotCacheTimer?.cancel();
+    _webViewBannerRefreshTimer?.cancel();
+    _autoTtsNextArticleTimer?.cancel();
     _recordReadingSession();
     _ttsSubscription?.cancel();
+    _ttsSessionSubscription?.cancel();
+    if (!_pullToRefreshDisposed) {
+      try {
+        _ptrCtrl.dispose();
+      } catch (_) {
+        // Best-effort.
+      }
+      _pullToRefreshDisposed = true;
+    }
     _progressNotifier.dispose();
-    _ttsManager
+    _ttsCoordinator
       ..clearFeedNavigation()
       ..stop();
     _diagUnregisterWebView();
@@ -568,13 +860,39 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
       case AppLifecycleState.detached:
         _scheduleScrollSave();
         _ctrl?.pauseTimers();
+        _webViewBannerRefreshTimer?.cancel();
+        _autoTtsNextArticleTimer?.cancel();
+        _autoTtsAdvanceInFlight = false;
         break;
       case AppLifecycleState.resumed:
-        _ctrl?.resumeTimers();
+        if (_isReaderModeActiveSafely()) {
+          unawaited(_pauseWebViewBackgroundWork());
+        } else {
+          _ctrl?.resumeTimers();
+          _startWebViewBannerRefreshTimer();
+        }
         break;
       case AppLifecycleState.hidden:
         break;
     }
+  }
+
+  void _startWebViewBannerRefreshTimer() {
+    _webViewBannerRefreshTimer?.cancel();
+    _webViewBannerRefreshTimer = Timer.periodic(_webViewBannerRefreshInterval, (
+      _,
+    ) {
+      if (!mounted || !_isActiveState) {
+        return;
+      }
+      if (_isReaderModeActiveSafely()) {
+        return;
+      }
+      if (!ref.read(shouldShowAdsProvider)) {
+        return;
+      }
+      setState(() => _webViewBannerRefreshTick++);
+    });
   }
 
   // ─────────────────────────────────────────────
@@ -696,8 +1014,18 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
     final fallback = _currentArticle.title.trim().isEmpty
         ? 'Article'
         : _currentArticle.title.trim();
-    final currentUrl = _currentArticle.url;
-    if (_ctrl == null) return fallback;
+    final currentUrl = _activeMainFrameUrl ?? _currentArticle.url;
+    return _resolveVisiblePageTitle(
+      rawUrl: currentUrl,
+      fallbackTitle: fallback,
+    );
+  }
+
+  Future<String> _resolveVisiblePageTitle({
+    required String rawUrl,
+    required String fallbackTitle,
+  }) async {
+    if (_ctrl == null) return fallbackTitle;
     try {
       final result = await _ctrl!
           .evaluateJavascript(
@@ -744,20 +1072,230 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
           )
           .timeout(const Duration(milliseconds: 900));
       final decoded = jsonDecode(result?.toString() ?? '{}');
-      if (decoded is! Map) return fallback;
+      if (decoded is! Map) return fallbackTitle;
       final payload = Map<String, dynamic>.from(decoded);
       return _pickReaderTitleHint(
-        rawUrl: currentUrl,
-        fallbackTitle: fallback,
+        rawUrl: rawUrl,
+        fallbackTitle: fallbackTitle,
         payload: payload,
       );
     } catch (_) {
-      return fallback;
+      return fallbackTitle;
     }
+  }
+
+  String get _currentPageUrl =>
+      _activeMainFrameUrl ?? _lastPolicyUri?.toString() ?? _currentArticle.url;
+
+  void _cancelVisualReadyTimer() {
+    _visualReadyTimer?.cancel();
+    _visualReadyTimer = null;
+  }
+
+  void _markMainFrameReady({required String reason}) {
+    _cancelVisualReadyTimer();
+    _mainFrameLoading = false;
+    _lastMainFrameLoadStopAt = DateTime.now();
+    _lastObservedProgress = 1.0;
+    _progressNotifier.value = 1.0;
+    _completePendingPageLoad();
+    _runtimeLogger.info('WebView main frame ready', <String, dynamic>{
+      'reason': reason,
+      'url': _currentPageUrl,
+    });
+  }
+
+  void _maybePromoteMainFrameToVisuallyReady() {
+    if (!_isActiveState) return;
+    if (!shouldPromoteWebViewToVisuallyReady(
+      mainFrameLoading: _mainFrameLoading,
+      progress: _lastObservedProgress,
+      loadStartedAt: _mainFrameLoadStartedAt,
+      lastProgressChangedAt: _lastProgressChangedAt,
+      plateauDelay: _visualReadyPlateauDelay,
+      minLoadTime: _visualReadyMinLoadTime,
+      now: DateTime.now(),
+    )) {
+      return;
+    }
+    _markMainFrameReady(reason: 'progress_plateau');
+  }
+
+  void _scheduleVisualReadyCheck() {
+    _cancelVisualReadyTimer();
+    if (!_isActiveState ||
+        !_mainFrameLoading ||
+        _mainFrameLoadStartedAt == null ||
+        _lastProgressChangedAt == null ||
+        _lastObservedProgress < 0.95) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final plateauRemaining =
+        _visualReadyPlateauDelay - now.difference(_lastProgressChangedAt!);
+    final minLoadRemaining =
+        _visualReadyMinLoadTime - now.difference(_mainFrameLoadStartedAt!);
+    var delay = plateauRemaining > minLoadRemaining
+        ? plateauRemaining
+        : minLoadRemaining;
+    if (delay < Duration.zero) {
+      delay = Duration.zero;
+    }
+
+    _visualReadyTimer = Timer(delay, _maybePromoteMainFrameToVisuallyReady);
+  }
+
+  void _handleMainFrameLoadStart(Uri? uri) {
+    _cancelVisualReadyTimer();
+    _mainFrameLoading = true;
+    _mainFrameLoadStartedAt = DateTime.now();
+    _lastMainFrameLoadStopAt = null;
+    _lastProgressChangedAt = _mainFrameLoadStartedAt;
+    _lastObservedProgress = 0.0;
+
+    final nextUrl = uri?.toString().trim();
+    if (nextUrl == null || nextUrl.isEmpty) return;
+    _activeMainFrameUrl = nextUrl;
+
+    if (!_allowPublisherReaderFallback ||
+        widget.articles != null ||
+        _isReaderModeActiveSafely()) {
+      return;
+    }
+
+    final currentCanonical = UrlIdentity.canonicalize(_currentArticle.url);
+    final nextCanonical = UrlIdentity.canonicalize(nextUrl);
+    if (currentCanonical == nextCanonical) return;
+
+    ref.read(readerControllerProvider.notifier).invalidateForPageChange();
+    setState(() {
+      _currentArticle = _currentArticle.copyWith(url: nextUrl, fullContent: '');
+    });
+  }
+
+  Future<void> _syncCurrentArticleWithLoadedPage(Uri? uri) async {
+    if (!_allowPublisherReaderFallback ||
+        widget.articles != null ||
+        uri == null) {
+      return;
+    }
+
+    final rawUrl = uri.toString();
+    final resolvedTitle = await _resolveVisiblePageTitle(
+      rawUrl: rawUrl,
+      fallbackTitle: _currentArticle.title.trim().isEmpty
+          ? widget.title
+          : _currentArticle.title,
+    );
+    if (!_isActiveState) return;
+
+    final currentCanonical = UrlIdentity.canonicalize(_currentArticle.url);
+    final nextCanonical = UrlIdentity.canonicalize(rawUrl);
+    if (currentCanonical == nextCanonical &&
+        resolvedTitle == _currentArticle.title) {
+      return;
+    }
+
+    setState(() {
+      _currentArticle = _currentArticle.copyWith(
+        url: rawUrl,
+        title: resolvedTitle,
+        fullContent: '',
+      );
+    });
+  }
+
+  Future<bool> _ensureReaderSourceReady({required bool showFeedback}) async {
+    if (_ctrl == null) {
+      if (showFeedback) {
+        _snack(
+          'Page is still loading. Please wait a moment and try Reader mode again.',
+        );
+      }
+      return false;
+    }
+
+    if (_hasReusableArticleSnapshot) {
+      return true;
+    }
+
+    try {
+      if (_pendingPageLoadCompleter != null &&
+          !(_pendingPageLoadCompleter?.isCompleted ?? true)) {
+        await _waitForPendingPageLoad(
+          timeout: _pendingPageLoadTimeout(rawUrl: _currentPageUrl),
+        );
+      }
+    } on TimeoutException {
+      if (showFeedback) {
+        _snack(
+          'This article is still loading. Please wait a moment and try Reader mode again.',
+        );
+      }
+      return false;
+    } catch (_) {
+      if (showFeedback) {
+        _snack(
+          'Page is still loading. Please wait a moment and try Reader mode again.',
+        );
+      }
+      return false;
+    }
+
+    final readyAfterSettle = isReaderSourceReadyForToggle(
+      hasController: _ctrl != null,
+      mainFrameLoading: _mainFrameLoading,
+      lastLoadStopAt: _lastMainFrameLoadStopAt,
+      settleDelay: _readerDomSettleDelay,
+      now: DateTime.now(),
+    );
+    if (!readyAfterSettle &&
+        (_mainFrameLoading || _lastMainFrameLoadStopAt == null)) {
+      if (showFeedback) {
+        _snack(
+          'Page is still loading. Please wait a moment and try Reader mode again.',
+        );
+      }
+      return false;
+    }
+
+    if (!readyAfterSettle) {
+      final remainingSettle =
+          _readerDomSettleDelay -
+          DateTime.now().difference(_lastMainFrameLoadStopAt!);
+      if (remainingSettle > Duration.zero) {
+        await Future<void>.delayed(remainingSettle);
+      }
+    }
+
+    if (!_isActiveState || _ctrl == null || _mainFrameLoading) {
+      return false;
+    }
+    return true;
   }
 
   bool get _isSavedArticleOrigin =>
       widget.args.origin == WebViewOrigin.savedArticle;
+
+  bool get _allowPublisherReaderFallback =>
+      widget.origin == WebViewOrigin.publisher;
+
+  bool get _hasReusableArticleSnapshot =>
+      _currentArticle.fullContent.trim().isNotEmpty;
+
+  bool _shouldUseCachedArticleSnapshot() {
+    if (_allowPublisherReaderFallback || !_hasReusableArticleSnapshot) {
+      return false;
+    }
+    if (_isSavedArticleOrigin) return true;
+
+    final network = ref.read(appNetworkServiceProvider);
+    final dataSaver = ref.read(dataSaverProvider);
+    return dataSaver ||
+        !network.isConnected ||
+        network.currentQuality == NetworkQuality.poor;
+  }
 
   String? _offlineSnapshotHtml(NewsArticle article) {
     final raw = article.fullContent.trim();
@@ -814,8 +1352,8 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
     return payload;
   }
 
-  InAppWebViewInitialData? _initialSavedArticleData() {
-    if (!_isSavedArticleOrigin) return null;
+  InAppWebViewInitialData? _initialCachedArticleData() {
+    if (!_shouldUseCachedArticleSnapshot()) return null;
     final html = _offlineSnapshotHtml(_currentArticle);
     if (html == null) return null;
     final base = _safeUri(_currentArticle.url);
@@ -827,8 +1365,8 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
     );
   }
 
-  Future<bool> _loadSavedArticleSnapshotIfAvailable() async {
-    if (!_isSavedArticleOrigin || _ctrl == null) return false;
+  Future<bool> _loadCachedArticleSnapshotIfAvailable() async {
+    if (_ctrl == null || !_shouldUseCachedArticleSnapshot()) return false;
     final html = _offlineSnapshotHtml(_currentArticle);
     final base = _safeUri(_currentArticle.url);
     if (html == null || base == null) return false;
@@ -841,39 +1379,198 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
       );
       return true;
     } catch (e, s) {
-      ref
-          .read(structuredLoggerProvider)
-          .warning('Failed to load offline snapshot', e, s);
+      _runtimeLogger.warning('Failed to load offline snapshot', e, s);
       return false;
     }
   }
 
+  bool _matchesCurrentArticleUrl(Uri? uri) {
+    if (uri == null) return false;
+    return UrlIdentity.canonicalize(uri.toString()) ==
+        UrlIdentity.canonicalize(_currentArticle.url);
+  }
+
+  Future<void> _cacheCurrentArticleSnapshotIfNeeded(
+    InAppWebViewController controller,
+    Uri? uri,
+  ) async {
+    if (!_matchesCurrentArticleUrl(uri)) {
+      return;
+    }
+    if (_cachedSnapshotUrls.contains(_currentArticle.url) ||
+        _currentArticle.fullContent.trim().isNotEmpty) {
+      return;
+    }
+
+    try {
+      final dynamic raw = await controller
+          .evaluateJavascript(
+            source: '''
+(function() {
+  const normalize = (value) => String(value || '').replace(/\\u00a0/g, ' ').replace(/\\s+/g, ' ').trim();
+  const selectors = [
+    'article',
+    'main article',
+    '[itemprop*="articleBody"]',
+    '[role="main"] article',
+    '.article-body',
+    '.article-content',
+    '.post-content',
+    '.entry-content',
+    '.story-body',
+    '.story-content',
+    '.news-content',
+    '.details',
+    'main',
+    '[role="main"]',
+    'body'
+  ];
+
+  const cleanup = (root) => {
+    if (!root || !root.querySelectorAll) return root;
+    root.querySelectorAll(
+      'script,style,nav,footer,aside,header,form,button,noscript,svg,canvas,iframe,' +
+      '.related,.related-news,.recommended,.trending,.comments,.comment-section,' +
+      '.share,.share-tools,.social-share,.newsletter,.subscribe,.ads,.ad,.advertisement,' +
+      '.cookie,.cookie-banner,.consent,.popup,.overlay'
+    ).forEach((node) => node.remove());
+    return root;
+  };
+
+  const scoreCandidate = (node) => {
+    const text = normalize(node?.innerText || node?.textContent || '');
+    if (text.length < 200) return -1e9;
+    const paragraphs = node.querySelectorAll ? node.querySelectorAll('p').length : 0;
+    const anchors = node.querySelectorAll ? Array.from(node.querySelectorAll('a')) : [];
+    const shortAnchors = anchors.filter((a) => normalize(a.innerText || a.textContent || '').split(/\\s+/).filter(Boolean).length <= 8).length;
+    const anchorTextLen = anchors.reduce((sum, a) => sum + normalize(a.innerText || a.textContent || '').length, 0);
+    const linkDensity = anchorTextLen / Math.max(text.length, 1);
+    const listItems = node.querySelectorAll ? node.querySelectorAll('li').length : 0;
+    return text.length + (paragraphs * 145) - Math.round(linkDensity * 1180) - (shortAnchors * 42) - (listItems * 16);
+  };
+
+  let best = null;
+  let bestScore = -1e9;
+  for (const selector of selectors) {
+    const candidates = Array.from(document.querySelectorAll(selector));
+    for (const candidate of candidates) {
+      const clone = cleanup(candidate.cloneNode(true));
+      const score = scoreCandidate(clone);
+      if (score > bestScore) {
+        best = clone;
+        bestScore = score;
+      }
+    }
+  }
+
+  if (!best) return '';
+
+  const bestText = normalize(best.innerText || best.textContent || '');
+  const bestAnchors = Array.from(best.querySelectorAll ? best.querySelectorAll('a') : []);
+  const bestAnchorTextLen = bestAnchors.reduce((sum, a) => sum + normalize(a.innerText || a.textContent || '').length, 0);
+  const bestLinkDensity = bestAnchorTextLen / Math.max(bestText.length, 1);
+  const bestParagraphs = best.querySelectorAll ? best.querySelectorAll('p').length : 0;
+
+  if (bestText.length < 380 || bestParagraphs < 3 || bestLinkDensity > 0.46) {
+    return '';
+  }
+
+  return (best.outerHTML || best.innerHTML || '').trim();
+})();
+''',
+          )
+          .timeout(const Duration(milliseconds: 1500));
+      final snapshot = _normalizeSnapshotPayload(raw?.toString() ?? '').trim();
+      if (snapshot.length < 800 || snapshot.length > 250000) {
+        return;
+      }
+
+      final db = ref.read(appDatabaseProvider);
+      final articleId = UrlIdentity.idFromUrl(_currentArticle.url);
+      await (db.update(db.articles)..where((t) => t.id.equals(articleId)))
+          .write(ArticlesCompanion(content: Value(snapshot)));
+
+      _currentArticle = _currentArticle.copyWith(fullContent: snapshot);
+      _cachedSnapshotUrls.add(_currentArticle.url);
+    } catch (e, s) {
+      _runtimeLogger.warning('Failed to cache article snapshot', e, s);
+    }
+  }
+
   bool _shouldUseConservativePolicy(Uri? uri) {
-    final host = (uri?.host ?? '').toLowerCase();
-    return host == 'kalerkantho.com' ||
-        host.endsWith('.kalerkantho.com') ||
-        host == 'prothomalo.com' ||
-        host.endsWith('.prothomalo.com') ||
-        host == 'thedailystar.net' ||
-        host.endsWith('.thedailystar.net') ||
-        host == 'bdnews24.com' ||
-        host.endsWith('.bdnews24.com') ||
-        host == 'dhakatribune.com' ||
-        host.endsWith('.dhakatribune.com') ||
-        host == 'banglatribune.com' ||
-        host.endsWith('.banglatribune.com') ||
-        host == 'jugantor.com' ||
-        host.endsWith('.jugantor.com') ||
-        host == 'manabzamin.com' ||
-        host.endsWith('.manabzamin.com') ||
-        host == 'tbsnews.net' ||
-        host.endsWith('.tbsnews.net') ||
-        host == 'engadget.com' ||
-        host.endsWith('.engadget.com') ||
-        host == 'techcrunch.com' ||
-        host.endsWith('.techcrunch.com') ||
-        host == 'yahoo.com' ||
-        host.endsWith('.yahoo.com');
+    return isConservativeWebViewHost(uri);
+  }
+
+  bool _shouldUseRuntimeHybridFallback(Uri? uri) {
+    final hostKey = webViewHostCacheKey(uri);
+    return hostKey.isNotEmpty &&
+        _runtimeHybridCompositionHosts.contains(hostKey);
+  }
+
+  void _rememberRuntimeHybridFallback(Uri? uri) {
+    final hostKey = webViewHostCacheKey(uri);
+    if (hostKey.isEmpty) return;
+    _runtimeHybridCompositionHosts.add(hostKey);
+  }
+
+  void _primeTransientRetryBudget(Uri? uri, {bool force = false}) {
+    final trackedUrl = UrlIdentity.canonicalize(
+      uri?.toString().isNotEmpty == true ? uri.toString() : _currentArticle.url,
+    );
+    if (force || _transientRetryBudgetUrl != trackedUrl) {
+      _transientRetryBudgetUrl = trackedUrl;
+      _transientRetryCount = 0;
+    }
+  }
+
+  bool _consumeTransientRetryBudget(Uri? uri) {
+    _primeTransientRetryBudget(uri);
+    if (_transientRetryCount >= 1) return false;
+    _transientRetryCount += 1;
+    return true;
+  }
+
+  Future<bool> _maybeRetryTransientPublisherLoad(
+    InAppWebViewController controller,
+    WebResourceRequest request,
+    WebResourceError error,
+  ) async {
+    final requestUri = _safeUri(request.url.toString());
+    final hasRetryBudget =
+        UrlIdentity.canonicalize(
+              requestUri?.toString().isNotEmpty == true
+                  ? requestUri.toString()
+                  : _currentArticle.url,
+            ) !=
+            _transientRetryBudgetUrl ||
+        _transientRetryCount < 1;
+
+    if (!shouldRetryTransientPublisherLoad(
+      isPublisherMode: _allowPublisherReaderFallback,
+      isMainFrame: request.isForMainFrame ?? false,
+      hasRetryBudget: hasRetryBudget,
+      error: error,
+    )) {
+      return false;
+    }
+
+    if (!_consumeTransientRetryBudget(requestUri)) {
+      return false;
+    }
+
+    _runtimeLogger.info('WebView transient load retry', <String, dynamic>{
+      'host': requestUri?.host ?? '',
+      'errorType': error.type.toString(),
+      'description': error.description,
+      'retryCount': _transientRetryCount,
+    });
+
+    await _safeEndRefreshing();
+    Future<void>.delayed(const Duration(milliseconds: 350), () {
+      if (!_isActiveState) return;
+      unawaited(controller.reload());
+    });
+    return true;
   }
 
   String _buildSiteSpecificScript(Uri? uri) {
@@ -922,18 +1619,16 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
     // Compatibility cleanup for high-noise news pages.
     return '''
       (function() {
-        if (window.__bdSitePolicyApplied) return;
-        window.__bdSitePolicyApplied = true;
-
         const consentContainerSelectors = [
           '[id*="cookie"]', '[class*="cookie"]',
           '[id*="consent"]', '[class*="consent"]',
           '[id*="gdpr"]', '[class*="gdpr"]',
+          '[id*="privacy"]', '[class*="privacy"]',
           '[id*="cmp"]', '[class*="cmp"]',
           '[id*="onetrust"]', '[class*="onetrust"]',
           '[id*="didomi"]', '[class*="didomi"]',
           '[id*="sp_message_container"]', '[class*="sp_message"]',
-          '[aria-label*="cookie"]', '[aria-label*="consent"]',
+          '[aria-label*="cookie"]', '[aria-label*="consent"]', '[aria-label*="privacy"]',
           '[role="dialog"]'
         ];
 
@@ -945,25 +1640,37 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
           'a'
         ];
 
-        const consentAcceptWords = [
-          'accept', 'accept all', 'agree', 'i agree', 'allow all', 'allow',
-          'ok', 'okay', 'got it', 'continue',
-          'গ্রহণ', 'সম্মতি', 'রাজি', 'ঠিক আছে', 'স্বীকার', 'অনুমতি'
+        const consentHints = [
+          'cookie', 'cookies', 'consent', 'gdpr', 'privacy', 'policy',
+          'preferences', 'preference', 'choices', 'choice', 'onetrust',
+          'didomi', 'sourcepoint', 'sp_message', 'cmp', 'trustarc',
+          'cookiebot', 'tracking', 'data use'
         ];
 
-        const consentRejectWords = [
-          'reject', 'decline', 'deny', 'disagree', 'manage', 'preferences',
-          'settings', 'customize', 'options', 'না', 'প্রত্যাখ্যান', 'না ধন্যবাদ'
+        const safeDismissWords = [
+          'reject', 'reject all', 'decline', 'decline all', 'deny', 'disagree',
+          'close', 'dismiss', 'not now', 'skip',
+          'essential only', 'necessary only', 'use necessary cookies only',
+          'continue without accepting', 'continue without agreement',
+          'only required', 'only essential',
+          'না', 'প্রত্যাখ্যান', 'বন্ধ', 'এখন না'
+        ];
+
+        const riskyOverlayWords = [
+          'subscribe', 'subscription', 'sign in', 'login', 'log in',
+          'register', 'purchase', 'checkout', 'trial', 'upgrade',
+          'membership', 'paywall', 'join now'
         ];
 
         const removableSelectors = [
-          '.cookie-banner', '.cookie-consent', '.consent', '.gdpr', '.newsletter',
-          '.subscribe', '.social-share', '.share-tools', '.related', '.recommended',
+          '.cookie-banner', '.cookie-consent', '.consent', '.gdpr',
+          '.social-share', '.share-tools', '.related', '.recommended',
           '.trending', '.most-popular', '.comments', '.comment-section',
           '.ad', '.ads', '.advertisement', '.sponsored', '.promo', '.ad-slot',
           '.ad-banner', '.ad-container', '.ad-wrapper', '.outbrain', '.taboola',
           '.teads', '.mgid',
-          '[role="complementary"]', '[aria-label*="cookie"]', '[aria-label*="consent"]',
+          '[role="complementary"]', '[aria-label*="cookie"]',
+          '[aria-label*="consent"]', '[aria-label*="privacy"]',
           '[class*="overlay"]', '[class*="popup"]', '[id*="overlay"]', '[id*="popup"]',
           '[id*="ad-"]', '[id^="ad_"]', '[id*="sponsored"]',
           '[class*=" ad-"]', '[class^="ad_"]', '[class*="sponsor"]',
@@ -977,6 +1684,19 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
 
         const normalize = (value) => String(value || '').toLowerCase().replace(/\\s+/g, ' ').trim();
         const hasAny = (haystack, needles) => needles.some((n) => haystack.includes(n));
+
+        const clickSafely = (el) => {
+          if (!el) return false;
+          try {
+            el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+          } catch (_) {}
+          try {
+            el.click();
+            return true;
+          } catch (_) {
+            return false;
+          }
+        };
 
         const hideElement = (el) => {
           if (!el || !el.style) return;
@@ -995,6 +1715,34 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
           } catch (_) {}
         };
 
+        const unlockRootLayout = () => {
+          [document.documentElement, document.body].forEach((node) => {
+            if (!node || !node.style) return;
+            try {
+              node.style.setProperty('overflow', 'auto', 'important');
+              node.style.setProperty('position', 'static', 'important');
+              node.style.setProperty('inset', 'auto', 'important');
+              node.style.setProperty('height', 'auto', 'important');
+              node.style.setProperty('max-height', 'none', 'important');
+              node.style.setProperty('padding-right', '0', 'important');
+              node.style.setProperty('touch-action', 'auto', 'important');
+            } catch (_) {}
+            try { node.removeAttribute('inert'); } catch (_) {}
+            try { node.removeAttribute('aria-hidden'); } catch (_) {}
+            try {
+              Array.from(node.classList || []).forEach((className) => {
+                if (/(modal|popup|overlay|cookie|consent|privacy|locked|noscroll|no-scroll|sp_message|onetrust)/i.test(className)) {
+                  node.classList.remove(className);
+                }
+              });
+            } catch (_) {}
+          });
+          document.querySelectorAll('main,article,[role="main"]').forEach((node) => {
+            try { node.removeAttribute('inert'); } catch (_) {}
+            try { node.removeAttribute('aria-hidden'); } catch (_) {}
+          });
+        };
+
         const collapseEmptyParents = (node) => {
           let parent = node && node.parentElement;
           let depth = 0;
@@ -1011,16 +1759,57 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
           }
         };
 
-        const autoAcceptConsent = () => {
-          let clicked = false;
-          consentContainerSelectors.forEach((selector) => {
-            document.querySelectorAll(selector).forEach((container) => {
-              const scoped = [];
-              consentActionSelectors.forEach((actionSel) => {
-                container.querySelectorAll(actionSel).forEach((el) => scoped.push(el));
-              });
+        const shouldProtectOverlay = (node) => {
+          if (!node) return false;
+          const text = normalize(
+            node.innerText ||
+            node.textContent ||
+            node.getAttribute('aria-label') ||
+            node.getAttribute('title') ||
+            node.getAttribute('id') ||
+            node.className
+          );
+          return text.length > 0 && hasAny(text, riskyOverlayWords);
+        };
 
-              scoped.forEach((candidate) => {
+        const isConsentContainer = (node) => {
+          if (!node || shouldProtectOverlay(node)) return false;
+          const text = normalize(
+            node.innerText ||
+            node.textContent ||
+            node.getAttribute('aria-label') ||
+            node.getAttribute('title') ||
+            node.getAttribute('id') ||
+            node.className
+          );
+          return text.length > 0 && hasAny(text, consentHints);
+        };
+
+        const collectConsentContainers = () => {
+          const results = new Set();
+          consentContainerSelectors.forEach((selector) => {
+            document.querySelectorAll(selector).forEach((node) => {
+              if (isConsentContainer(node)) {
+                results.add(node);
+              }
+            });
+          });
+          document.querySelectorAll(
+            '[role="dialog"],[aria-modal="true"],[class*="modal"],[class*="overlay"],[id*="overlay"],[class*="banner"],[id*="banner"],[class*="backdrop"],[id*="backdrop"]'
+          ).forEach((node) => {
+            if (isConsentContainer(node)) {
+              results.add(node);
+            }
+          });
+          return Array.from(results);
+        };
+
+        const dismissConsentOverlays = () => {
+          let acted = false;
+          collectConsentContainers().forEach((container) => {
+            const candidates = [];
+            consentActionSelectors.forEach((actionSel) => {
+              container.querySelectorAll(actionSel).forEach((candidate) => {
                 const text = normalize(
                   candidate.innerText ||
                   candidate.textContent ||
@@ -1028,94 +1817,583 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
                   candidate.getAttribute('aria-label') ||
                   candidate.getAttribute('title')
                 );
-                if (!text) return;
-                if (hasAny(text, consentRejectWords)) return;
-                if (!hasAny(text, consentAcceptWords)) return;
-                try {
-                  candidate.click();
-                  clicked = true;
-                } catch (_) {}
+                if (!text || hasAny(text, riskyOverlayWords)) return;
+                if (hasAny(text, safeDismissWords) || text === '×' || text === 'x') {
+                  candidates.push(candidate);
+                }
               });
             });
+
+            if (candidates.length > 0) {
+              acted = clickSafely(candidates[0]) || acted;
+            }
+
+            hideElement(container);
+            collapseEmptyParents(container);
+            container.querySelectorAll('[class*="backdrop"],[id*="backdrop"],[class*="overlay"],[id*="overlay"]').forEach((node) => {
+              if (!shouldProtectOverlay(node)) {
+                hideElement(node);
+              }
+            });
+            acted = true;
           });
-          return clicked;
+
+          if (acted) {
+            unlockRootLayout();
+          }
+          return acted;
         };
 
         const hideNoise = () => {
+          let hidConsent = false;
           removableSelectors.forEach((selector) => {
             document.querySelectorAll(selector).forEach((el) => {
+              if (shouldProtectOverlay(el)) return;
+              if (isConsentContainer(el)) {
+                hidConsent = true;
+              }
               hideElement(el);
               collapseEmptyParents(el);
             });
           });
 
           document.querySelectorAll(
-            '[id*="cookie"],[class*="cookie"],[id*="consent"],[class*="consent"],[id*="newsletter"],[class*="newsletter"],[id*="privacy"],[class*="privacy"],[id*="onetrust"],[class*="onetrust"],[id*="didomi"],[class*="didomi"]'
+            '[id*="cookie"],[class*="cookie"],[id*="consent"],[class*="consent"],[id*="privacy"],[class*="privacy"],[id*="onetrust"],[class*="onetrust"],[id*="didomi"],[class*="didomi"],[id*="sp_message"],[class*="sp_message"]'
           ).forEach((el) => {
+            if (shouldProtectOverlay(el)) return;
+            hidConsent = hidConsent || isConsentContainer(el);
             hideElement(el);
             collapseEmptyParents(el);
           });
+
+          if (hidConsent) {
+            unlockRootLayout();
+          }
         };
 
-        autoAcceptConsent();
-        hideNoise();
-
-        // Re-attempt consent click after early-render banners mount.
-        setTimeout(() => {
-          autoAcceptConsent();
+        const runSitePolicy = () => {
+          dismissConsentOverlays();
           hideNoise();
-        }, 450);
+        };
+
+        window.__bdSitePolicyRun = runSitePolicy;
+        runSitePolicy();
 
         const startObserver = () => {
           if (!document.body) return false;
+          if (window.__bdSitePolicyObserver) return true;
           let mutations = 0;
           const maxMutations = 260;
           const observer = new MutationObserver((records) => {
             mutations += records.length;
-            autoAcceptConsent();
-            hideNoise();
+            window.__bdSitePolicyRun && window.__bdSitePolicyRun();
             if (mutations >= maxMutations) {
               observer.disconnect();
+              window.__bdSitePolicyObserver = null;
             }
           });
+          window.__bdSitePolicyObserver = observer;
           observer.observe(document.body, { childList: true, subtree: true });
-          setTimeout(() => observer.disconnect(), 12000);
+          setTimeout(() => {
+            if (window.__bdSitePolicyObserver === observer) {
+              observer.disconnect();
+              window.__bdSitePolicyObserver = null;
+            }
+          }, 12000);
           return true;
         };
 
         if (!startObserver()) {
-          window.addEventListener('DOMContentLoaded', startObserver, { once: true });
+          window.addEventListener('DOMContentLoaded', () => {
+            startObserver();
+            window.__bdSitePolicyRun && window.__bdSitePolicyRun();
+          }, { once: true });
         }
+
+        setTimeout(() => {
+          startObserver();
+          window.__bdSitePolicyRun && window.__bdSitePolicyRun();
+        }, 450);
+        setTimeout(() => {
+          startObserver();
+          window.__bdSitePolicyRun && window.__bdSitePolicyRun();
+        }, 1400);
       })();
     ''';
   }
 
-  String _buildWebViewPolicyKey({required bool isPremium, Uri? uri}) {
+  String _buildPublisherCompatibilityScript(Uri? uri) {
+    if (!_allowPublisherReaderFallback) return '';
+    final host = (uri?.host ?? '').toLowerCase();
+    return '''
+      (function() {
+        const host = ${jsonEncode(host)};
+        const norm = (value) => String(value || '').toLowerCase().replace(/\\s+/g, ' ').trim();
+        const includesAny = (text, hints) => hints.some((hint) => text.includes(hint));
+
+        const consentContainerHints = [
+          'cookie', 'consent', 'gdpr', 'privacy', 'terms', 'policy',
+          'onetrust', 'didomi', 'sourcepoint', 'sp_message', 'cmp',
+          'cookies', 'tracking', 'data use', 'agree to continue'
+        ];
+        const consentDismissHints = [
+          'reject', 'reject all', 'decline', 'decline all', 'deny', 'disagree',
+          'close', 'dismiss', 'not now', 'skip',
+          'essential only', 'necessary only', 'use necessary cookies only',
+          'continue without accepting', 'continue without agreement',
+          'না', 'প্রত্যাখ্যান', 'বন্ধ', 'এখন না'
+        ];
+        const riskyActionHints = [
+          'subscribe', 'sign in', 'login', 'log in', 'register', 'purchase',
+          'buy', 'trial', 'upgrade', 'pay', 'checkout'
+        ];
+
+        const hideNode = (node) => {
+          if (!node || !node.style) return;
+          try {
+            node.style.setProperty('display', 'none', 'important');
+            node.style.setProperty('height', '0', 'important');
+            node.style.setProperty('min-height', '0', 'important');
+            node.style.setProperty('max-height', '0', 'important');
+            node.style.setProperty('overflow', 'hidden', 'important');
+            node.style.setProperty('margin', '0', 'important');
+            node.style.setProperty('padding', '0', 'important');
+            node.style.setProperty('border', '0', 'important');
+            node.style.setProperty('opacity', '0', 'important');
+          } catch (_) {}
+        };
+
+        const unlockRootLayout = () => {
+          [document.documentElement, document.body].forEach((node) => {
+            if (!node || !node.style) return;
+            try {
+              node.style.setProperty('overflow', 'auto', 'important');
+              node.style.setProperty('position', 'static', 'important');
+              node.style.setProperty('inset', 'auto', 'important');
+              node.style.setProperty('height', 'auto', 'important');
+              node.style.setProperty('max-height', 'none', 'important');
+              node.style.setProperty('padding-right', '0', 'important');
+            } catch (_) {}
+            try { node.removeAttribute('inert'); } catch (_) {}
+            try { node.removeAttribute('aria-hidden'); } catch (_) {}
+          });
+        };
+
+        const shouldTreatAsConsentContainer = (el) => {
+          if (!el) return false;
+          const text = norm(
+            el.innerText ||
+            el.textContent ||
+            el.getAttribute('aria-label') ||
+            el.getAttribute('id') ||
+            el.className
+          );
+          if (!text) return false;
+          return includesAny(text, consentContainerHints);
+        };
+
+        const tryDismissConsent = () => {
+          const containers = document.querySelectorAll(
+            '[id*="cookie"],[class*="cookie"],[id*="consent"],[class*="consent"],[id*="gdpr"],[class*="gdpr"],[id*="privacy"],[class*="privacy"],[id*="terms"],[class*="terms"],[id*="onetrust"],[class*="onetrust"],[id*="didomi"],[class*="didomi"],[id*="sp_message"],[class*="sp_message"],[role="dialog"],[aria-modal="true"]'
+          );
+          let acted = false;
+          containers.forEach((container) => {
+            if (!shouldTreatAsConsentContainer(container)) return;
+            const actions = container.querySelectorAll('button,[role="button"],a,input[type="button"],input[type="submit"]');
+            actions.forEach((action) => {
+              if (acted) return;
+              const text = norm(
+                action.innerText ||
+                action.textContent ||
+                action.value ||
+                action.getAttribute('aria-label') ||
+                action.getAttribute('title')
+              );
+              if (!text) return;
+              if (includesAny(text, riskyActionHints)) return;
+              if (!includesAny(text, consentDismissHints) && text != '×' && text != 'x') return;
+              try {
+                action.click();
+                acted = true;
+              } catch (_) {}
+            });
+            hideNode(container);
+          });
+          if (acted) {
+            unlockRootLayout();
+          }
+          return acted;
+        };
+
+        const cleanupSelectors = [
+          '.ad', '.ads', '.advertisement', '.ad-slot', '.ad-wrapper', '.sponsored',
+          '.promo', '.outbrain', '.taboola', '.teads', '.mgid',
+          '.related', '.recommended', '.most-read', '.most-popular', '.trending',
+          '.you-may-like', '.read-more', '.story-list',
+          '[class*="related"]', '[id*="related"]', '[class*="recommend"]', '[id*="recommend"]',
+          '[class*="trending"]', '[id*="trending"]',
+          '[id*="ad-"]', '[id^="ad_"]', '[class*=" ad-"]', '[class^="ad_"]',
+          'iframe[src*="doubleclick"]', 'iframe[src*="googlesyndication"]',
+          'iframe[src*="taboola"]', 'iframe[src*="outbrain"]', 'iframe[src*="ads"]'
+        ];
+
+        const hideNoise = () => {
+          let hidConsent = false;
+          cleanupSelectors.forEach((selector) => {
+            document.querySelectorAll(selector).forEach((node) => {
+              const text = norm(
+                node.innerText ||
+                node.textContent ||
+                node.getAttribute('aria-label') ||
+                node.getAttribute('title') ||
+                node.getAttribute('id') ||
+                node.className
+              );
+              if (text && includesAny(text, riskyActionHints)) return;
+              hidConsent = hidConsent || shouldTreatAsConsentContainer(node);
+              hideNode(node);
+            });
+          });
+          if (hidConsent) {
+            unlockRootLayout();
+          }
+        };
+
+        const runPublisherCompat = () => {
+          tryDismissConsent();
+          hideNoise();
+        };
+
+        window.__bdPublisherCompatRun = runPublisherCompat;
+        runPublisherCompat();
+
+        const startObserver = () => {
+          if (!document.body) return false;
+          if (window.__bdPublisherCompatObserver) return true;
+          let mutationCounter = 0;
+          const maxMutations = 320;
+          const observer = new MutationObserver((mutations) => {
+            mutationCounter += mutations.length;
+            window.__bdPublisherCompatRun && window.__bdPublisherCompatRun();
+            if (mutationCounter >= maxMutations) {
+              observer.disconnect();
+              window.__bdPublisherCompatObserver = null;
+            }
+          });
+          window.__bdPublisherCompatObserver = observer;
+          observer.observe(document.body, { childList: true, subtree: true });
+          setTimeout(() => {
+            if (window.__bdPublisherCompatObserver === observer) {
+              observer.disconnect();
+              window.__bdPublisherCompatObserver = null;
+            }
+          }, 15000);
+          return true;
+        };
+
+        if (!startObserver()) {
+          window.addEventListener('DOMContentLoaded', () => {
+            startObserver();
+            window.__bdPublisherCompatRun && window.__bdPublisherCompatRun();
+          }, { once: true });
+        }
+
+        // Late-mount consent overlays are common on publisher pages.
+        setTimeout(() => {
+          startObserver();
+          window.__bdPublisherCompatRun && window.__bdPublisherCompatRun();
+        }, 800);
+      })();
+    ''';
+  }
+
+  String _buildWebViewPolicyKey({required bool adBlockingEnabled, Uri? uri}) {
     final host = (uri?.host ?? '').toLowerCase();
     final conservative = _shouldUseConservativePolicy(uri);
-    return 'premium=$isPremium|host=$host|conservative=$conservative';
+    return 'adBlocking=$adBlockingEnabled|host=$host|conservative=$conservative|publisher=$_allowPublisherReaderFallback';
+  }
+
+  String _buildPublisherMobileRescueScript(Uri? uri) {
+    if (!_allowPublisherReaderFallback) return '';
+    final host = (uri?.host ?? '').toLowerCase();
+    return '''
+      (function() {
+        const host = ${jsonEncode(host)};
+        const samePublisherHost = (candidate) => {
+          if (!candidate || !host) return false;
+          return candidate === host ||
+            candidate.endsWith('.' + host) ||
+            host.endsWith('.' + candidate);
+        };
+
+        const ensureViewport = () => {
+          const parent = document.head || document.documentElement || document.body;
+          if (!parent) return;
+          let viewport = document.querySelector('meta[name="viewport"]');
+          if (!viewport) {
+            viewport = document.createElement('meta');
+            viewport.setAttribute('name', 'viewport');
+            parent.appendChild(viewport);
+          }
+          viewport.setAttribute(
+            'content',
+            'width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover'
+          );
+        };
+
+        const ensureStyle = () => {
+          const parent = document.head || document.documentElement || document.body;
+          if (!parent || document.getElementById('bd-mobile-rescue-style')) return;
+          const style = document.createElement('style');
+          style.id = 'bd-mobile-rescue-style';
+          style.textContent = `
+            html, body {
+              max-width: 100% !important;
+              width: 100% !important;
+              overflow-x: hidden !important;
+              -webkit-text-size-adjust: 100% !important;
+              text-size-adjust: 100% !important;
+            }
+            body {
+              margin-left: auto !important;
+              margin-right: auto !important;
+            }
+            article, main, section, figure, picture, img, video, iframe,
+            embed, object, table, pre, code, blockquote,
+            [role="main"], [class*="article"], [class*="story"], [class*="content"] {
+              max-width: 100% !important;
+              box-sizing: border-box !important;
+            }
+            img, video, iframe, embed, object {
+              width: auto !important;
+              height: auto !important;
+            }
+            table {
+              display: block !important;
+              overflow-x: auto !important;
+              white-space: normal !important;
+            }
+            pre, code {
+              white-space: pre-wrap !important;
+              word-break: break-word !important;
+              overflow-wrap: anywhere !important;
+            }
+            [class*="container"], [class*="wrapper"], [class*="layout"],
+            [class*="desktop"], [class*="content"], [class*="story"],
+            [id*="container"], [id*="wrapper"], [id*="content"] {
+              max-width: 100% !important;
+              width: auto !important;
+              min-width: 0 !important;
+              margin-left: auto !important;
+              margin-right: auto !important;
+            }
+          `;
+          parent.appendChild(style);
+        };
+
+        const retargetBlankAnchors = () => {
+          document.querySelectorAll('a[target="_blank"]').forEach((anchor) => {
+            const href = anchor.getAttribute('href');
+            if (!href) return;
+            try {
+              const target = new URL(href, location.href);
+              if (
+                samePublisherHost(target.hostname.toLowerCase()) ||
+                target.origin === location.origin
+              ) {
+                anchor.setAttribute('target', '_self');
+                anchor.removeAttribute('rel');
+              }
+            } catch (_) {}
+          });
+        };
+
+        const normalizeWideNodes = () => {
+          const viewportWidth = Math.max(window.innerWidth || 0, 320);
+          document.querySelectorAll('body *').forEach((node) => {
+            if (!node || !node.style || !node.getBoundingClientRect) return;
+            let rect;
+            try {
+              rect = node.getBoundingClientRect();
+            } catch (_) {
+              rect = null;
+            }
+            if (!rect || rect.width <= viewportWidth * 1.12) return;
+            try {
+              node.style.setProperty('max-width', '100%', 'important');
+              node.style.setProperty('width', 'auto', 'important');
+              node.style.setProperty('min-width', '0', 'important');
+              node.style.setProperty('overflow-x', 'auto', 'important');
+            } catch (_) {}
+          });
+        };
+
+        const hideIntrusiveFixedChrome = () => {
+          document.querySelectorAll('body *').forEach((node) => {
+            if (!node || !node.style || !window.getComputedStyle) return;
+            const text = String(
+              node.innerText ||
+              node.textContent ||
+              node.getAttribute('aria-label') ||
+              node.id ||
+              node.className ||
+              ''
+            ).toLowerCase();
+            if (!/(cookie|consent|privacy|popup|overlay|modal|newsletter|subscribe)/i.test(text)) {
+              return;
+            }
+            let computed;
+            try {
+              computed = window.getComputedStyle(node);
+            } catch (_) {
+              computed = null;
+            }
+            const position = String(computed?.position || '').toLowerCase();
+            const zIndex = parseInt(String(computed?.zIndex || '0'), 10) || 0;
+            if ((position === 'fixed' || position === 'sticky' || zIndex >= 20)) {
+              try {
+                node.style.setProperty('display', 'none', 'important');
+                node.style.setProperty('pointer-events', 'none', 'important');
+                node.style.setProperty('opacity', '0', 'important');
+              } catch (_) {}
+            }
+          });
+        };
+
+        const run = () => {
+          ensureViewport();
+          ensureStyle();
+          retargetBlankAnchors();
+          normalizeWideNodes();
+          hideIntrusiveFixedChrome();
+        };
+
+        window.__bdPublisherMobileRescueRun = run;
+        run();
+
+        const startObserver = () => {
+          if (!document.body || window.__bdPublisherMobileRescueObserver) return false;
+          let mutations = 0;
+          const observer = new MutationObserver((records) => {
+            mutations += records.length;
+            run();
+            if (mutations >= 220) {
+              observer.disconnect();
+              window.__bdPublisherMobileRescueObserver = null;
+            }
+          });
+          observer.observe(document.body, { childList: true, subtree: true });
+          window.__bdPublisherMobileRescueObserver = observer;
+          setTimeout(() => {
+            if (window.__bdPublisherMobileRescueObserver === observer) {
+              observer.disconnect();
+              window.__bdPublisherMobileRescueObserver = null;
+            }
+          }, 12000);
+          return true;
+        };
+
+        if (!startObserver()) {
+          window.addEventListener('DOMContentLoaded', () => {
+            startObserver();
+            run();
+          }, { once: true });
+        }
+        window.addEventListener('load', run, { once: true });
+        setTimeout(run, 400);
+        setTimeout(run, 1400);
+      })();
+    ''';
+  }
+
+  List<UserScript> _buildInitialUserScripts() {
+    if (!_allowPublisherReaderFallback) {
+      return const <UserScript>[];
+    }
+    const earlyPublisherScript = '''
+      (function() {
+        if (window.__bdEarlyPublisherScriptApplied) return;
+        window.__bdEarlyPublisherScriptApplied = true;
+
+        try { window.open = () => null; } catch (_) {}
+
+        const run = () => {
+          const parent = document.head || document.documentElement || document.body;
+          if (!parent) return;
+          let viewport = document.querySelector('meta[name="viewport"]');
+          if (!viewport) {
+            viewport = document.createElement('meta');
+            viewport.setAttribute('name', 'viewport');
+            parent.appendChild(viewport);
+          }
+          viewport.setAttribute(
+            'content',
+            'width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover'
+          );
+
+          if (!document.getElementById('bd-early-publisher-style')) {
+            const style = document.createElement('style');
+            style.id = 'bd-early-publisher-style';
+            style.textContent = `
+              html, body, main, #main, #content, [role="main"] {
+                max-width: 100% !important;
+                overflow-x: hidden !important;
+                background-color: transparent !important;
+                background: transparent !important;
+              }
+              img, video, iframe, embed, object, table, pre {
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+              }
+              table {
+                display: block !important;
+                overflow-x: auto !important;
+              }
+            `;
+            parent.appendChild(style);
+          }
+        };
+
+        run();
+        window.addEventListener('DOMContentLoaded', run, { once: true });
+        window.addEventListener('load', run, { once: true });
+      })();
+    ''';
+
+    return <UserScript>[
+      UserScript(
+        source: earlyPublisherScript,
+        injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+      ),
+    ];
   }
 
   String _resolvePolicyScript({
-    required bool isPremium,
+    required bool adBlockingEnabled,
     required bool dataSaver,
     Uri? uri,
   }) {
+    final cacheKey =
+        '${_buildWebViewPolicyKey(adBlockingEnabled: adBlockingEnabled, uri: uri)}|ds=$dataSaver';
+    final cachedScript = _policyScriptCache[cacheKey];
+    if (cachedScript != null) {
+      return cachedScript;
+    }
     final baseScript =
         _cachedBaseContentScript ?? _buildBaseContentScript(null);
-    final premiumScript =
-        _cachedPremiumContentScript ?? _buildPremiumContentScript(null);
+    final adBlockingScript =
+        _cachedAdBlockingContentScript ?? _buildAdBlockingContentScript(null);
 
     // CSS-based ad-blocking style (safe for all hosts).
-    final adBlockingCssStyle = isPremium
+    final adBlockingCssStyle = adBlockingEnabled
         ? '''
 (function() {
   const target = document.head || document.documentElement || document.body;
   if (!target) return;
-  const existing = document.getElementById('bd-premium-ad-style');
+  const existing = document.getElementById('bd-webview-ad-style');
   const adStyle = existing || document.createElement('style');
-  adStyle.id = 'bd-premium-ad-style';
-  adStyle.textContent = `$kPremiumAdCssSelectors {
+  adStyle.id = 'bd-webview-ad-style';
+  adStyle.textContent = `$kWebViewAdCssSelectors {
     display:none!important;height:0!important;pointer-events:none!important;
   }`;
   if (!existing) target.appendChild(adStyle);
@@ -1123,29 +2401,19 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
 '''
         : '';
 
-    // Premium mode always uses the stronger cleanup script.
-    String script = isPremium ? premiumScript : baseScript;
+    // Ad blocking mode always uses the stronger cleanup script.
+    String script = adBlockingEnabled ? adBlockingScript : baseScript;
 
-    // Always append the CSS blocking for premium users on ALL hosts.
+    // Always append CSS blocking when publisher ad blocking is enabled.
     script += adBlockingCssStyle;
     script += _buildSiteSpecificScript(uri);
+    script += _buildPublisherMobileRescueScript(uri);
+    script += _buildPublisherCompatibilityScript(uri);
 
-    if (dataSaver) {
-      // Inject CSS to hide images and other large media to reduce layout shifts
-      // and ensure a "clean" text-only experience.
-      script += '''
-(function() {
-  const dsStyle = document.createElement('style');
-  dsStyle.textContent = `
-    img, video, audio, iframe, [style*="background-image"] { 
-      display: none !important; 
+    if (_policyScriptCache.length >= 24) {
+      _policyScriptCache.clear();
     }
-    picture, figure { display: none !important; }
-  `;
-  (document.head || document.documentElement).appendChild(dsStyle);
-})();
-''';
-    }
+    _policyScriptCache[cacheKey] = script;
 
     return script;
   }
@@ -1157,12 +2425,9 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
     if (_startTime == null) return;
     final duration = DateTime.now().difference(_startTime!).inSeconds;
     if (duration < 5) return;
-    _userInterest.recordInteraction(
-      article: _currentArticle,
-      type: InteractionType.view,
-    );
+    _learningEngine.trackReadDuration(_currentArticle, duration);
     // Fire-and-forget; no awaiting in dispose.
-    _persistReadingHistory(duration);
+    unawaited(_persistReadingHistory(duration));
   }
 
   Future<void> _persistReadingHistory(int durationSec) async {
@@ -1183,12 +2448,13 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
 
   /// Debounced – coalesces rapid scroll events into a single write.
   void _scheduleScrollSaveFor(String articleUrl) {
+    if (_isDisposing) return;
     _scheduledScrollSaveUrl = articleUrl;
     _scrollSaveTimer?.cancel();
-    _scrollSaveTimer = Timer(
-      WT.scrollSaveDebounce,
-      () => _saveScrollPositionSync(articleUrl: _scheduledScrollSaveUrl),
-    );
+    _scrollSaveTimer = Timer(WT.scrollSaveDebounce, () {
+      if (_isDisposing) return;
+      _saveScrollPositionSync(articleUrl: _scheduledScrollSaveUrl);
+    });
   }
 
   void _scheduleScrollSave() {
@@ -1196,16 +2462,29 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
   }
 
   void _saveScrollPositionSync({String? articleUrl}) {
+    if (_isDisposing) return;
     final targetUrl = articleUrl ?? _currentArticle.url;
-    _ctrl?.getScrollY().then((y) async {
-      if (y == null || y <= 0) return;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('scroll_$targetUrl', y);
-    });
+    final controller = _ctrl;
+    if (controller == null) return;
+    unawaited(() async {
+      try {
+        final y = await controller.getScrollY();
+        if (_isDisposing || y == null || y <= 0) return;
+        final prefs = await SharedPreferences.getInstance();
+        if (_isDisposing) return;
+        await prefs.setInt('scroll_$targetUrl', y);
+      } on MissingPluginException {
+        // WebView may be torn down while a deferred save runs.
+      } on PlatformException {
+        // Best-effort only.
+      } catch (e, s) {
+        _runtimeLogger.warning('Scroll position save failed', e, s);
+      }
+    }());
   }
 
   void _syncTtsFeedNavigationHooks() {
-    _ttsManager.configureFeedNavigation(
+    _ttsCoordinator.configureFeedNavigation(
       onPreviousFeedArticle: () async => _goToPrev(fromTtsControls: true),
       onNextFeedArticle: () async => _goToNext(fromTtsControls: true),
       canPreviousFeedArticle: () =>
@@ -1217,6 +2496,140 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
     );
   }
 
+  void _handleTtsSessionUpdate(TtsSession? session) {
+    if (!_isActiveState || session == null) return;
+    if (session.state != TtsSessionState.completed) {
+      if (_autoTtsAdvanceInFlight &&
+          (session.state == TtsSessionState.playing ||
+              session.state == TtsSessionState.paused ||
+              session.state == TtsSessionState.preparing ||
+              session.state == TtsSessionState.buffering)) {
+        _autoTtsNextArticleTimer?.cancel();
+        _autoTtsAdvanceInFlight = false;
+      }
+      return;
+    }
+    if (_lastAutoTtsCompletedSessionId == session.sessionId) return;
+    _lastAutoTtsCompletedSessionId = session.sessionId;
+    unawaited(_scheduleAutoTtsNextArticle(session));
+  }
+
+  Future<bool> _isReaderTtsAutoPlayEnabled() async {
+    if (_allowPublisherReaderFallback) return false;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(TtsPreferenceKeys.autoPlayNextArticle) ?? false;
+  }
+
+  String _autoTtsIntroFor(NewsArticle article) {
+    final language = article.language.toLowerCase();
+    final title = article.title;
+    final looksBangla =
+        language.startsWith('bn') || RegExp(r'[\u0980-\u09FF]').hasMatch(title);
+    return looksBangla
+        ? 'পরবর্তী সংবাদ শুরু হচ্ছে।'
+        : 'Next article starts now.';
+  }
+
+  String _autoTtsSnackFor(NewsArticle article) {
+    final title = article.title.trim();
+    if (title.isEmpty) {
+      return 'Next article starts in ${_autoTtsNextArticleDelay.inSeconds} seconds.';
+    }
+    return 'Next article starts in ${_autoTtsNextArticleDelay.inSeconds} seconds: $title';
+  }
+
+  Future<void> _scheduleAutoTtsNextArticle(TtsSession session) async {
+    if (_autoTtsAdvanceInFlight) return;
+
+    final articles = widget.articles;
+    final hasNextArticle =
+        articles != null && _currentIndex < (articles.length - 1);
+    final autoPlayEnabled = await _isReaderTtsAutoPlayEnabled();
+    final isReaderMode = _isReaderModeActiveSafely();
+
+    if (!shouldAutoAdvanceReaderTts(
+      autoPlayEnabled: autoPlayEnabled,
+      isPublisherOrigin: _allowPublisherReaderFallback,
+      isReaderMode: isReaderMode,
+      hasNextArticle: hasNextArticle,
+      navigationInFlight: _navInFlight,
+      unlockPromptInFlight: _rewardedUnlockFlowInFlight,
+    )) {
+      return;
+    }
+
+    final nextArticle = articles![_currentIndex + 1];
+    _autoTtsAdvanceInFlight = true;
+    _autoTtsNextArticleTimer?.cancel();
+    _snack(_autoTtsSnackFor(nextArticle));
+    final completedIndex = _currentIndex;
+    final completedUrl = _currentArticle.url;
+    _autoTtsNextArticleTimer = Timer(_autoTtsNextArticleDelay, () {
+      unawaited(
+        _runAutoTtsNextArticle(
+          completedSession: session,
+          expectedIndex: completedIndex,
+          expectedUrl: completedUrl,
+        ),
+      );
+    });
+  }
+
+  Future<void> _runAutoTtsNextArticle({
+    required TtsSession completedSession,
+    required int expectedIndex,
+    required String expectedUrl,
+  }) async {
+    try {
+      if (!_isActiveState ||
+          _allowPublisherReaderFallback ||
+          !_isReaderModeActiveSafely()) {
+        return;
+      }
+      if (!await _isReaderTtsAutoPlayEnabled()) {
+        return;
+      }
+      if (_currentIndex != expectedIndex ||
+          _currentArticle.url != expectedUrl) {
+        return;
+      }
+
+      final articles = widget.articles;
+      if (articles == null || expectedIndex >= articles.length - 1) {
+        return;
+      }
+
+      await _goToNext(fromTtsControls: true);
+      if (!_isActiveState ||
+          !_isReaderModeActiveSafely() ||
+          _currentIndex != expectedIndex + 1) {
+        return;
+      }
+
+      final readerState = ref.read(readerControllerProvider);
+      if (readerState.chunks.isEmpty) {
+        _snack('Reader content is not ready for auto TTS.');
+        return;
+      }
+
+      await _startReaderTtsForCurrentArticle(
+        introAnnouncement: _autoTtsIntroFor(_currentArticle),
+        allowRewardedUnlock: false,
+      );
+    } catch (e, s) {
+      _runtimeLogger.warning(
+        'Auto TTS next article failed after ${completedSession.sessionId}',
+        e,
+        s,
+      );
+      if (_isActiveState) {
+        _snack('Auto TTS could not start the next article.');
+      }
+    } finally {
+      _autoTtsAdvanceInFlight = false;
+    }
+  }
+
   Future<void> _restoreScrollPosition({String? articleUrl}) async {
     final targetUrl = articleUrl ?? _currentArticle.url;
     final prefs = await SharedPreferences.getInstance();
@@ -1224,16 +2637,30 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
     if (y != null && y > 0) {
       // Schedule after layout so WebView has finished painting.
       SchedulerBinding.instance.addPostFrameCallback((_) {
-        _ctrl?.scrollTo(x: 0, y: y, animated: true);
+        _ctrl?.scrollTo(x: 0, y: y);
       });
     }
   }
 
-  Future<void> _syncPremiumWebViewPolicy(
-    bool isPremium,
+  void _scheduleSnapshotCaching(InAppWebViewController controller, Uri? uri) {
+    _snapshotCacheTimer?.cancel();
+    final targetUrl = _currentArticle.url;
+    final cacheDelay = _allowPublisherReaderFallback
+        ? const Duration(milliseconds: 420)
+        : const Duration(milliseconds: 900);
+    _snapshotCacheTimer = Timer(cacheDelay, () {
+      if (!_isActiveState || targetUrl != _currentArticle.url) return;
+      unawaited(_cacheCurrentArticleSnapshotIfNeeded(controller, uri));
+    });
+  }
+
+  Future<void> _syncWebViewAdPolicy(
+    bool adBlockingEnabled,
     bool dataSaver, {
     bool force = false,
     Uri? policyUri,
+    bool injectScript = true,
+    NetworkQuality? networkQuality,
   }) async {
     final controller = _ctrl;
     if (controller == null) return;
@@ -1243,51 +2670,67 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
         _safeUri(_currentArticle.url) ??
         _safeUri(widget.url);
     final policyKey =
-        '${_buildWebViewPolicyKey(isPremium: isPremium, uri: effectiveUri)}|ds=$dataSaver';
+        '${_buildWebViewPolicyKey(adBlockingEnabled: adBlockingEnabled, uri: effectiveUri)}|ds=$dataSaver';
+    final shouldUpdateSettings =
+        force || _lastAppliedWebViewPolicyKey != policyKey;
+    final shouldInjectScript =
+        injectScript && (force || _lastInjectedWebViewPolicyKey != policyKey);
+    if (!shouldUpdateSettings && !shouldInjectScript) return;
 
-    if (!force && _lastAppliedWebViewPolicyKey == policyKey) return;
-
-    _lastKnownAdFreeState = isPremium;
+    _lastKnownAdBlockingState = adBlockingEnabled;
     _lastKnownDataSaver = dataSaver;
+    final effectiveNetworkQuality =
+        networkQuality ?? ref.read(appNetworkServiceProvider).currentQuality;
+    _lastKnownNetworkQuality = effectiveNetworkQuality;
     _lastPolicyUri = effectiveUri;
-    _lastAppliedWebViewPolicyKey = policyKey;
     final conservativePolicy = _shouldUseConservativePolicy(effectiveUri);
+    final perf = _isActiveState ? PerformanceConfig.of(context) : null;
+    final lightweightMode = _computeLightweightWebViewMode(
+      dataSaver: dataSaver,
+      networkQuality: effectiveNetworkQuality,
+      perf: perf,
+    );
     final blockers = buildWebViewContentBlockers(
-      isPremium: isPremium,
+      enableAdBlocking: adBlockingEnabled,
       conservative: conservativePolicy,
       dataSaver: dataSaver,
+      lightweightMode: lightweightMode,
     );
     if (kDebugMode) {
-      ref
-          .read(structuredLoggerProvider)
-          .info('WebView ad policy synced', <String, dynamic>{
-            'premium': isPremium,
-            'host': effectiveUri?.host ?? '',
-            'conservative': conservativePolicy,
-            'dataSaver': dataSaver,
-            'blockerCount': blockers.length,
-          });
+      _runtimeLogger.info('WebView ad policy synced', <String, dynamic>{
+        'adBlockingEnabled': adBlockingEnabled,
+        'host': effectiveUri?.host ?? '',
+        'conservative': conservativePolicy,
+        'dataSaver': dataSaver,
+        'networkQuality': effectiveNetworkQuality.name,
+        'lightweightMode': lightweightMode,
+        'blockerCount': blockers.length,
+      });
     }
     try {
-      await controller.setSettings(
-        settings: InAppWebViewSettings(
-          useShouldInterceptRequest: blockers.isNotEmpty,
-          contentBlockers: blockers,
-          thirdPartyCookiesEnabled: !isPremium,
-          // blockNetworkImages: dataSaver, // Removed - unsupported parameter
-        ),
-      );
+      if (shouldUpdateSettings) {
+        await controller.setSettings(
+          settings: InAppWebViewSettings(
+            useShouldInterceptRequest: blockers.isNotEmpty || lightweightMode,
+            contentBlockers: blockers,
+            thirdPartyCookiesEnabled: !(adBlockingEnabled || lightweightMode),
+            // blockNetworkImages: dataSaver, // Removed - unsupported parameter
+          ),
+        );
+        _lastAppliedWebViewPolicyKey = policyKey;
+      }
 
-      final script = _resolvePolicyScript(
-        isPremium: isPremium,
-        dataSaver: dataSaver,
-        uri: effectiveUri,
-      );
-      await controller.evaluateJavascript(source: script);
+      if (shouldInjectScript) {
+        final script = _resolvePolicyScript(
+          adBlockingEnabled: adBlockingEnabled,
+          dataSaver: dataSaver,
+          uri: effectiveUri,
+        );
+        await controller.evaluateJavascript(source: script);
+        _lastInjectedWebViewPolicyKey = policyKey;
+      }
     } catch (e, s) {
-      ref
-          .read(structuredLoggerProvider)
-          .warning('Failed to sync premium WebView policy', e, s);
+      _runtimeLogger.warning('Failed to sync WebView ad policy', e, s);
     }
   }
 
@@ -1355,7 +2798,7 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
     try {
       await _ctrl!.evaluateJavascript(source: "$jsTemplate$snippet');");
     } catch (e, s) {
-      ref.read(structuredLoggerProvider).warning('TTS highlight failed', e, s);
+      _runtimeLogger.warning('TTS highlight failed', e, s);
     }
   }
 
@@ -1440,22 +2883,28 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
           IconButton(
             icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 20),
             onPressed: _findPrevious,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            style: IconButton.styleFrom(
+              minimumSize: const Size.square(48),
+              padding: EdgeInsets.zero,
+            ),
           ),
           const SizedBox(width: 12),
           IconButton(
             icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
             onPressed: _findNext,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            style: IconButton.styleFrom(
+              minimumSize: const Size.square(48),
+              padding: EdgeInsets.zero,
+            ),
           ),
           const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.close_rounded, size: 20),
             onPressed: _closeFind,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            style: IconButton.styleFrom(
+              minimumSize: const Size.square(48),
+              padding: EdgeInsets.zero,
+            ),
           ),
         ],
       ),
@@ -1465,33 +2914,35 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
   // ─────────────────────────────────────────────
   // ACTIONS
   // ─────────────────────────────────────────────
-  void _shareUrl() =>
-      Share.share(_currentArticle.url, subject: _currentArticle.title);
+  void _shareUrl() {
+    _learningEngine.trackShare(_currentArticle);
+    Share.share(_currentArticle.url, subject: _currentArticle.title);
+  }
 
   void _toggleFavorite() {
     ref.read(favoritesProvider.notifier).toggleArticle(_currentArticle);
-    ref
-        .read(userInterestProvider)
-        .recordInteraction(
-          article: _currentArticle,
-          type: InteractionType.bookmark,
-        );
+    _learningEngine.trackBookmark(_currentArticle);
     HapticFeedback.lightImpact();
   }
 
   Future<void> _toggleOfflineSave() async {
+    final isPremium = ref.read(isPremiumStateProvider);
     final notifier = ref.read(savedArticlesProvider.notifier);
     final isSaved = notifier.isSaved(_currentArticle.url);
     final loc = AppLocalizations.of(context);
 
+    if (!isPremium && !isSaved) {
+      _showPremiumUpsell(
+        'Offline saving is a Pro feature. Free accounts can read everything, but saving articles offline requires Pro.',
+      );
+      return;
+    }
+
     if (isSaved) {
       final ok = await notifier.removeArticle(_currentArticle.url);
-      _snack(
-        ok ? loc.removedFromOffline : loc.failedToRemove,
-        ok ? Colors.orange : Colors.red,
-      );
+      _snack(ok ? loc.removedFromOffline : loc.failedToRemove);
     } else {
-      _snack(loc.savingForOffline, null, duration: const Duration(seconds: 1));
+      _snack(loc.savingForOffline, duration: const Duration(seconds: 1));
       String? html;
       try {
         html = await _ctrl?.evaluateJavascript(
@@ -1505,38 +2956,208 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
       );
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        _snack(
-          ok ? loc.articleSavedOffline : loc.failedToSaveArticle,
-          ok ? Colors.green : Colors.red,
-        );
+        _snack(ok ? loc.articleSavedOffline : loc.failedToSaveArticle);
       }
     }
   }
 
   void _snack(
-    String msg,
-    Color? color, {
+    String msg, {
+    Color? backgroundColor,
     Duration duration = const Duration(seconds: 2),
   }) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: color,
+        backgroundColor: backgroundColor,
         duration: duration,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
 
-  Future<void> _showTranslateSheet() async {
-    final isPremium = ref.read(isPremiumStateProvider);
+  void _showPremiumUpsell(String message) {
+    if (!mounted) return;
     final loc = AppLocalizations.of(context);
-    if (!isPremium) {
-      _snack(loc.premiumFeatInfo, null);
-      return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: SnackBarAction(
+          label: loc.goPremium,
+          onPressed: () {
+            NavigationHelper.openSubscriptionManagement<void>(context);
+          },
+        ),
+      ),
+    );
+  }
+
+  String _rewardedTtsUnlockKeyForCurrentArticle() {
+    return UrlIdentity.canonicalize(_currentArticle.url);
+  }
+
+  bool _hasRewardedTtsUnlockForCurrentArticle() {
+    return _rewardedTtsUnlocks.contains(
+      _rewardedTtsUnlockKeyForCurrentArticle(),
+    );
+  }
+
+  Future<bool> _promptRewardedTtsUnlock() async {
+    if (!mounted || _rewardedUnlockFlowInFlight) {
+      return false;
     }
+
+    final rewarded = ref.read(rewardedAdServiceProvider);
+    if (!rewarded.isAdReady) {
+      await rewarded.loadAdManually();
+    }
+
+    if (!mounted) {
+      return false;
+    }
+
+    final action = await showModalBottomSheet<_ReaderTtsUnlockAction>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        final theme = Theme.of(context);
+        final ready = rewarded.isAdReady;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Reader TTS limit reached',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Free accounts can listen to 5 unique articles per week. You can watch a short ad to unlock narration for this article once, or go Pro for unlimited Reader TTS.',
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  onPressed: ready
+                      ? () {
+                          Navigator.of(
+                            context,
+                          ).pop(_ReaderTtsUnlockAction.watchAd);
+                        }
+                      : null,
+                  icon: const Icon(Icons.ondemand_video_rounded),
+                  label: Text(
+                    ready
+                        ? 'Watch ad to unlock this article'
+                        : 'Bonus ad unavailable right now',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop(_ReaderTtsUnlockAction.goPremium);
+                  },
+                  icon: const Icon(Icons.star_rounded),
+                  label: Text(AppLocalizations.of(context).goPremium),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted || action == null) {
+      return false;
+    }
+
+    if (action == _ReaderTtsUnlockAction.goPremium) {
+      NavigationHelper.openSubscriptionManagement<void>(context);
+      return false;
+    }
+
+    _rewardedUnlockFlowInFlight = true;
+    try {
+      final earnedReward = await rewarded.showAd(
+        reason: 'Reader TTS free-limit unlock',
+        onUserEarnedReward: (_) {},
+      );
+      if (!mounted) {
+        return false;
+      }
+
+      if (!earnedReward) {
+        _snack(
+          'The bonus ad did not complete, so this article is still locked.',
+        );
+        return false;
+      }
+
+      final unlockKey = _rewardedTtsUnlockKeyForCurrentArticle();
+      setState(() {
+        _rewardedTtsUnlocks.add(unlockKey);
+      });
+      _snack('Bonus unlocked for this article. Enjoy the narration.');
+      return true;
+    } finally {
+      _rewardedUnlockFlowInFlight = false;
+    }
+  }
+
+  String _ttsQuotaMessage(TtsQuotaStatus status) {
+    if (status.isPremium) {
+      return 'Pro unlocked: unlimited reader TTS.';
+    }
+    if (status.remainingMonthlyArticles <= 0) {
+      return 'Free reader TTS monthly limit reached.';
+    }
+    if (status.remainingDailyArticles <= 0) {
+      return 'Free reader TTS daily limit reached.';
+    }
+    final noun = status.remainingDailyArticles == 1 ? 'article' : 'articles';
+    return 'Free reader TTS: ${status.remainingDailyArticles} $noun left today.';
+  }
+
+  Future<void> _safeEndRefreshing() async {
+    if (_isDisposing || _pullToRefreshDisposed) return;
+    try {
+      await _ptrCtrl.endRefreshing();
+    } catch (e, s) {
+      // Plugin controller can already be disposed while callbacks are still in-flight.
+      _safeLogger.warning('Pull-to-refresh endRefreshing skipped', e, s);
+      _pullToRefreshDisposed = true;
+    }
+  }
+
+  bool _isReaderModeActiveSafely() {
+    if (!_isActiveState) return false;
+    try {
+      return ref.read(readerControllerProvider).isReaderMode;
+    } catch (e, s) {
+      _safeLogger.warning('Reader mode lookup skipped after dispose', e, s);
+      return false;
+    }
+  }
+
+  void _bindReaderControllerSafely(InAppWebViewController controller) {
+    if (!_isActiveState) return;
+    try {
+      ref
+          .read(readerControllerProvider.notifier)
+          .setWebViewController(controller);
+    } catch (e, s) {
+      _safeLogger.warning('Reader controller bind skipped after dispose', e, s);
+    }
+  }
+
+  Future<void> _showTranslateSheet() async {
     if (!mounted) return;
 
     final engine = await showModalBottomSheet<TranslateEngine>(
@@ -1559,12 +3180,12 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
     try {
       await _loadUrlWithPolicy(u);
     } catch (e) {
-      _snack('Translate failed: $e', Colors.red);
+      _snack('Translate failed: $e');
     }
   }
 
   bool _hasActiveWebViewTtsSession() {
-    final session = _ttsManager.currentSession;
+    final session = _ttsCoordinator.currentSession;
     if (session == null) return false;
     switch (session.state) {
       case TtsSessionState.idle:
@@ -1583,25 +3204,6 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
     }
   }
 
-  String _detectLanguageForTts(String text) {
-    return RegExp(r'[\u0980-\u09FF]').hasMatch(text) ? 'bn' : 'en';
-  }
-
-  String _normalizeExtractedText(String raw) {
-    var text = raw.trim();
-    if ((text.startsWith('"') && text.endsWith('"')) ||
-        (text.startsWith("'") && text.endsWith("'"))) {
-      text = text.substring(1, text.length - 1);
-    }
-
-    return text
-        .replaceAll(r'\n', '\n')
-        .replaceAll(r'\"', '"')
-        .replaceAll(r"\'", "'")
-        .replaceAll(RegExp(r'\s{2,}'), ' ')
-        .trim();
-  }
-
   IconData _resolveHeaderTtsIcon({
     required bool isReaderMode,
     required TtsStatus readerTtsStatus,
@@ -1618,7 +3220,7 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
       return Icons.headset_rounded;
     }
 
-    final session = _ttsManager.currentSession;
+    final session = _ttsCoordinator.currentSession;
     if (session == null) return Icons.headset_rounded;
     switch (session.state) {
       case TtsSessionState.paused:
@@ -1640,114 +3242,223 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
 
   Future<void> _showTtsSettingsSheet() async {
     if (!mounted) return;
+    final isReaderMode = ref.read(readerControllerProvider).isReaderMode;
+    if (!isReaderMode) {
+      _snack('TTS settings are available only in Reader mode.');
+      return;
+    }
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => TtsSettingsSheet(
-        articleLanguage: _detectLanguageForTts(_currentArticle.title),
+      builder: (_) => ReaderTtsSettingsSheet(
+        showAutoPlayControls: !_allowPublisherReaderFallback,
       ),
     );
   }
 
-  Future<void> _toggleTtsIntegration({required bool isReaderMode}) async {
-    final isPremium = ref.read(isPremiumStateProvider);
-    final loc = AppLocalizations.of(context);
-    final reader = ref.read(readerControllerProvider.notifier);
-    if (isReaderMode) {
-      final readerTtsState = ref.read(ttsControllerProvider);
-      if (readerTtsState.status == TtsStatus.playing ||
-          readerTtsState.status == TtsStatus.buffering ||
-          readerTtsState.status == TtsStatus.loading) {
-        reader.pauseTts();
-      } else if (readerTtsState.status == TtsStatus.paused) {
-        reader.resumeTts();
-      } else if (!isPremium) {
-        _snack(loc.premiumFeatInfo, null);
-      } else {
-        await reader.playFullArticle();
-      }
-      if (mounted) setState(() {});
-      return;
-    }
-
-    final session = _ttsManager.currentSession;
-    if (session != null) {
-      switch (session.state) {
-        case TtsSessionState.paused:
-          await _ttsManager.resume();
-          if (mounted) setState(() {});
-          return;
-        case TtsSessionState.preparing:
-        case TtsSessionState.chunking:
-        case TtsSessionState.generating:
-        case TtsSessionState.buffering:
-        case TtsSessionState.playing:
-        case TtsSessionState.recovering:
-          await _ttsManager.pause();
-          if (mounted) setState(() {});
-          return;
-        case TtsSessionState.idle:
-        case TtsSessionState.completed:
-        case TtsSessionState.stopped:
-        case TtsSessionState.error:
-          break;
-      }
-    }
-
-    if (!isPremium) {
-      _snack(loc.premiumFeatInfo, null);
-      return;
-    }
-
-    if (_ctrl == null) {
-      _snack('Page is still loading', Colors.red);
-      return;
-    }
-
-    String text = _normalizeExtractedText(
-      await _webViewTextExtractor.extract(_ctrl),
+  TtsQuotaStatus _localPremiumReaderTtsQuotaStatus() {
+    return const TtsQuotaStatus(
+      dayKey: 'premium_local_day',
+      monthKey: 'premium_local_month',
+      usedDailyUniqueArticles: 0,
+      usedMonthlyUniqueArticles: 0,
+      dailyLimit: EntitlementPolicy.freeTtsDailyArticleLimit,
+      monthlyLimit: EntitlementPolicy.freeTtsMonthlyArticleLimit,
+      isPremium: true,
+      articleAlreadyCounted: true,
     );
-    if (text.isEmpty) {
-      try {
-        final fallback = await _ctrl!.evaluateJavascript(
-          source: 'document.body?.innerText ?? ""',
+  }
+
+  Future<TtsQuotaStatus?> _loadReaderTtsQuotaStatus({
+    required bool allowPremiumFallback,
+  }) async {
+    final repository = ref.read(subscriptionRepositoryProvider);
+    final quotaResult = await repository.getTtsQuotaStatus(
+      articleUrl: _currentArticle.url,
+    );
+    return quotaResult.fold<TtsQuotaStatus?>((failure) {
+      if (allowPremiumFallback) {
+        _runtimeLogger.warning(
+          'Reader TTS quota lookup failed; using local premium entitlement fallback',
+          failure,
+          failure.stackTrace,
         );
-        text = _normalizeExtractedText(fallback?.toString() ?? '');
-      } catch (_) {}
+        return _localPremiumReaderTtsQuotaStatus();
+      }
+      _snack(failure.userMessage);
+      return null;
+    }, (status) => status);
+  }
+
+  Future<TtsQuotaStatus?> _resolveReaderTtsQuotaStatus({
+    required bool entitlementResolvedOnTap,
+    required bool premiumOnTap,
+  }) async {
+    if (premiumOnTap) {
+      return _localPremiumReaderTtsQuotaStatus();
     }
 
-    if (text.isEmpty) {
-      _snack('Could not extract readable text for TTS', Colors.red);
+    final quota = await _loadReaderTtsQuotaStatus(allowPremiumFallback: false);
+    if (quota != null || entitlementResolvedOnTap) {
+      return quota;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    final latestEntitlement = ref.read(entitlementSnapshotProvider);
+    if (latestEntitlement.isPremium) {
+      return _localPremiumReaderTtsQuotaStatus();
+    }
+
+    return _loadReaderTtsQuotaStatus(allowPremiumFallback: false);
+  }
+
+  bool _shouldRetryReaderTtsQuota({
+    required TtsQuotaStatus quota,
+    required bool entitlementResolvedOnTap,
+    required bool premiumOnTap,
+  }) {
+    if (quota.isPremium || quota.canStartTts) {
+      return false;
+    }
+
+    final user = ref.read(authServiceProvider).currentUser;
+    final isSignedIn = user != null && !user.isAnonymous;
+    if (!isSignedIn) {
+      return false;
+    }
+
+    final latestEntitlement = ref.read(entitlementSnapshotProvider);
+    if (latestEntitlement.isPremium) {
+      return true;
+    }
+
+    return !entitlementResolvedOnTap ||
+        premiumOnTap != latestEntitlement.isPremium;
+  }
+
+  Future<bool> _startReaderTtsForCurrentArticle({
+    String? introAnnouncement,
+    bool allowRewardedUnlock = true,
+  }) async {
+    final repository = ref.read(subscriptionRepositoryProvider);
+    final reader = ref.read(readerControllerProvider.notifier);
+    final readerState = ref.read(readerControllerProvider);
+
+    if (readerState.chunks.isEmpty) {
+      _snack('Reader content is still loading for TTS.');
+      return false;
+    }
+
+    final entitlementAtTap = ref.read(entitlementSnapshotProvider);
+    var quota = await _resolveReaderTtsQuotaStatus(
+      entitlementResolvedOnTap: entitlementAtTap.resolved,
+      premiumOnTap: entitlementAtTap.isPremium,
+    );
+    if (quota == null) {
+      return false;
+    }
+    if (_shouldRetryReaderTtsQuota(
+      quota: quota,
+      entitlementResolvedOnTap: entitlementAtTap.resolved,
+      premiumOnTap: entitlementAtTap.isPremium,
+    )) {
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      final retriedQuota = await _resolveReaderTtsQuotaStatus(
+        entitlementResolvedOnTap: true,
+        premiumOnTap: ref.read(entitlementSnapshotProvider).isPremium,
+      );
+      if (retriedQuota != null) {
+        quota = retriedQuota;
+      }
+    }
+
+    final quotaStatus = quota;
+    var rewardUnlocked = _hasRewardedTtsUnlockForCurrentArticle();
+    if (!quotaStatus.canStartTts && !rewardUnlocked) {
+      if (!allowRewardedUnlock) {
+        _snack(_ttsQuotaMessage(quotaStatus));
+        return false;
+      }
+      rewardUnlocked = await _promptRewardedTtsUnlock();
+      if (!rewardUnlocked) {
+        return false;
+      }
+    }
+
+    await reader.playFullArticle(
+      category: _currentArticle.category,
+      language: _currentArticle.language,
+      introAnnouncement: introAnnouncement,
+    );
+
+    if (rewardUnlocked) {
+      _snack('Bonus unlock active for this article.');
+    } else if (!quotaStatus.isPremium) {
+      if (quotaStatus.articleAlreadyCounted) {
+        _snack(_ttsQuotaMessage(quotaStatus));
+      } else {
+        final recordResult = await repository.recordTtsArticleUsage(
+          _currentArticle.url,
+        );
+        recordResult.fold((failure) => _snack(failure.userMessage), (_) {
+          final remaining = TtsQuotaStatus(
+            dayKey: quotaStatus.dayKey,
+            monthKey: quotaStatus.monthKey,
+            usedDailyUniqueArticles: quotaStatus.usedDailyUniqueArticles + 1,
+            usedMonthlyUniqueArticles:
+                quotaStatus.usedMonthlyUniqueArticles + 1,
+            dailyLimit: quotaStatus.dailyLimit,
+            monthlyLimit: quotaStatus.monthlyLimit,
+            isPremium: false,
+            articleAlreadyCounted: true,
+          );
+          _snack(_ttsQuotaMessage(remaining));
+        });
+      }
+    }
+    return true;
+  }
+
+  Future<void> _toggleTtsIntegration({required bool isReaderMode}) async {
+    if (!isReaderMode) {
+      _snack('TTS is available only in Reader mode.');
       return;
     }
 
-    await _ttsManager.speakArticle(
-      _currentArticle.url,
-      _currentArticle.title,
-      text,
-      language: _detectLanguageForTts(text),
-      author: _currentArticle.source.isNotEmpty ? _currentArticle.source : null,
-    );
+    final reader = ref.read(readerControllerProvider.notifier);
+    final readerTtsState = ref.read(ttsControllerProvider);
+    if (readerTtsState.status == TtsStatus.playing ||
+        readerTtsState.status == TtsStatus.buffering ||
+        readerTtsState.status == TtsStatus.loading) {
+      reader.pauseTts();
+    } else if (readerTtsState.status == TtsStatus.paused) {
+      reader.resumeTts();
+    } else {
+      await _startReaderTtsForCurrentArticle();
+    }
     if (mounted) setState(() {});
   }
 
   Future<void> _handleReaderToggle() async {
-    final isPremium = ref.read(isPremiumStateProvider);
-    final loc = AppLocalizations.of(context);
     final readerState = ref.read(readerControllerProvider);
     final enteringReaderMode = !readerState.isReaderMode;
-    if (enteringReaderMode && !isPremium) {
-      _snack(loc.premiumFeatInfo, null);
-      return;
-    }
-    if (enteringReaderMode && _hasActiveWebViewTtsSession()) {
-      await _ttsManager.stop();
+    if (enteringReaderMode) {
+      final ready = await _ensureReaderSourceReady(showFeedback: true);
+      if (!ready) return;
+      if (_hasActiveWebViewTtsSession()) {
+        await _ttsCoordinator.stop();
+      }
     }
     final titleHint = await _resolveReaderTitleHint();
     await ref
         .read(readerControllerProvider.notifier)
-        .toggleReaderMode(urlHint: _currentArticle.url, titleHint: titleHint);
+        .toggleReaderMode(
+          urlHint: _currentArticle.url,
+          titleHint: titleHint,
+          allowPublisherFallback: _allowPublisherReaderFallback,
+          rawHtmlHint: _currentReaderHtmlHint(),
+        );
     final updatedReader = ref.read(readerControllerProvider);
     if (enteringReaderMode &&
         !updatedReader.isReaderMode &&
@@ -1755,12 +3466,11 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
       _snack(
         updatedReader.errorMessage ??
             'Reader mode is unavailable for this page type.',
-        Colors.orange,
       );
     }
-    if (enteringReaderMode) {
+    if (enteringReaderMode && updatedReader.isReaderMode) {
       await _pauseWebViewBackgroundWork();
-    } else {
+    } else if (!enteringReaderMode) {
       await _resumeWebViewBackgroundWork();
     }
     if (mounted) setState(() {});
@@ -1768,6 +3478,7 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
 
   Future<void> _pauseWebViewBackgroundWork() async {
     final controller = _ctrl;
+    _webViewBannerRefreshTimer?.cancel();
     if (controller == null) return;
     try {
       await controller.pauseTimers();
@@ -1796,6 +3507,9 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
     try {
       await controller.resumeTimers();
     } catch (_) {}
+    if (_isActiveState && !_isReaderModeActiveSafely()) {
+      _startWebViewBannerRefreshTimer();
+    }
   }
 
   _FeedNavTtsCarryState _captureFeedNavTtsCarryState({
@@ -1803,7 +3517,9 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
   }) {
     if (isReaderMode) {
       final ttsState = ref.read(ttsControllerProvider);
-      if (ttsState.status == TtsStatus.playing) {
+      if (ttsState.status == TtsStatus.playing ||
+          ttsState.status == TtsStatus.loading ||
+          ttsState.status == TtsStatus.buffering) {
         return _FeedNavTtsCarryState.playing;
       }
       if (ttsState.status == TtsStatus.paused) {
@@ -1816,7 +3532,7 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
       return _FeedNavTtsCarryState.inactive;
     }
 
-    final session = _ttsManager.currentSession;
+    final session = _ttsCoordinator.currentSession;
     if (session == null) return _FeedNavTtsCarryState.inactive;
     switch (session.state) {
       case TtsSessionState.paused:
@@ -1847,9 +3563,32 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
     if (carryState == _FeedNavTtsCarryState.inactive) return;
 
     if (isReaderMode) {
+      // Keep reader highlight cursor in sync immediately, then await
+      // concrete TTS stop so article navigation does not race with playback.
       ref.read(readerControllerProvider.notifier).stopTts();
+      try {
+        await ref.read(ttsControllerProvider.notifier).stop();
+      } catch (e, s) {
+        _runtimeLogger.warning(
+          'Reader TTS stop before article navigation failed',
+          e,
+          s,
+        );
+      }
     }
-    await _ttsManager.stop();
+
+    // WebView TTS can still be alive in non-reader mode; stop is best-effort.
+    if (!isReaderMode || _hasActiveWebViewTtsSession()) {
+      try {
+        await _ttsCoordinator.stop();
+      } catch (e, s) {
+        _runtimeLogger.warning(
+          'WebView TTS stop before article navigation failed',
+          e,
+          s,
+        );
+      }
+    }
   }
 
   void _resetPendingReaderNavigationState() {
@@ -1944,11 +3683,22 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
     if (_pendingReaderRefreshInFlight) return false;
     _pendingReaderRefreshInFlight = true;
     try {
+      final ready = await _ensureReaderSourceReady(showFeedback: false);
+      if (!ready) {
+        if (failIfNoArticle) {
+          _markReaderRefreshFailure(
+            'Reader mode is waiting for the article to finish loading. Tap Retry Reader.',
+          );
+        }
+        return false;
+      }
       final reader = ref.read(readerControllerProvider.notifier);
       final titleHint = await _resolveReaderTitleHint();
       await reader.extractContent(
         urlHint: _currentArticle.url,
         titleHint: titleHint,
+        allowPublisherFallback: _allowPublisherReaderFallback,
+        rawHtmlHint: _currentReaderHtmlHint(),
       );
       final refreshed = ref.read(readerControllerProvider);
       final hasArticle =
@@ -1968,10 +3718,10 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
       }
 
       if (_pendingTtsRestartAfterArticleNav) {
-        await reader.playFullArticle();
+        await _startReaderTtsForCurrentArticle();
       }
       _resetPendingReaderNavigationState();
-      ref.read(structuredLoggerProvider).info(
+      _runtimeLogger.info(
         'Reader refresh after article navigation succeeded',
         <String, dynamic>{'trigger': trigger, 'url': _currentArticle.url},
       );
@@ -2010,10 +3760,16 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
 
     try {
       final reader = ref.read(readerControllerProvider.notifier);
+      final ready = await _ensureReaderSourceReady(showFeedback: false);
+      if (!ready) return;
       final titleHint = await _resolveReaderTitleHint();
       await reader.extractContent(
         urlHint: previousArticle.url,
         titleHint: titleHint,
+        allowPublisherFallback: _allowPublisherReaderFallback,
+        rawHtmlHint: previousArticle.fullContent.trim().length >= 800
+            ? previousArticle.fullContent
+            : null,
       );
     } catch (_) {}
   }
@@ -2074,7 +3830,7 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
           previousArticle: previousArticle,
           wasReaderMode: isReaderMode,
         );
-        _snack('This article cannot be loaded inside the app.', Colors.orange);
+        _snack('This article cannot be loaded inside the app.');
         return;
       }
 
@@ -2091,12 +3847,12 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
           );
           _snack(
             'Reader mode could not load this article. Staying on previous article.',
-            Colors.orange,
           );
           return;
         }
       }
 
+      _learningEngine.trackOpen(targetArticle);
       _diagMarkNavigation(targetArticle.url);
     } on TimeoutException {
       await _rollbackFailedFeedNavigation(
@@ -2104,14 +3860,13 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
         previousArticle: previousArticle,
         wasReaderMode: isReaderMode,
       );
-      _snack(
-        'This article is loading too slowly. Please retry or refresh.',
-        Colors.orange,
-      );
+      _snack('This article is loading too slowly. Please retry or refresh.');
     } catch (e, s) {
-      ref
-          .read(structuredLoggerProvider)
-          .warning('Feed article navigation failed ($directionLabel)', e, s);
+      _runtimeLogger.warning(
+        'Feed article navigation failed ($directionLabel)',
+        e,
+        s,
+      );
       await _rollbackFailedFeedNavigation(
         previousIndex: previousIndex,
         previousArticle: previousArticle,
@@ -2121,7 +3876,6 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
         direction == _FeedNavDirection.next
             ? 'Failed to load the next article.'
             : 'Failed to load the previous article.',
-        Colors.red,
       );
     } finally {
       if (mounted && navToken == _navTransactionToken) {
@@ -2159,8 +3913,9 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
   Future<bool> _loadUrlWithPolicy(
     String rawUrl, {
     bool waitForLoadStop = false,
+    bool allowCachedSnapshot = true,
   }) async {
-    if (await _loadSavedArticleSnapshotIfAvailable()) {
+    if (allowCachedSnapshot && await _loadCachedArticleSnapshotIfAvailable()) {
       return true;
     }
 
@@ -2190,13 +3945,66 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
         }
         return false;
       case UrlSafetyDisposition.reject:
-        _snack('Blocked unsafe link', Colors.red);
+        _snack('Blocked unsafe link');
         return false;
     }
   }
 
-  Future<NavigationActionPolicy> _handleNavigation(Uri? uri) async {
+  Future<void> _refreshCurrentPage() async {
+    final targetUri =
+        _lastPolicyUri ?? _safeUri(_currentArticle.url) ?? _safeUri(widget.url);
+    if (targetUri == null) {
+      await _ctrl?.reload();
+      return;
+    }
+
+    try {
+      await _loadUrlWithPolicy(
+        targetUri.toString(),
+        waitForLoadStop: true,
+        allowCachedSnapshot: false,
+      );
+    } catch (e, s) {
+      _runtimeLogger.warning('WebView refresh failed', e, s);
+      await _ctrl?.reload();
+    }
+  }
+
+  Future<NavigationActionPolicy> _handleNavigation(
+    NavigationAction action,
+  ) async {
+    final uri = action.request.url == null
+        ? null
+        : Uri.tryParse(action.request.url.toString());
     if (uri == null) {
+      return NavigationActionPolicy.CANCEL;
+    }
+
+    final articleUri =
+        _lastPolicyUri ?? _safeUri(_currentArticle.url) ?? _safeUri(widget.url);
+    final likelyAutomaticNavigation =
+        action.isRedirect == true || action.hasGesture == false;
+    if (action.isForMainFrame &&
+        likelyAutomaticNavigation &&
+        isConsentManagementDetour(targetUri: uri, articleUri: articleUri)) {
+      if (kDebugMode) {
+        _runtimeLogger
+            .info('Blocked consent detour navigation', <String, dynamic>{
+              'targetHost': uri.host,
+              'targetPath': uri.path,
+              'currentHost': articleUri?.host ?? '',
+              'isRedirect': action.isRedirect,
+              'hasGesture': action.hasGesture,
+            });
+      }
+      await _ctrl?.stopLoading();
+      await _syncWebViewAdPolicy(
+        _lastKnownAdBlockingState ??
+            ref.read(publisherAdBlockingEnabledProvider),
+        _lastKnownDataSaver ?? ref.read(dataSaverProvider),
+        force: true,
+        policyUri: articleUri,
+      );
       return NavigationActionPolicy.CANCEL;
     }
 
@@ -2208,49 +4016,73 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
         await launchUrl(uri, mode: LaunchMode.externalApplication);
         return NavigationActionPolicy.CANCEL;
       case UrlSafetyDisposition.reject:
-        _snack('Blocked unsafe link', Colors.red);
+        _snack('Blocked unsafe link');
         return NavigationActionPolicy.CANCEL;
     }
   }
 
-  Widget _buildReaderLoadFallback(ColorScheme cs, ReaderState readerState) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.menu_book_rounded, size: 30, color: cs.primary),
-            const SizedBox(height: 12),
-            Text(
-              readerState.errorMessage ??
-                  'Reader mode is unavailable for this page.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
-            ),
-            const SizedBox(height: 14),
-            FilledButton.icon(
-              onPressed: () => unawaited(() async {
-                final titleHint = await _resolveReaderTitleHint();
-                await ref
-                    .read(readerControllerProvider.notifier)
-                    .extractContent(
-                      urlHint: _currentArticle.url,
-                      titleHint: titleHint,
-                    );
-              }()),
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Retry Reader'),
-            ),
-            TextButton(
-              onPressed: () => unawaited(_handleReaderToggle()),
-              child: const Text('Show Web Page'),
-            ),
-          ],
-        ),
-      ),
-    );
+  String? _currentReaderHtmlHint() {
+    final html = _currentArticle.fullContent.trim();
+    if (html.length < 800) return null;
+    return html;
   }
+
+  bool _isNoisyPublisherDialogMessage(String? message) {
+    final text = (message ?? '').toLowerCase().trim();
+    if (text.isEmpty) return false;
+    const noisyHints = <String>[
+      'cookie',
+      'consent',
+      'privacy',
+      'notification',
+      'subscribe',
+      'newsletter',
+      'popup',
+      'overlay',
+      'allow',
+    ];
+    return noisyHints.any(text.contains);
+  }
+
+  Future<bool?> _handleCreateWindow(
+    InAppWebViewController controller,
+    CreateWindowAction action,
+  ) async {
+    final urlValue = action.request.url?.toString();
+    final uri = _safeUri(urlValue);
+    final articleUri =
+        _lastPolicyUri ?? _safeUri(_currentArticle.url) ?? _safeUri(widget.url);
+
+    if (uri == null) {
+      _runtimeLogger.info('Blocked popup window without URL', <String, dynamic>{
+        'hasGesture': action.hasGesture,
+        'isDialog': action.isDialog,
+      });
+      return false;
+    }
+
+    final samePublisher = isLikelySamePublisherHost(articleUri, uri);
+    final userInitiated = action.hasGesture == true;
+    final decision = UrlSafetyPolicy.evaluateUri(uri);
+
+    if (decision.disposition == UrlSafetyDisposition.reject) {
+      _snack('Blocked unsafe popup');
+      return false;
+    }
+
+    if (_allowPublisherReaderFallback && (samePublisher || userInitiated)) {
+      await controller.loadUrl(urlRequest: action.request);
+      return false;
+    }
+
+    if (decision.disposition == UrlSafetyDisposition.openExternal &&
+        userInitiated) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+    return false;
+  }
+
+  // Extracted _buildReaderLoadFallback to WebViewReaderFallback
 
   // ─────────────────────────────────────────────
   // BUILD
@@ -2265,38 +4097,41 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
     final readerTtsStatus = ref.watch(
       ttsControllerProvider.select((state) => state.status),
     );
+    final networkQuality = ref.watch(
+      appNetworkServiceProvider.select((state) => state.currentQuality),
+    );
     final isReader = readerState.isReaderMode;
     final isLoading = readerState.isLoading;
-    final shouldShowAds = ref.watch(shouldShowAdsProvider);
-    final adFreePolicy = !shouldShowAds;
-    final initialSavedData = _initialSavedArticleData();
+    final webViewAdBlockingEnabled = ref.watch(
+      publisherAdBlockingEnabledProvider,
+    );
+    final initialSavedData = _initialCachedArticleData();
+    final initialUserScripts = _buildInitialUserScripts();
 
     final dataSaver = ref.watch(dataSaverProvider);
+    _recreatePullToRefreshControllerIfNeeded();
 
-    // If premium state or data saver flips, we may need to reconsider settings.
-    if (_lastKnownAdFreeState != adFreePolicy ||
-        _lastKnownDataSaver != dataSaver) {
-      _lastKnownAdFreeState = adFreePolicy;
+    // If ad-blocking or data saver flips, we may need to reconsider settings.
+    if (_lastKnownAdBlockingState != webViewAdBlockingEnabled ||
+        _lastKnownDataSaver != dataSaver ||
+        _lastKnownNetworkQuality != networkQuality) {
+      _lastKnownAdBlockingState = webViewAdBlockingEnabled;
       _lastKnownDataSaver = dataSaver;
+      _lastKnownNetworkQuality = networkQuality;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _syncPremiumWebViewPolicy(adFreePolicy, dataSaver, force: true);
+        _syncWebViewAdPolicy(
+          webViewAdBlockingEnabled,
+          dataSaver,
+          networkQuality: networkQuality,
+          force: true,
+        );
       });
     }
-
-    ref.listen<bool>(shouldShowAdsProvider, (prev, next) {
-      if (prev == next) return;
-      final adFree = !next;
-      unawaited(_syncPremiumWebViewPolicy(adFree, dataSaver, force: true));
-      // When user becomes ad-free, reload once so old ad payloads cannot linger.
-      if (prev == true && next == false && _ctrl != null) {
-        unawaited(_ctrl!.reload());
-      }
-    });
 
     ref.listen(readerControllerProvider, (prev, next) {
       if (next.errorMessage != null &&
           next.errorMessage != prev?.errorMessage) {
-        _snack(next.errorMessage!, Colors.red);
+        _snack(next.errorMessage!);
       }
     });
 
@@ -2312,17 +4147,21 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
             _lastBackPressed = now;
             _snack(
               AppLocalizations.of(context).swipeAgainToExit,
-              null,
               duration: const Duration(milliseconds: 1500),
             );
             return;
           }
-          if (context.mounted) Navigator.of(context).pop();
+          await _safeExitScreen();
         },
         child: Scaffold(
           backgroundColor: cs.surface,
-          floatingActionButton: _showScrollToTop
+          floatingActionButton: !isReader && _showScrollToTop
               ? FloatingActionButton.small(
+                  heroTag: 'webview_scroll_fab',
+                  elevation: 0,
+                  hoverElevation: 0,
+                  focusElevation: 0,
+                  highlightElevation: 0,
                   backgroundColor: cs.primaryContainer.withOpacity(0.9),
                   onPressed: _scrollToTop,
                   child: Icon(
@@ -2332,72 +4171,89 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
                 )
               : null,
           // ── Premium bottom toolbar ─────────────────────
-          bottomNavigationBar: RepaintBoundary(
-            child: WebBottomToolbar(
-              article: _currentArticle,
-              reduceEffects: perf.reduceEffects || perf.lowPowerMode,
-              cs: cs,
-              onBack: () async {
-                if (isReader) {
-                  if (widget.articles != null && _currentIndex > 0) {
-                    await _goToPrev();
-                    return;
-                  }
-                  _snack('No previous article', null);
-                  return;
-                }
-                if (await _ctrl?.canGoBack() ?? false) {
-                  _ctrl?.goBack();
-                  return;
-                }
-                if (widget.articles != null && _currentIndex > 0) {
-                  await _goToPrev();
-                  return;
-                }
-                _snack('No previous page', null);
-              },
-              onForward: () async {
-                if (isReader) {
-                  if (widget.articles != null &&
-                      _currentIndex < (widget.articles!.length - 1)) {
-                    await _goToNext();
-                    return;
-                  }
-                  _snack('No next article', null);
-                  return;
-                }
-                if (await _ctrl?.canGoForward() ?? false) {
-                  _ctrl?.goForward();
-                  return;
-                }
-                if (widget.articles != null &&
-                    _currentIndex < (widget.articles!.length - 1)) {
-                  await _goToNext();
-                  return;
-                }
-                _snack('No next page', null);
-              },
-              onFavorite: _toggleFavorite,
-              onOfflineSave: _toggleOfflineSave,
-              onRefresh: () {
-                if (_ctrl == null) {
-                  _snack('Page is still loading', Colors.orange);
-                  return;
-                }
-                _ctrl?.reload();
-              },
-              onFind: () {
-                if (_ctrl == null) {
-                  _snack(
-                    'Search is unavailable until page loads',
-                    Colors.orange,
-                  );
-                  return;
-                }
-                _showFindInPage();
-              },
-            ),
-          ),
+          // Hidden in reader mode: NativeReaderView owns its own nav.
+          bottomNavigationBar: isReader
+              ? null
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    BannerAdWidget(
+                      key: ValueKey<String>(
+                        'webview_banner_${_webViewBannerRefreshTick}_${_currentArticle.url}',
+                      ),
+                      framed: true,
+                      margin: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+                      framePadding: const EdgeInsets.symmetric(vertical: 6),
+                    ),
+                    RepaintBoundary(
+                      child: WebBottomToolbar(
+                        article: _currentArticle,
+                        reduceEffects:
+                            perf.reduceEffects ||
+                            perf.lowPowerMode ||
+                            perf.performanceTier !=
+                                DevicePerformanceTier.flagship,
+                        cs: cs,
+                        onBack: () async {
+                          if (isReader) {
+                            if (widget.articles != null && _currentIndex > 0) {
+                              await _goToPrev();
+                              return;
+                            }
+                            _snack('No previous article');
+                            return;
+                          }
+                          if (await _ctrl?.canGoBack() ?? false) {
+                            _ctrl?.goBack();
+                            return;
+                          }
+                          if (widget.articles != null && _currentIndex > 0) {
+                            await _goToPrev();
+                            return;
+                          }
+                          _snack('No previous page');
+                        },
+                        onForward: () async {
+                          if (isReader) {
+                            if (widget.articles != null &&
+                                _currentIndex < (widget.articles!.length - 1)) {
+                              await _goToNext();
+                              return;
+                            }
+                            _snack('No next article');
+                            return;
+                          }
+                          if (await _ctrl?.canGoForward() ?? false) {
+                            _ctrl?.goForward();
+                            return;
+                          }
+                          if (widget.articles != null &&
+                              _currentIndex < (widget.articles!.length - 1)) {
+                            await _goToNext();
+                            return;
+                          }
+                          _snack('No next page');
+                        },
+                        onFavorite: _toggleFavorite,
+                        onOfflineSave: _toggleOfflineSave,
+                        onRefresh: () {
+                          if (_ctrl == null) {
+                            _snack('Page is still loading');
+                            return;
+                          }
+                          unawaited(_refreshCurrentPage());
+                        },
+                        onFind: () {
+                          if (_ctrl == null) {
+                            _snack('Search is unavailable until page loads');
+                            return;
+                          }
+                          _showFindInPage();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
           body: Column(
             children: [
               // ── Premium header ─────────────────────────
@@ -2405,10 +4261,13 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
                 child: WebHeader(
                   article: _currentArticle,
                   progressNotifier: _progressNotifier,
-                  reduceEffects: perf.reduceEffects || perf.lowPowerMode,
+                  reduceEffects:
+                      perf.reduceEffects ||
+                      perf.lowPowerMode ||
+                      perf.performanceTier != DevicePerformanceTier.flagship,
                   cs: cs,
                   isReader: isReader,
-                  onBack: () => Navigator.of(context).pop(),
+                  onBack: () => unawaited(_safeExitScreen()),
                   onReaderToggle: () => unawaited(_handleReaderToggle()),
                   onTtsToggle: () =>
                       unawaited(_toggleTtsIntegration(isReaderMode: isReader)),
@@ -2416,7 +4275,10 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
                     isReaderMode: isReader,
                     readerTtsStatus: readerTtsStatus,
                   ),
-                  onTtsSettings: () => unawaited(_showTtsSettingsSheet()),
+                  showTtsButton: isReader,
+                  onTtsSettings: isReader
+                      ? () => unawaited(_showTtsSettingsSheet())
+                      : null,
                   onTranslate: isReader ? null : _showTranslateSheet,
                   onShare: _shareUrl,
                 ),
@@ -2428,8 +4290,6 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
               Expanded(
                 child: Stack(
                   children: [
-                    // WebView – kept alive via Offstage (not rebuild) in
-                    // reader mode so page state is preserved.
                     Offstage(
                       offstage: isReader,
                       child: InAppWebView(
@@ -2437,11 +4297,15 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
                         initialUrlRequest: initialSavedData == null
                             ? URLRequest(url: WebUri(widget.url))
                             : null,
+                        initialUserScripts: UnmodifiableListView<UserScript>(
+                          initialUserScripts,
+                        ),
                         pullToRefreshController: _ptrCtrl,
                         initialSettings: _buildWebViewSettings(
-                          isPremium: adFreePolicy,
+                          adBlockingEnabled: webViewAdBlockingEnabled,
                           perf: perf,
                           dataSaver: dataSaver,
+                          networkQuality: networkQuality,
                           currentUri: _safeUri(_currentArticle.url),
                         ),
                         onFindResultReceived:
@@ -2459,85 +4323,103 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
                               }
                             },
                         onWebViewCreated: (c) {
+                          _recreatePullToRefreshControllerIfNeeded();
                           _ctrl = c;
                           _diagRegisterWebView(_currentArticle.url);
                           unawaited(
-                            _syncPremiumWebViewPolicy(
-                              adFreePolicy,
+                            _syncWebViewAdPolicy(
+                              webViewAdBlockingEnabled,
                               dataSaver,
+                              networkQuality: networkQuality,
                               force: true,
                               policyUri: _safeUri(_currentArticle.url),
+                              injectScript: false,
                             ),
                           );
                         },
                         onLoadStart: (_, uri) {
+                          if (!_isActiveState) return;
+                          _snapshotCacheTimer?.cancel();
                           _startTime = DateTime.now();
                           _progressNotifier.value = 0;
                           final currentUri = _safeUri(uri?.toString());
+                          _handleMainFrameLoadStart(currentUri);
+                          _primeTransientRetryBudget(currentUri);
                           _lastPolicyUri = currentUri;
                           _diagMarkNavigation(uri?.toString());
                           unawaited(
-                            _syncPremiumWebViewPolicy(
-                              adFreePolicy,
+                            _syncWebViewAdPolicy(
+                              webViewAdBlockingEnabled,
                               dataSaver,
+                              networkQuality: networkQuality,
                               policyUri: currentUri,
+                              injectScript: false,
                             ),
                           );
                         },
                         onProgressChanged: (_, p) {
-                          // Throttle: update only once per frame (~16 ms).
-                          final nowMs = DateTime.now().millisecondsSinceEpoch;
+                          if (!_isActiveState) return;
+                          final now = DateTime.now();
+                          final nextProgress = (p / 100).clamp(0.0, 1.0);
+                          if ((nextProgress - _lastObservedProgress).abs() >
+                              0.0005) {
+                            _lastObservedProgress = nextProgress;
+                            _lastProgressChangedAt = now;
+                          }
+                          _scheduleVisualReadyCheck();
+                          final nowMs = now.millisecondsSinceEpoch;
                           if (nowMs - _lastProgressUpdateMs >=
                               WT.progressThrottleMs) {
                             _lastProgressUpdateMs = nowMs;
-                            _progressNotifier.value = p / 100;
-                          }
-                          if (p >= 100) {
-                            _completePendingPageLoad();
+                            _progressNotifier.value = _mainFrameLoading
+                                ? nextProgress
+                                : 1.0;
                           }
                         },
                         onLoadStop: (controller, uri) async {
-                          _ptrCtrl.endRefreshing();
-                          _progressNotifier.value = 1.0;
-                          _completePendingPageLoad();
+                          if (!_isActiveState) return;
+                          await _safeEndRefreshing();
+                          _markMainFrameReady(reason: 'load_stop');
 
-                          // Inject style + optional premium cleanup script.
                           final currentUri = _safeUri(uri?.toString());
+                          _primeTransientRetryBudget(currentUri, force: true);
+                          _activeMainFrameUrl = currentUri?.toString();
                           _lastPolicyUri = currentUri;
-                          final script = _resolvePolicyScript(
-                            isPremium: adFreePolicy,
-                            dataSaver: dataSaver,
-                            uri: currentUri,
+                          unawaited(
+                            _syncWebViewAdPolicy(
+                              webViewAdBlockingEnabled,
+                              dataSaver,
+                              networkQuality: networkQuality,
+                              policyUri: currentUri,
+                            ),
                           );
-                          try {
-                            await controller.evaluateJavascript(source: script);
-                          } catch (e, s) {
-                            ref
-                                .read(structuredLoggerProvider)
-                                .warning(
-                                  'WebView policy script inject failed',
-                                  e,
-                                  s,
-                                );
-                          }
-                          if (ref.read(readerControllerProvider).isReaderMode) {
-                            await _pauseWebViewBackgroundWork();
+                          if (_isReaderModeActiveSafely()) {
+                            unawaited(_pauseWebViewBackgroundWork());
                           }
 
-                          ref
-                              .read(readerControllerProvider.notifier)
-                              .setWebViewController(controller);
-                          await _restoreScrollPosition(
-                            articleUrl: uri?.toString(),
+                          if (!_isActiveState) return;
+                          _bindReaderControllerSafely(controller);
+                          await _syncCurrentArticleWithLoadedPage(currentUri);
+                          unawaited(
+                            _restoreScrollPosition(articleUrl: uri?.toString()),
                           );
+                          _scheduleSnapshotCaching(controller, currentUri);
 
+                          if (!_isActiveState) return;
                           _diagMarkNavigation(uri?.toString());
                         },
                         onRenderProcessGone: (_, detail) {
+                          if (!_isActiveState) return;
+                          _cancelVisualReadyTimer();
+                          _mainFrameLoading = false;
+                          _lastMainFrameLoadStopAt = null;
+                          _rememberRuntimeHybridFallback(
+                            _lastPolicyUri ?? _safeUri(_currentArticle.url),
+                          );
                           _failPendingPageLoad(
                             StateError('WebView render process restarted'),
                           );
-                          ref.read(structuredLoggerProvider).warn(
+                          _safeLogger.warn(
                             'WebView render process gone',
                             <String, dynamic>{
                               'didCrash': detail.didCrash,
@@ -2548,55 +4430,165 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
                                       .toLowerCase(),
                               'isEmulator': perf.isEmulator,
                               'useHybridComposition':
-                                  perf.isEmulator ||
-                                  perf.isLowEndDevice ||
-                                  perf.lowPowerMode ||
-                                  _shouldUseConservativePolicy(
-                                    _lastPolicyUri ??
-                                        _safeUri(_currentArticle.url),
+                                  shouldUseHybridCompositionForWebView(
+                                    isEmulator: perf.isEmulator,
+                                    isLowEndDevice: perf.isLowEndDevice,
+                                    lowPowerMode: perf.lowPowerMode,
+                                    preferRuntimeHybridComposition:
+                                        _shouldUseRuntimeHybridFallback(
+                                          _lastPolicyUri ??
+                                              _safeUri(_currentArticle.url),
+                                        ),
                                   ),
                             },
                           );
-                          _snack(
-                            'WebView restarted for stability',
-                            Colors.orange,
-                          );
+                          _snack('WebView restarted for stability');
                           final webCtrl = _ctrl;
                           if (webCtrl != null) {
                             unawaited(webCtrl.reload());
                           }
                         },
-                        onLoadError: (controller, request, errorType, error) {
-                          _failPendingPageLoad(
-                            StateError('WebView load error: $errorType'),
-                          );
-                          ref
-                              .read(structuredLoggerProvider)
-                              .warn('WebView load error', <String, dynamic>{
-                                'errorType': errorType.toString(),
-                                'error': error.toString(),
-                                'host': request?.host ?? '',
+                        onReceivedError: (controller, request, error) async {
+                          if (!_isActiveState) return;
+                          if (await _maybeRetryTransientPublisherLoad(
+                            controller,
+                            request,
+                            error,
+                          )) {
+                            return;
+                          }
+                          final isMainFrame = request.isForMainFrame ?? false;
+                          if (isMainFrame) {
+                            _cancelVisualReadyTimer();
+                            _mainFrameLoading = false;
+                            _lastMainFrameLoadStopAt = null;
+                          }
+                          final description = error.description.toUpperCase();
+                          final isCleartextSubresourceError =
+                              !isMainFrame &&
+                              description.contains(
+                                'ERR_CLEARTEXT_NOT_PERMITTED',
+                              );
+                          if (isCleartextSubresourceError) {
+                            final host = request.url.host.toLowerCase();
+                            if (_cleartextHostsWarned.add(host)) {
+                              _runtimeLogger.info(
+                                'Blocked cleartext subresource',
+                                <String, dynamic>{
+                                  'host': host,
+                                  'mainFrameHost':
+                                      (_lastPolicyUri?.host ??
+                                              _safeUri(
+                                                _activeMainFrameUrl,
+                                              )?.host ??
+                                              '')
+                                          .toLowerCase(),
+                                },
+                              );
+                            }
+                            return;
+                          }
+                          _safeLogger
+                              .warn('WebView resource error', <String, dynamic>{
+                                'errorType': error.type.toString(),
+                                'error': error.description,
+                                'host': request.url.host,
                                 'isEmulator': perf.isEmulator,
+                                'mainFrame': isMainFrame,
                               });
+                          if (!isMainFrame) {
+                            return;
+                          }
+                          _failPendingPageLoad(
+                            StateError('WebView load error: ${error.type}'),
+                          );
                           _markReaderRefreshFailure(
                             'Reader mode failed to load this page. Tap Retry Reader.',
                           );
-                          _snack('Failed to load page', Colors.red);
+                          _snack('Failed to load page');
                         },
                         onReceivedHttpError: (controller, request, errorResponse) {
+                          if (!_isActiveState) return;
+                          if (!(request.isForMainFrame ?? false)) {
+                            _safeLogger.warn(
+                              'WebView subresource http error',
+                              <String, dynamic>{
+                                'statusCode': errorResponse.statusCode,
+                                'host': request.url.host,
+                              },
+                            );
+                            return;
+                          }
+                          _cancelVisualReadyTimer();
+                          _mainFrameLoading = false;
+                          _lastMainFrameLoadStopAt = null;
                           _failPendingPageLoad(
                             StateError(
                               'WebView http error: ${errorResponse.statusCode}',
                             ),
                           );
                         },
+                        shouldInterceptRequest: (_, request) async {
+                          final lightweightMode =
+                              _computeLightweightWebViewMode(
+                                dataSaver: dataSaver,
+                                networkQuality: networkQuality,
+                                perf: perf,
+                              );
+                          if (!_shouldBlockSubresourceRequest(
+                            request,
+                            adBlockingEnabled: webViewAdBlockingEnabled,
+                            dataSaver: dataSaver,
+                            lightweightMode: lightweightMode,
+                            pageUri:
+                                _lastPolicyUri ??
+                                _safeUri(_activeMainFrameUrl) ??
+                                _safeUri(_currentArticle.url),
+                          )) {
+                            return null;
+                          }
+                          return WebResourceResponse(
+                            contentType: 'text/plain',
+                            data: Uint8List(0),
+                            statusCode: 204,
+                            reasonPhrase: 'No Content',
+                            headers: const <String, String>{
+                              'cache-control': 'no-store',
+                            },
+                          );
+                        },
                         shouldOverrideUrlLoading: (_, action) async {
-                          final uri = action.request.url == null
-                              ? null
-                              : Uri.tryParse(action.request.url.toString());
-                          return _handleNavigation(uri);
+                          return _handleNavigation(action);
+                        },
+                        onCreateWindow: _handleCreateWindow,
+                        onPermissionRequest: (_, request) async {
+                          return PermissionResponse(
+                            resources: request.resources,
+                          );
+                        },
+                        onJsAlert: (_, request) async {
+                          if (_allowPublisherReaderFallback &&
+                              _isNoisyPublisherDialogMessage(request.message)) {
+                            return JsAlertResponse(handledByClient: true);
+                          }
+                          return null;
+                        },
+                        onJsConfirm: (_, request) async {
+                          if (_allowPublisherReaderFallback &&
+                              _isNoisyPublisherDialogMessage(request.message)) {
+                            return JsConfirmResponse(handledByClient: true);
+                          }
+                          return null;
+                        },
+                        onJsPrompt: (_, request) async {
+                          if (_allowPublisherReaderFallback &&
+                              _isNoisyPublisherDialogMessage(request.message)) {
+                            return JsPromptResponse(handledByClient: true);
+                          }
+                          return null;
                         },
                         onScrollChanged: (controller, x, y) {
+                          if (!_isActiveState) return;
                           _scheduleScrollSave();
                           if (y > 400) {
                             if (!_showScrollToTop) {
@@ -2619,11 +4611,18 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
                           child: readerState.article != null
                               ? NativeReaderView(
                                   article: readerState.article!,
+                                  onTtsPressed: () {
+                                    unawaited(
+                                      _toggleTtsIntegration(isReaderMode: true),
+                                    );
+                                  },
                                   canGoPreviousArticle: _currentIndex > 0,
                                   canGoNextArticle:
                                       widget.articles != null &&
                                       _currentIndex <
                                           (widget.articles!.length - 1),
+                                  showAutoTtsControls:
+                                      !_allowPublisherReaderFallback,
                                   onPreviousArticle: _currentIndex > 0
                                       ? () => unawaited(
                                           _goToPrev(fromTtsControls: true),
@@ -2640,23 +4639,35 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen>
                                 )
                               : readerState.isLoading
                               ? const Center(child: CircularProgressIndicator())
-                              : _buildReaderLoadFallback(cs, readerState),
+                              : WebViewReaderFallback(
+                                  readerState: readerState,
+                                  currentArticle: _currentArticle,
+                                  onShowWebPage: _handleReaderToggle,
+                                  onRetryReader: () async {
+                                    final ready = await _ensureReaderSourceReady(showFeedback: true);
+                                    if (!ready) return;
+                                    final titleHint = await _resolveReaderTitleHint();
+                                    await ref.read(readerControllerProvider.notifier).extractContent(
+                                      urlHint: _currentArticle.url,
+                                      titleHint: titleHint,
+                                      allowPublisherFallback: _allowPublisherReaderFallback,
+                                      rawHtmlHint: _currentReaderHtmlHint(),
+                                    );
+                                  },
+                                ),
                         ),
                       ),
 
-                    if (!isReader)
-                      const Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: RepaintBoundary(child: MiniPlayerWidget()),
-                      ),
-
                     // Loading dimmer – rendered only when truly needed.
-                    if (isLoading)
-                      const ColoredBox(
-                        color: Color(0x40000000),
-                        child: Center(child: CircularProgressIndicator()),
+                    if (shouldShowReaderLoadingOverlay(
+                      isReader: isReader,
+                      isLoading: isLoading,
+                    ))
+                      ColoredBox(
+                        color: cs.surface.withValues(alpha: 0.35),
+                        child: const Center(
+                          child: CircularProgressIndicator.adaptive(),
+                        ),
                       ),
                   ],
                 ),

@@ -353,11 +353,34 @@ class ReadingTimeResult {
 
   int get roundedMinutes => math.max(1, minutes.round());
 
+  static const Map<String, String> _banglaDigits = <String, String>{
+    '0': '০',
+    '1': '১',
+    '2': '২',
+    '3': '৩',
+    '4': '৪',
+    '5': '৫',
+    '6': '৬',
+    '7': '৭',
+    '8': '৮',
+    '9': '৯',
+  };
+
+  static String _formatBanglaNumber(num value) {
+    final ascii = value.toString();
+    final buffer = StringBuffer();
+    for (final rune in ascii.runes) {
+      final char = String.fromCharCode(rune);
+      buffer.write(_banglaDigits[char] ?? char);
+    }
+    return buffer.toString();
+  }
+
   /// Short format: "৩ মিনিটে পড়ুন" (Bangla)
   String get formattedBn {
     if (minutes < 1) return '১ মিনিটেরও কম';
     if (roundedMinutes == 1) return '১ মিনিটে পড়ুন';
-    return '$roundedMinutes মিনিটে পড়ুন';
+    return '${_formatBanglaNumber(roundedMinutes)} মিনিটে পড়ুন';
   }
 
   /// Short format: "3 min read" (English)
@@ -371,7 +394,9 @@ class ReadingTimeResult {
   String get detailedEn => '$roundedMinutes min read · $wordCount words';
 
   /// Detailed format in Bangla
-  String get detailedBn => '$roundedMinutes মিনিট · $wordCount শব্দ';
+  String get detailedBn =>
+      '${_formatBanglaNumber(roundedMinutes)} মিনিট · '
+      '${_formatBanglaNumber(wordCount)} শব্দ';
 
   /// Complexity level label
   String get complexityLabelBn {
@@ -404,7 +429,7 @@ class ReadingTimeResult {
   String get rangeStringBn {
     final fast = math.max(1, (minutes * 0.7).round());
     final slow = (minutes * 1.3).round();
-    return '$fast–$slow মিনিট';
+    return '${_formatBanglaNumber(fast)}–${_formatBanglaNumber(slow)} মিনিট';
   }
 
   @override

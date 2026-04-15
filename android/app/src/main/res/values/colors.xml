@@ -44,11 +44,11 @@
 
     <!-- ─── SPLASH & WINDOW ────────────────────────────────────────── -->
 
-    <!-- Official flag green = rich, saturated, instantly recognisable  -->
-    <color name="splash_background">#006A4E</color>
+    <!-- Transparent launch surface; Flutter paints the first real frame. -->
+    <color name="splash_background">#00000000</color>
 
     <!-- Launcher icon uses same green field + white/red logo            -->
-    <color name="ic_launcher_background">#006A4E</color>
+    <color name="ic_launcher_background">#FFFFFF</color>
     <color name="ic_launcher_foreground">#FFFFFF</color>
 
     <!-- After Flutter takes over — clean off-white, not harsh white     -->

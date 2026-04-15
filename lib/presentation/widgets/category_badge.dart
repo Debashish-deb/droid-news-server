@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/theme_skeleton.dart';
 
 /// Category badge widget for displaying article categories
 class CategoryBadge extends StatelessWidget {
@@ -31,13 +32,13 @@ class CategoryBadge extends StatelessWidget {
         : baseColor.withValues(alpha: 0.14);
 
     return Container(
-      padding: EdgeInsets.symmetric(
+      padding: ThemeSkeleton.shared.insetsSymmetric(
         horizontal: size == CategoryBadgeSize.large ? 14 : 10,
         vertical: size == CategoryBadgeSize.large ? 7 : 5,
       ),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(
+        borderRadius: ThemeSkeleton.shared.circular(
           size == CategoryBadgeSize.large ? 999 : 8,
         ),
         border: Border.all(color: borderTone, width: 1.2),
@@ -60,7 +61,7 @@ class CategoryBadge extends StatelessWidget {
               size: 14,
               color: labelColor,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: ThemeSkeleton.size6),
           ],
           Text(
             name.toUpperCase(),

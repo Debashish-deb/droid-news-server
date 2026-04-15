@@ -8,16 +8,30 @@ class TtsAnalytics {
     if (kDebugMode) {
       debugPrint('📊 TtsAnalytics: Playback started for $articleId');
     }
-    await _observability.logEvent('tts_playback_start', parameters: {'article_id': articleId});
+    await _observability.logEvent(
+      'tts_playback_start',
+      parameters: {'article_id': articleId},
+    );
   }
 
-  Future<void> trackSynthesisError(String error, Duration duration) async {
+  Future<void> trackSynthesisError(
+    String error,
+    Duration duration, {
+    StackTrace? stackTrace,
+    Map<String, Object?>? context,
+  }) async {
     if (kDebugMode) {
       debugPrint('📊❌ TtsAnalytics: Synthesis Error ($duration): $error');
     }
+    if (context != null && context.isNotEmpty) {
+      await _observability.logEvent(
+        'tts_synthesis_error',
+        parameters: context.map((key, value) => MapEntry(key, value ?? 'null')),
+      );
+    }
     await _observability.recordError(
-      Exception(error), 
-      StackTrace.current,
+      Exception(error),
+      stackTrace ?? StackTrace.current,
       reason: 'TTS Synthesis Failure (${duration.inMilliseconds}ms)',
     );
   }
@@ -26,18 +40,26 @@ class TtsAnalytics {
     if (kDebugMode) {
       debugPrint('📊 TtsAnalytics: Cache ${hit ? "HIT" : "MISS"}');
     }
-    await _observability.logEvent('tts_cache_status', parameters: {'hit': hit ? 1 : 0});
+    await _observability.logEvent(
+      'tts_cache_status',
+      parameters: {'hit': hit ? 1 : 0},
+    );
   }
 
   Future<void> trackPerformance(String operation, Duration duration) async {
     if (duration.inSeconds > 2) {
       if (kDebugMode) {
-        debugPrint('📊⚠️ TtsAnalytics: Slow operation $operation took ${duration.inMilliseconds}ms');
+        debugPrint(
+          '📊⚠️ TtsAnalytics: Slow operation $operation took ${duration.inMilliseconds}ms',
+        );
       }
-      await _observability.logEvent('tts_slow_op', parameters: {
-        'operation': operation,
-        'duration_ms': duration.inMilliseconds
-      });
+      await _observability.logEvent(
+        'tts_slow_op',
+        parameters: {
+          'operation': operation,
+          'duration_ms': duration.inMilliseconds,
+        },
+      );
     }
   }
 }

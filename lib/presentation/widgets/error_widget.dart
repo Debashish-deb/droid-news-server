@@ -1,7 +1,38 @@
+// ignore_for_file: avoid_classes_with_only_static_members
+
 import '../../core/architecture/failure.dart';
-import 'package:flutter/material.dart' show Colors, ElevatedButton, Icons, ScaffoldMessenger, SizedBox, SnackBar, SnackBarAction, SnackBarBehavior, TextAlign, TextButton, Theme;
-import 'package:flutter/rendering.dart' show EdgeInsets, MainAxisAlignment, TextStyle;
-import 'package:flutter/widgets.dart' show Border, BorderRadius, BoxDecoration, BuildContext, Center, Column, Container, Expanded, FontWeight, Icon, Padding, RoundedRectangleBorder, Row, StatelessWidget, Text, VoidCallback, Widget;
+import '../../core/theme/theme_skeleton.dart';
+import 'package:flutter/material.dart'
+    show
+        Colors,
+        ElevatedButton,
+        Icons,
+        ScaffoldMessenger,
+        SizedBox,
+        SnackBar,
+        SnackBarAction,
+        TextAlign,
+        TextButton,
+        Theme;
+import 'package:flutter/rendering.dart' show MainAxisAlignment, TextStyle;
+import 'package:flutter/widgets.dart'
+    show
+        Border,
+        BoxDecoration,
+        BuildContext,
+        Center,
+        Column,
+        Container,
+        Expanded,
+        FontWeight,
+        Icon,
+        Padding,
+        RoundedRectangleBorder,
+        Row,
+        StatelessWidget,
+        Text,
+        VoidCallback,
+        Widget;
 import '../../l10n/generated/app_localizations.dart';
 
 /// Widget to display errors with retry actions
@@ -17,44 +48,43 @@ class ErrorDisplay extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: ThemeSkeleton.shared.insetsAll(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-           
             Text(error.icon, style: const TextStyle(fontSize: 64)),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: ThemeSkeleton.size24),
 
-     
             Text(
               error.userMessage,
               textAlign: TextAlign.center,
               style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.error,
+                color: theme.colorScheme.primary,
                 fontWeight: FontWeight.w600,
               ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: ThemeSkeleton.size32),
 
-       
             if (error.actionLabel != null || onRetry != null)
               ElevatedButton.icon(
                 onPressed: onRetry,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: theme.colorScheme.primary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
+                  padding: ThemeSkeleton.shared.insetsSymmetric(
                     horizontal: 32,
                     vertical: 16,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: ThemeSkeleton.shared.circular(12),
                   ),
                 ),
                 icon: const Icon(Icons.refresh_rounded),
-                label: Text(error.actionLabel ?? AppLocalizations.of(context).retry),
+                label: Text(
+                  error.actionLabel ?? AppLocalizations.of(context).retry,
+                ),
               ),
           ],
         ),
@@ -75,30 +105,34 @@ class ErrorBanner extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
+      margin: ThemeSkeleton.shared.insetsAll(16),
+      padding: ThemeSkeleton.shared.insetsAll(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.error.withValues(alpha: 0.3)),
+        color: theme.colorScheme.primary.withValues(alpha: 0.08),
+        borderRadius: ThemeSkeleton.shared.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.3),
+        ),
       ),
       child: Row(
         children: [
           Text(error.icon, style: const TextStyle(fontSize: 24)),
-          const SizedBox(width: 12),
+          const SizedBox(width: ThemeSkeleton.size12),
           Expanded(
             child: Text(
               error.userMessage,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onErrorContainer,
+                color: theme.colorScheme.primary,
               ),
             ),
           ),
           if (error.actionLabel != null || onRetry != null) ...[
-            const SizedBox(width: 12),
+            const SizedBox(width: ThemeSkeleton.size12),
             TextButton(
               onPressed: onRetry,
-              child: Text(error.actionLabel ?? AppLocalizations.of(context).retry),
+              child: Text(
+                error.actionLabel ?? AppLocalizations.of(context).retry,
+              ),
             ),
           ],
         ],
@@ -119,19 +153,16 @@ class ErrorSnackBar {
         content: Row(
           children: [
             Text(error.icon, style: const TextStyle(fontSize: 20)),
-            const SizedBox(width: 12),
+            const SizedBox(width: ThemeSkeleton.size12),
             Expanded(child: Text(error.userMessage)),
           ],
         ),
-        action:
-            (error.actionLabel != null || onRetry != null)
-                ? SnackBarAction(
-                  label: error.actionLabel ?? AppLocalizations.of(context).retry,
-                  onPressed: onRetry ?? () {},
-                )
-                : null,
-        backgroundColor: Theme.of(context).colorScheme.error,
-        behavior: SnackBarBehavior.floating,
+        action: (error.actionLabel != null || onRetry != null)
+            ? SnackBarAction(
+                label: error.actionLabel ?? AppLocalizations.of(context).retry,
+                onPressed: onRetry ?? () {},
+              )
+            : null,
       ),
     );
   }

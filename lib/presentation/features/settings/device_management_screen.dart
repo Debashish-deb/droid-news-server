@@ -7,8 +7,7 @@ import '../../../infrastructure/services/auth/device_session_service.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../providers/theme_providers.dart' show navIconColorProvider;
 import '../../widgets/glass_icon_button.dart';
-
-import '../common/app_bar.dart';
+import '../../widgets/premium_screen_header.dart';
 
 /// Premium Device Management Screen
 class DeviceManagementScreen extends ConsumerStatefulWidget {
@@ -74,10 +73,10 @@ class _DeviceManagementScreenState
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [scheme.error.withValues(alpha: 0.10), scheme.surface],
+              colors: [scheme.primary.withValues(alpha: 0.10), scheme.surface],
             ),
             border: Border.all(
-              color: scheme.error.withValues(alpha: 0.35),
+              color: scheme.primary.withValues(alpha: 0.35),
               width: 1.5,
             ),
           ),
@@ -89,14 +88,14 @@ class _DeviceManagementScreenState
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: scheme.error.withValues(alpha: 0.10),
+                    color: scheme.primary.withValues(alpha: 0.10),
                     shape: BoxShape.circle,
-                    border: Border.all(color: scheme.error, width: 2),
+                    border: Border.all(color: scheme.primary, width: 2),
                   ),
                   child: Icon(
                     Icons.logout_rounded,
                     size: 32,
-                    color: scheme.error,
+                    color: scheme.primary,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -156,8 +155,8 @@ class _DeviceManagementScreenState
                     ElevatedButton(
                       onPressed: () => Navigator.pop(context, true),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: scheme.error,
-                        foregroundColor: scheme.onError,
+                        backgroundColor: scheme.primary,
+                        foregroundColor: scheme.onPrimary,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 28,
                           vertical: 14,
@@ -208,11 +207,9 @@ class _DeviceManagementScreenState
       await _loadDevices();
     } catch (e) {
       if (mounted) {
-        final scheme = Theme.of(context).colorScheme;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(l10n.logoutFailed(e.toString())),
-            backgroundColor: scheme.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -242,10 +239,10 @@ class _DeviceManagementScreenState
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [scheme.error.withValues(alpha: 0.10), scheme.surface],
+              colors: [scheme.primary.withValues(alpha: 0.10), scheme.surface],
             ),
             border: Border.all(
-              color: scheme.error.withValues(alpha: 0.35),
+              color: scheme.primary.withValues(alpha: 0.35),
               width: 1.5,
             ),
           ),
@@ -257,20 +254,24 @@ class _DeviceManagementScreenState
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: scheme.error.withValues(alpha: 0.10),
+                    color: scheme.primary.withValues(alpha: 0.10),
                     shape: BoxShape.circle,
-                    border: Border.all(color: scheme.error, width: 2),
+                    border: Border.all(color: scheme.primary, width: 2),
                   ),
                   child: Stack(
                     children: [
-                      Icon(Icons.logout_rounded, size: 32, color: scheme.error),
+                      Icon(
+                        Icons.logout_rounded,
+                        size: 32,
+                        color: scheme.primary,
+                      ),
                       Positioned(
                         top: -4,
                         right: -4,
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: scheme.error,
+                            color: scheme.primary,
                             shape: BoxShape.circle,
                           ),
                           child: Text(
@@ -343,8 +344,8 @@ class _DeviceManagementScreenState
                     ElevatedButton(
                       onPressed: () => Navigator.pop(context, true),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: scheme.error,
-                        foregroundColor: scheme.onError,
+                        backgroundColor: scheme.primary,
+                        foregroundColor: scheme.onPrimary,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 28,
                           vertical: 14,
@@ -395,11 +396,9 @@ class _DeviceManagementScreenState
       await _loadDevices();
     } catch (e) {
       if (mounted) {
-        final scheme = Theme.of(context).colorScheme;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(l10n.logoutAllFailed(e.toString())),
-            backgroundColor: scheme.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -673,14 +672,7 @@ class _DeviceManagementScreenState
     final selectionColor = ref.watch(navIconColorProvider);
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        toolbarHeight: 64,
-        title: AppBarTitle(l10n.activeDevices),
-        centerTitle: true,
-        backgroundColor: colorScheme.surface.withValues(alpha: 0.96),
-        elevation: 0,
-      ),
+      appBar: PremiumScreenHeader(title: l10n.activeDevices),
       body: ColoredBox(
         color: colorScheme.background,
         child: _loading

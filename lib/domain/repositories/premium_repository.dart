@@ -57,7 +57,7 @@ abstract class PremiumRepository {
   /// Synchronous check of the last known status
   bool get isPremium;
 
-  /// Current tier of the user (free, pro, proPlus)
+  /// Current tier of the user (free or pro)
   SubscriptionTier get tier;
 
   /// Last known full entitlement state.

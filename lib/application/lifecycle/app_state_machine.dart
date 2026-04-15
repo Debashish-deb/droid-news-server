@@ -27,7 +27,8 @@ enum AppState {
 }
 
 /// Managing Application Lifecycle State
-class AppLifecycleNotifier extends StateNotifier<AppState> with WidgetsBindingObserver {
+class AppLifecycleNotifier extends StateNotifier<AppState>
+    with WidgetsBindingObserver {
   AppLifecycleNotifier() : super(AppState.coldStart) {
     WidgetsBinding.instance.addObserver(this);
     _init();
@@ -48,9 +49,11 @@ class AppLifecycleNotifier extends StateNotifier<AppState> with WidgetsBindingOb
   }
 
   Future<void> _checkConnectivity() async {
+    if (!mounted) return;
     state = AppState.restoringSession;
-    
+
     final isOffline = await OfflineHandler.isOffline();
+    if (!mounted) return;
     if (isOffline) {
       state = AppState.offline;
     } else {
@@ -87,16 +90,16 @@ class AppLifecycleNotifier extends StateNotifier<AppState> with WidgetsBindingOb
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
-    super.didChangeAppLifecycleState(lifecycleState);
-    
-    switch (lifecycleState) {
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    switch (state) {
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
-        state = AppState.background;
+        this.state = AppState.background;
         break;
       case AppLifecycleState.resumed:
-        _checkConnectivity(); 
+        _checkConnectivity();
         break;
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
@@ -106,6 +109,7 @@ class AppLifecycleNotifier extends StateNotifier<AppState> with WidgetsBindingOb
 }
 
 /// Global provider for App Lifecycle State
-final appLifecycleProvider = StateNotifierProvider<AppLifecycleNotifier, AppState>((ref) {
-  return AppLifecycleNotifier();
-});
+final appLifecycleProvider =
+    StateNotifierProvider<AppLifecycleNotifier, AppState>((ref) {
+      return AppLifecycleNotifier();
+    });

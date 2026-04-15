@@ -1,8 +1,7 @@
 /// Subscription tier levels available in the application.
 enum SubscriptionTier {
   free,
-  pro,
-  proPlus;
+  pro;
 
   /// Returns the display name for this tier.
   String get displayName {
@@ -11,8 +10,6 @@ enum SubscriptionTier {
         return 'Free';
       case SubscriptionTier.pro:
         return 'Pro';
-      case SubscriptionTier.proPlus:
-        return 'Pro Yearly';
     }
   }
 

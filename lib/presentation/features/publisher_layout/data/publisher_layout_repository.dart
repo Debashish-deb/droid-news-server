@@ -18,36 +18,101 @@ import 'package:synchronized/synchronized.dart';
 /// - **Reactive**: [watchLayout] emits the latest list whenever the stored
 ///   value changes, useful for cross-tab synchronisation.
 class PublisherLayoutRepository {
-  PublisherLayoutRepository({
-    int saveDebounceMs = 400,
-  }) : _saveDebounceMs = saveDebounceMs;
+  PublisherLayoutRepository({int saveDebounceMs = 400})
+    : _saveDebounceMs = saveDebounceMs;
 
   // ── Constants ──────────────────────────────────────────────────────────────
 
-  static const String _boxName         = 'publisher_layout';
+  static const String _boxName = 'publisher_layout';
   static const String _schemaVersionKey = '__schema_version__';
-  static const int    _currentSchema    = 2;
+  static const int _currentSchema = 2;
 
   // ── Internal state ─────────────────────────────────────────────────────────
 
-  final int   _saveDebounceMs;
-  final Lock  _lock     = Lock();
-  Box<List>?  _box;
-  bool        _disposed = false;
+  final int _saveDebounceMs;
+  final Lock _lock = Lock();
+  Box<List>? _box;
+  bool _disposed = false;
+  bool _storageDisabled = false;
+  static bool _hiveRecoveryCompleted = false;
 
   /// Pending debounced writes keyed by layoutKey.
-  final Map<String, Timer>  _debounceTimers  = {};
+  final Map<String, Timer> _debounceTimers = {};
   final Map<String, List<String>> _pendingWrites = {};
 
   // ── Box lifecycle ──────────────────────────────────────────────────────────
 
-  Future<Box<List>> _getBox() async {
+  Future<Box<List>?> _getBox() async {
     _assertNotDisposed();
+    if (_storageDisabled) return null;
     if (_box?.isOpen == true) return _box!;
 
-    _box = await Hive.openBox<List>(_boxName);
-    await _runMigrations(_box!);
-    return _box!;
+    try {
+      _box = await Hive.openBox<List>(_boxName);
+    } on HiveError catch (error, stackTrace) {
+      final message = error.toString();
+      final needsInitialization =
+          message.contains('initialize Hive') ||
+          message.contains('initialize Hive or provide a path');
+      if (!needsInitialization || _hiveRecoveryCompleted) {
+        _disableStorage(
+          error,
+          stackTrace,
+          context: 'open failed for $_boxName',
+        );
+        return null;
+      }
+
+      debugPrint(
+        '[PublisherLayoutRepository] Hive was not initialized; attempting '
+        'lazy recovery before opening $_boxName.',
+      );
+      try {
+        await Hive.initFlutter();
+        _box = await Hive.openBox<List>(_boxName);
+        _hiveRecoveryCompleted = true;
+      } catch (recoveryError, recoveryStack) {
+        _disableStorage(
+          recoveryError,
+          recoveryStack,
+          context: 'lazy recovery failed for $_boxName',
+        );
+        return null;
+      }
+    } catch (error, stackTrace) {
+      _disableStorage(
+        error,
+        stackTrace,
+        context: 'unexpected open failure for $_boxName',
+      );
+      return null;
+    }
+
+    final box = _box;
+    if (box == null) return null;
+    try {
+      await _runMigrations(box);
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[PublisherLayoutRepository] migration failed for $_boxName: '
+        '$error\n$stackTrace',
+      );
+    }
+    return box;
+  }
+
+  void _disableStorage(
+    Object error,
+    StackTrace stackTrace, {
+    required String context,
+  }) {
+    if (_storageDisabled) return;
+    _storageDisabled = true;
+    debugPrint(
+      '[PublisherLayoutRepository] $context. '
+      'Falling back to in-memory defaults for this session: '
+      '$error\n$stackTrace',
+    );
   }
 
   Future<void> dispose() async {
@@ -115,8 +180,10 @@ class PublisherLayoutRepository {
         try {
           await entry.value(box);
         } catch (e, st) {
-          debugPrint('[PublisherLayoutRepository] migration ${entry.key} '
-              'failed: $e\n$st');
+          debugPrint(
+            '[PublisherLayoutRepository] migration ${entry.key} '
+            'failed: $e\n$st',
+          );
           // Continue running remaining migrations
         }
       }
@@ -166,8 +233,9 @@ class PublisherLayoutRepository {
     if (data == null) return;
 
     return _lock.synchronized(() async {
-      final box = await _getBox();
       try {
+        final box = await _getBox();
+        if (box == null) return;
         await box.put(layoutKey, List<String>.from(data));
         if (kDebugMode) {
           debugPrint(
@@ -204,8 +272,9 @@ class PublisherLayoutRepository {
     }
 
     return _lock.synchronized(() async {
-      final box = await _getBox();
       try {
+        final box = await _getBox();
+        if (box == null) return const <String>[];
         final stored = box.get(layoutKey);
         if (stored == null) return const <String>[];
         return List<String>.from(stored.whereType<String>());
@@ -230,16 +299,23 @@ class PublisherLayoutRepository {
     // Emit current value immediately
     yield await loadLayout(layoutKey: layoutKey);
 
-    final box = await _getBox();
+    Box<List>? box;
+    try {
+      box = await _getBox();
+    } catch (e, st) {
+      debugPrint(
+        '[PublisherLayoutRepository] watch failed [$layoutKey]: $e\n$st',
+      );
+      return;
+    }
+    if (box == null) return;
 
-    yield* box
-        .watch(key: layoutKey)
-        .map((event) {
-          if (event.deleted) return const <String>[];
-          final raw = event.value;
-          if (raw is! List) return const <String>[];
-          return List<String>.from(raw.whereType<String>());
-        });
+    yield* box.watch(key: layoutKey).map((event) {
+      if (event.deleted) return const <String>[];
+      final raw = event.value;
+      if (raw is! List) return const <String>[];
+      return List<String>.from(raw.whereType<String>());
+    });
   }
 
   // ── Delete ─────────────────────────────────────────────────────────────────
@@ -253,8 +329,9 @@ class PublisherLayoutRepository {
     _pendingWrites.remove(layoutKey);
 
     return _lock.synchronized(() async {
-      final box = await _getBox();
       try {
+        final box = await _getBox();
+        if (box == null) return;
         await box.delete(layoutKey);
       } catch (e, st) {
         debugPrint(
@@ -276,8 +353,9 @@ class PublisherLayoutRepository {
     _pendingWrites.clear();
 
     return _lock.synchronized(() async {
-      final box = await _getBox();
       try {
+        final box = await _getBox();
+        if (box == null) return;
         await box.clear();
       } catch (e, st) {
         debugPrint('[PublisherLayoutRepository] clearAll failed: $e\n$st');
@@ -294,8 +372,16 @@ class PublisherLayoutRepository {
     if (_pendingWrites.containsKey(layoutKey)) return true;
 
     return _lock.synchronized(() async {
-      final box = await _getBox();
-      return box.containsKey(layoutKey);
+      try {
+        final box = await _getBox();
+        if (box == null) return false;
+        return box.containsKey(layoutKey);
+      } catch (e, st) {
+        debugPrint(
+          '[PublisherLayoutRepository] exists failed [$layoutKey]: $e\n$st',
+        );
+        return false;
+      }
     });
   }
 
@@ -306,15 +392,18 @@ class PublisherLayoutRepository {
 
     return _lock.synchronized(() async {
       final box = await _getBox();
+      if (box == null) return const <String, List<String>>{};
       return Map<String, List<String>>.fromEntries(
         box.keys
             .where((k) => k != _schemaVersionKey)
-            .map((key) => MapEntry(
-                  key.toString(),
-                  List<String>.from(
-                    (box.get(key) ?? const []).whereType<String>(),
-                  ),
-                )),
+            .map(
+              (key) => MapEntry(
+                key.toString(),
+                List<String>.from(
+                  (box.get(key) ?? const []).whereType<String>(),
+                ),
+              ),
+            ),
       );
     });
   }
@@ -324,6 +413,7 @@ class PublisherLayoutRepository {
     _assertNotDisposed();
     return _lock.synchronized(() async {
       final box = await _getBox();
+      if (box == null) return 0;
       return _readVersion(box);
     });
   }

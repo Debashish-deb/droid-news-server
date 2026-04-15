@@ -17,10 +17,7 @@ class PremiumBadge extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFFD700), 
-            Color(0xFFFFA500), 
-          ],
+          colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
         ),
         boxShadow: [
           BoxShadow(
@@ -65,4 +62,3 @@ class PremiumIndicator extends StatelessWidget {
     );
   }
 }
-

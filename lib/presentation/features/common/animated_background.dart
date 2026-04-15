@@ -6,6 +6,7 @@ import '../../../core/enums/theme_mode.dart';
 import '../../../core/theme/theme.dart';
 import '../../../core/config/performance_config.dart';
 import '../../providers/theme_providers.dart';
+import '../../widgets/platform_surface_treatment.dart';
 
 /// Full-screen animated background with gradient overlay
 /// and optional frosted blur effect.
@@ -44,7 +45,8 @@ class _AnimatedBackgroundState extends ConsumerState<AnimatedBackground>
   void didChangeDependencies() {
     super.didChangeDependencies();
     final perf = PerformanceConfig.of(context);
-    final shouldAnimate = widget.animate &&
+    final shouldAnimate =
+        widget.animate &&
         !perf.reduceMotion &&
         !perf.lowPowerMode &&
         !perf.isLowEndDevice;
@@ -67,6 +69,7 @@ class _AnimatedBackgroundState extends ConsumerState<AnimatedBackground>
   @override
   Widget build(BuildContext context) {
     final perf = PerformanceConfig.of(context);
+    final preferMaterialChrome = preferAndroidMaterialSurfaceChrome(context);
 
     final AppThemeMode themeMode = ref.watch(currentThemeModeProvider);
     final List<Color> baseColors = _resolveGradient(themeMode);
@@ -74,7 +77,8 @@ class _AnimatedBackgroundState extends ConsumerState<AnimatedBackground>
         widget.blurSigma > 0 &&
         !perf.lowPowerMode &&
         !perf.isLowEndDevice &&
-        !perf.reduceEffects;
+        !perf.reduceEffects &&
+        !preferMaterialChrome;
     final double blurSigma = allowBlur
         ? widget.blurSigma.clamp(0.0, 12.0)
         : 0.0;
@@ -86,10 +90,11 @@ class _AnimatedBackgroundState extends ConsumerState<AnimatedBackground>
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors:
-                    baseColors
-                        .map((Color c) => c.withValues(alpha: widget.overlayOpacity))
-                        .toList(),
+                colors: baseColors
+                    .map(
+                      (Color c) => c.withValues(alpha: widget.overlayOpacity),
+                    )
+                    .toList(),
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -105,13 +110,13 @@ class _AnimatedBackgroundState extends ConsumerState<AnimatedBackground>
                 return Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors:
-                          baseColors.reversed
-                              .map(
-                                (Color c) =>
-                                    c.withValues(alpha: widget.overlayOpacity * 0.6),
-                              )
-                              .toList(),
+                      colors: baseColors.reversed
+                          .map(
+                            (Color c) => c.withValues(
+                              alpha: widget.overlayOpacity * 0.6,
+                            ),
+                          )
+                          .toList(),
                       begin: Alignment(-1 + (_controller.value * 2), -1),
                       end: Alignment(1 - (_controller.value * 2), 1),
                     ),
@@ -124,10 +129,7 @@ class _AnimatedBackgroundState extends ConsumerState<AnimatedBackground>
         if (blurSigma > 0)
           Positioned.fill(
             child: BackdropFilter(
-              filter: ImageFilter.blur(
-                sigmaX: blurSigma,
-                sigmaY: blurSigma,
-              ),
+              filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
               child: Container(color: Colors.transparent),
             ),
           ),

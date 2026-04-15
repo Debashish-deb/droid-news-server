@@ -1,8 +1,8 @@
 # BD News Reader (Enterprise Edition)
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.41.1%2B-blue.svg)](https://flutter.dev)
-[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)](https://dsmobiles.com)
-[![Version](https://img.shields.io/badge/version-4.0.0-gold.svg)](https://github.com/DreamSD-Group/droid-news-server)
+[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)](https://www.appcraftr.store)
+[![Version](https://img.shields.io/badge/version-4.0.0-gold.svg)](https://www.appcraftr.store)
 
 **BD News Reader** is a next-generation news intelligence platform. It defines the standard for secure, offline-first mobile architecture by combining **On-Device AI**, **Zero-Trust Security**, and **Event Sourced Data Sync**.
 
@@ -86,4 +86,4 @@ For a complete breakdown of the Enterprise Architecture (Identity, Entitlements,
 
 ---
 
-**© 2026 DreamSD Group.** All Rights Reserved.
+**© 2026 AppCraftr.** All Rights Reserved.

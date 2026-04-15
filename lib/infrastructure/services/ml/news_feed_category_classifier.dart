@@ -191,13 +191,21 @@ class NewsFeedCategoryClassifier {
       description: description,
       content: content,
     );
-    final hasEntertainment = CategorizationHelper.hasEntertainmentKeywords(
+    final hasEntertainment = CategorizationHelper.hasHardEntertainmentEvidence(
       title: title,
       description: description,
       content: content,
     );
+    final hasInternationalDominance =
+        CategorizationHelper.hasInternationalDominance(
+          title: title,
+          description: description,
+          content: content,
+        );
 
-    if (aiCategory == 'international' && hasBangladesh && !hasInternational) {
+    if (aiCategory == 'international' &&
+        hasBangladesh &&
+        (!hasInternational || !hasInternationalDominance)) {
       return local;
     }
     if (aiCategory == 'national' && hasInternational && !hasBangladesh) {
@@ -301,8 +309,14 @@ class NewsFeedCategoryClassifier {
           description: description,
           content: content,
         );
-    final hasEntertainmentKeyword =
+    final hasEntertainmentSoftKeyword =
         CategorizationHelper.hasEntertainmentSoftKeywords(
+          title: title,
+          description: description,
+          content: content,
+        );
+    final hasHardEntertainmentEvidence =
+        CategorizationHelper.hasHardEntertainmentEvidence(
           title: title,
           description: description,
           content: content,
@@ -328,6 +342,19 @@ class NewsFeedCategoryClassifier {
           description: description,
           content: content,
         );
+    final bangladeshScore = CategorizationHelper.bangladeshSignalScore(
+      title: title,
+      description: description,
+      content: content,
+    );
+    final internationalScore = CategorizationHelper.internationalSignalScore(
+      title: title,
+      description: description,
+      content: content,
+    );
+    final hasInternationalDominance = hasBangladeshKeyword
+        ? internationalScore >= (bangladeshScore + 2)
+        : internationalScore >= 4;
 
     final sportsSignals =
         matchedSportsTags.length * 2 +
@@ -335,7 +362,9 @@ class NewsFeedCategoryClassifier {
         (hasStrongSportsEvidence ? 4 : 0);
 
     final entertainmentSignals =
-        matchedEntertainmentTags.length * 3 + (hasEntertainmentKeyword ? 2 : 0);
+        matchedEntertainmentTags.length * 3 +
+        (hasHardEntertainmentEvidence ? 3 : 0) +
+        (hasEntertainmentSoftKeyword ? 1 : 0);
 
     final nationalSignals =
         matchedBangladeshTags.length * 3 +
@@ -363,7 +392,9 @@ class NewsFeedCategoryClassifier {
       );
     }
 
-    if (entertainmentSignals > sportsSignals && entertainmentSignals > 0) {
+    if (entertainmentSignals > sportsSignals &&
+        entertainmentSignals > 0 &&
+        hasHardEntertainmentEvidence) {
       return TagDrivenCategorizationResult(
         category: 'entertainment',
         confidence: matchedEntertainmentTags.isNotEmpty ? 0.92 : 0.78,
@@ -376,7 +407,7 @@ class NewsFeedCategoryClassifier {
     }
 
     if (sportsSignals > 0 && entertainmentSignals > 0) {
-      if (!canBeSports) {
+      if (!canBeSports && hasHardEntertainmentEvidence) {
         return TagDrivenCategorizationResult(
           category: 'entertainment',
           confidence: 0.76,
@@ -427,6 +458,16 @@ class NewsFeedCategoryClassifier {
     }
 
     if (internationalSignals > nationalSignals && internationalSignals > 0) {
+      if (hasBangladeshKeyword && !hasInternationalDominance) {
+        return TagDrivenCategorizationResult(
+          category: 'national',
+          confidence: 0.76,
+          source: 'taxonomy+guard',
+          matchedTags: matchedTags,
+          reason:
+              'Bangladesh signals were stronger; weak international hints were ignored.',
+        );
+      }
       return TagDrivenCategorizationResult(
         category: 'international',
         confidence: matchedInternationalTags.isNotEmpty ? 0.9 : 0.8,
@@ -440,6 +481,15 @@ class NewsFeedCategoryClassifier {
     }
 
     if (nationalSignals > 0 && internationalSignals > 0) {
+      if (hasBangladeshKeyword && !hasInternationalDominance) {
+        return TagDrivenCategorizationResult(
+          category: 'national',
+          confidence: 0.78,
+          source: 'taxonomy+guard',
+          matchedTags: matchedTags,
+          reason: 'Bangladesh markers outweighed weak international context.',
+        );
+      }
       if (normalizedFeedCategory == 'international' &&
           matchedBangladeshTags.isEmpty &&
           !hasBangladeshKeyword) {

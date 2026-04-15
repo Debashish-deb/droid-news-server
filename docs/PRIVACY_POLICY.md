@@ -63,7 +63,7 @@ You have the right to:
 ### How to Exercise Your Rights
 
 - Open app → Settings → Privacy & Data
-- Or email: <support@bdnewsreader.com>
+- Or email: <support@appcraftr.store>
 
 ## Data Retention
 
@@ -84,7 +84,7 @@ We may update this privacy policy. Changes will be posted in the app with an upd
 
 For questions about this privacy policy:
 
-- Email: <privacy@bdnewsreader.com>
+- Email: <support@appcraftr.store>
 - App: Settings → Help & Support
 
 ## GDPR Compliance (EU Users)

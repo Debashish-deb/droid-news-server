@@ -7,10 +7,11 @@ import '../services/news/rss_service.dart';
 
 class SourceRepositoryImpl implements SourceRepository {
   SourceRepositoryImpl(this._prefs);
-  
+
   final SharedPreferences? _prefs;
-  
+
   static const String _disabledSourcesKey = 'disabled_news_sources';
+  static const String _syncTsPrefix = 'news_sync_ts_';
 
   @override
   Future<Either<AppFailure, List<NewsSource>>> getAllSources() async {
@@ -40,19 +41,21 @@ class SourceRepositoryImpl implements SourceRepository {
             } else if (name.contains('thedailystar.net')) {
               name = 'The Daily Star';
             }
-            
-            sources.add(NewsSource(
-              id: url,
-              name: name,
-              url: url,
-              language: lang,
-              category: category,
-              isEnabled: !disabledIds.contains(url),
-            ));
+
+            sources.add(
+              NewsSource(
+                id: url,
+                name: name,
+                url: url,
+                language: lang,
+                category: category,
+                isEnabled: !disabledIds.contains(url),
+              ),
+            );
           }
         });
       });
-      
+
       return Right(sources);
     } catch (e) {
       return Left(CacheFailure('Failed to load sources: $e'));
@@ -76,7 +79,10 @@ class SourceRepositoryImpl implements SourceRepository {
   }
 
   @override
-  Future<Either<AppFailure, void>> toggleSourceEnabled(String sourceId, bool isEnabled) async {
+  Future<Either<AppFailure, void>> toggleSourceEnabled(
+    String sourceId,
+    bool isEnabled,
+  ) async {
     try {
       final disabledIds = getDisabledSourceIdsSync();
       if (isEnabled) {
@@ -86,6 +92,7 @@ class SourceRepositoryImpl implements SourceRepository {
       }
       if (_prefs == null) return const Right(null);
       await _prefs.setStringList(_disabledSourcesKey, disabledIds.toList());
+      await _clearSyncTimestamps();
       return const Right(null);
     } catch (e) {
       return Left(CacheFailure('Failed to toggle source: $e'));
@@ -97,9 +104,22 @@ class SourceRepositoryImpl implements SourceRepository {
     try {
       if (_prefs == null) return const Right(null);
       await _prefs.remove(_disabledSourcesKey);
+      await _clearSyncTimestamps();
       return const Right(null);
     } catch (e) {
       return Left(CacheFailure('Failed to reset sources: $e'));
+    }
+  }
+
+  Future<void> _clearSyncTimestamps() async {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    final syncKeys = prefs
+        .getKeys()
+        .where((key) => key.startsWith(_syncTsPrefix))
+        .toList(growable: false);
+    for (final key in syncKeys) {
+      await prefs.remove(key);
     }
   }
 }

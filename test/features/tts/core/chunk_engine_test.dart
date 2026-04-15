@@ -13,57 +13,81 @@ void main() {
       final chunks = ChunkEngine.createChunks(text);
       expect(chunks.length, 1);
       expect(chunks.first.text, text);
+      expect(chunks.first.isArticleLead, isTrue);
+      expect(chunks.first.isParagraphStart, isTrue);
+      expect(chunks.first.isParagraphEnd, isTrue);
     });
 
     test('Should split long text at natural boundaries', () {
       // Create text roughly 2000 chars long to force split
-      final sentence = 'This is a sentence that is repeated many times to create length. ' * 50; 
+      final sentence =
+          'This is a sentence that is repeated many times to create length. ' *
+          50;
       // 65 chars * 50 = 3250 chars. Max chunk is 1500. Should get ~3 chunks.
-      
+
       final chunks = ChunkEngine.createChunks(sentence);
-      
+
       expect(chunks.length, greaterThan(1));
-      
+
       for (final chunk in chunks) {
         expect(chunk.text.length, lessThanOrEqualTo(1500));
         // Should roughly be > 100 unless it's the last tail
         if (chunk != chunks.last) {
-           expect(chunk.text.length, greaterThan(100)); // Arbitrary efficient min size
+          expect(
+            chunk.text.length,
+            greaterThan(100),
+          ); // Arbitrary efficient min size
         }
-        
+
         // Verify boundary integrity (ends with punctuation usually, or space)
         // With current engine, it might strip trailing whitespace, but it should be coherent.
       }
     });
 
     test('Should merge very small sentences', () {
-      const text = 'Hi. '; 
+      const text = 'Hi. ';
       const text2 = 'How are you? ';
       final text3 = 'I am fine. ' * 20; // Filler to make the chunk substantial
-      
+
       final fullText = text + text2 + text3;
       final chunks = ChunkEngine.createChunks(fullText);
-      
-      // "Hi." and "How are you?" are < 100 chars, so they should be merged 
+
+      // "Hi." and "How are you?" are < 100 chars, so they should be merged
       // into the next chunk if possible, or together.
       // Expected: 1 chunk if total < 1500
       expect(chunks.length, 1);
       expect(chunks.first.text, contains('Hi.'));
       expect(chunks.first.text, contains('How are you?'));
     });
-    
+
     test('Should preserve context (titles)', () {
       // Assumption: Engine prepends title if passed?
-      // Actually ChunkEngine.chunk takes (text). 
+      // Actually ChunkEngine.chunk takes (text).
       // The PipelineOrchestrator adds title.
       // So this test might check if ChunkEngine behaves well with "Title. Content..." format.
-      
+
       const title = "Breaking News.";
       const content = "Something happened.";
       final chunks = ChunkEngine.createChunks("$title $content");
-      
+
       expect(chunks.length, 1);
       expect(chunks.first.text, "$title $content");
+    });
+
+    test('Should include Bangla article title with Bangla punctuation', () {
+      final chunks = ChunkEngine.createChunks(
+        'মূল প্রতিবেদনে অর্থনীতির গুরুত্বপূর্ণ তথ্য এসেছে।',
+        language: 'bn-BD',
+        title: 'GDP প্রবৃদ্ধি ৫%',
+        alreadyCleaned: true,
+      );
+
+      expect(chunks, isNotEmpty);
+      expect(chunks.first.text, contains('শিরোনাম'));
+      expect(chunks.first.text, contains('জি ডি পি'));
+      expect(chunks.first.text, contains('পাঁচ শতাংশ'));
+      expect(chunks.first.text, contains('বিস্তারিত সংবাদ'));
+      expect(chunks.first.text, contains('।'));
     });
   });
 }

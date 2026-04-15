@@ -15,6 +15,10 @@ void main() {
         regex.hasMatch('https://www.googlesyndication.com/safeframe'),
         isTrue,
       );
+      expect(
+        regex.hasMatch('https://cdn.bilsyndication.com/w/slot.js'),
+        isTrue,
+      );
       expect(regex.hasMatch('https://cdn.taboola.com/libtrc/impl.js'), isTrue);
       expect(regex.hasMatch('https://googleadservices.com/test'), isTrue);
     });
@@ -27,13 +31,13 @@ void main() {
       expect(regex.hasMatch('https://my-admin-dashboard.com'), isFalse);
     });
 
-    test('Free tier does not apply aggressive content blockers', () {
-      final blockers = buildWebViewContentBlockers(isPremium: false);
+    test('Publisher ad blocking can be disabled explicitly', () {
+      final blockers = buildWebViewContentBlockers(enableAdBlocking: false);
       expect(blockers, isEmpty);
     });
 
-    test('Premium tier applies layered content blockers', () {
-      final blockers = buildWebViewContentBlockers(isPremium: true);
+    test('Publisher ad blocking applies layered content blockers', () {
+      final blockers = buildWebViewContentBlockers(enableAdBlocking: true);
 
       expect(blockers, isNotEmpty);
       expect(
@@ -43,6 +47,54 @@ void main() {
       expect(
         blockers.any(
           (b) => b.action.type == ContentBlockerActionType.CSS_DISPLAY_NONE,
+        ),
+        isTrue,
+      );
+    });
+
+    test('Data saver keeps inline article images visible', () {
+      final blockers = buildWebViewContentBlockers(
+        enableAdBlocking: true,
+        dataSaver: true,
+      );
+
+      expect(
+        blockers.any(
+          (b) =>
+              b.action.type == ContentBlockerActionType.CSS_DISPLAY_NONE &&
+              (b.action.selector ?? '').contains('picture'),
+        ),
+        isFalse,
+      );
+      expect(
+        blockers.any(
+          (b) =>
+              b.action.type == ContentBlockerActionType.BLOCK &&
+              b.trigger.urlFilter.contains('jpe?g'),
+        ),
+        isFalse,
+      );
+    });
+
+    test('Lightweight mode adds third-party cleanup blockers', () {
+      final blockers = buildWebViewContentBlockers(
+        enableAdBlocking: false,
+        lightweightMode: true,
+      );
+
+      expect(
+        blockers.any(
+          (b) =>
+              b.action.type == ContentBlockerActionType.BLOCK &&
+              b.trigger.urlFilter.contains('fonts\\.gstatic'),
+        ),
+        isTrue,
+      );
+      expect(
+        blockers.any(
+          (b) =>
+              b.action.type == ContentBlockerActionType.CSS_DISPLAY_NONE &&
+              (b.action.selector ?? '').contains('social-embed'),
         ),
         isTrue,
       );

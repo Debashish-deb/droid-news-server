@@ -76,3 +76,64 @@ Provider<bool> isFavoriteNewspaperProvider(String id) {
         .any((n) => n['id'].toString() == id);
   });
 }
+
+// ============================================
+// FILTERED PROVIDERS (Optimized for Screen)
+// ============================================
+
+/// Current category filter for the favorites screen
+final favoriteCategoryFilterProvider = StateProvider<String>((ref) => 'All');
+
+/// Current time filter for the favorites screen
+final favoriteTimeFilterProvider = StateProvider<String>((ref) => 'All');
+
+/// Memoized list of filtered favorites to prevent expensive build-time calculations
+final filteredFavoritesProvider = Provider<List<Map<String, dynamic>>>((ref) {
+  final categoryFilter = ref.watch(favoriteCategoryFilterProvider);
+  final timeFilter = ref.watch(favoriteTimeFilterProvider);
+
+  final articles = ref.watch(favoriteArticlesProvider);
+  final magazines = ref.watch(favoriteMagazinesProvider);
+  final newspapers = ref.watch(favoriteNewspapersProvider);
+
+  List<Map<String, dynamic>> items = [];
+
+  // 1. Initial Category Filtering
+  if (categoryFilter == 'All') {
+    items = [
+      ...articles.map((a) => a.toMap()),
+      ...magazines,
+      ...newspapers,
+    ];
+  } else if (categoryFilter == 'Articles') {
+    items = articles.map((a) => a.toMap()).toList();
+  } else if (categoryFilter == 'Magazines') {
+    items = List.from(magazines);
+  } else if (categoryFilter == 'Newspapers') {
+    items = List.from(newspapers);
+  }
+
+  // 2. Time Filtering
+  if (timeFilter == 'All') return items;
+
+  final now = DateTime.now();
+  return items.where((item) {
+    final savedAtStr = item['savedAt'] as String?;
+    if (savedAtStr == null) return false;
+    final savedAt = DateTime.tryParse(savedAtStr);
+    if (savedAt == null) return false;
+
+    final diff = now.difference(savedAt);
+    switch (timeFilter) {
+      case 'Today':
+        return diff.inDays == 0;
+      case 'This Week':
+        return diff.inDays <= 7;
+      case 'Older':
+        return diff.inDays > 7;
+      default:
+        return true;
+    }
+  }).toList();
+});
+

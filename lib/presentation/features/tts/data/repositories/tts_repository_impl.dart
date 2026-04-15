@@ -3,12 +3,13 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../../domain/models/speech_chunk.dart';
 import '../../domain/models/tts_session.dart';
-import '../../domain/repositories/tts_repository.dart' show TtsRepository;
+import '../../domain/repositories/tts_repository.dart'
+    show TtsStorageRepository;
 import '../../services/tts_database.dart';
 import '../../services/audio_cache_manager.dart';
 
-class TtsRepositoryImpl implements TtsRepository {
-  TtsRepositoryImpl({
+class TtsStorageRepositoryImpl implements TtsStorageRepository {
+  TtsStorageRepositoryImpl({
     required TtsDatabase db,
     required AudioCacheManager cacheManager,
   }) : _db = db,
@@ -32,6 +33,7 @@ class TtsRepositoryImpl implements TtsRepository {
         audioPath,
         chunk.durationMs,
         size,
+        profileKey: chunk.synthesisProfileKey,
       );
 
       debugPrint(
@@ -45,11 +47,19 @@ class TtsRepositoryImpl implements TtsRepository {
 
   @override
   Future<SpeechChunk?> getCachedChunk(SpeechChunk chunk) async {
-    return await _db.getCachedChunk(chunk.text, chunk.language);
+    return await _db.getCachedChunk(
+      chunk.text,
+      chunk.language,
+      profileKey: chunk.synthesisProfileKey,
+    );
   }
 
   Future<SpeechChunk?> getCachedChunkForChunk(SpeechChunk chunk) async {
-    return await _db.getCachedChunk(chunk.text, chunk.language);
+    return await _db.getCachedChunk(
+      chunk.text,
+      chunk.language,
+      profileKey: chunk.synthesisProfileKey,
+    );
   }
 
   @override
@@ -124,11 +134,6 @@ class TtsRepositoryImpl implements TtsRepository {
   }
 
   @override
-  Future<List<SpeechChunk>> getCachedChunksForArticle(String articleId) async {
-    return [];
-  }
-
-  @override
   Future<TtsSession?> getLastSession() async {
     final db = await _db.database;
     final maps = await db.query(
@@ -155,16 +160,6 @@ class TtsRepositoryImpl implements TtsRepository {
       return TtsSession.fromJson(data);
     }
     return null;
-  }
-
-  @override
-  Future<void> recordError(String articleId, String error) async {
-    debugPrint('[Repository] Recording error for $articleId: $error');
-  }
-
-  @override
-  Future<void> recordPlayback(String articleId, int chunkIndex) async {
-    debugPrint('[Repository] Record playback $articleId chunk $chunkIndex');
   }
 
   @override

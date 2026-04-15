@@ -25,10 +25,10 @@ Future<Widget> _buildApp(
         startupControllerProvider.overrideWith((ref) => startupController),
     ],
     child: PerformanceConfig.defaults(
-      child: MyApp(
+      child: const MyApp(
         initialRoute: AppPaths.splash,
         // Provide localizations for screens that need it (like SecurityLockoutScreen)
-        localizationsDelegates: const [
+        localizationsDelegates: [
           AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,

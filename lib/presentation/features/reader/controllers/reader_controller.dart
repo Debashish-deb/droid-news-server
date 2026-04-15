@@ -1,871 +1,22 @@
-// lib/features/reader/controllers/reader_controller.dart
-//
-// ╔══════════════════════════════════════════════════════════╗
-// ║  READER CONTROLLER – ANDROID-OPTIMISED v2                ║
-// ║                                                          ║
-// ║  Optimisation layers applied                             ║
-// ║  • compute() isolate for _processHtmlForTts              ║
-// ║    (heavy HTML parse → never blocks UI thread)           ║
-// ║  • In-flight cancellation via Completer flag             ║
-// ║    (rapid reader toggles won't pile up)                  ║
-// ║  • LRU article cache (capacity=5) – re-opening same      ║
-// ║    URL skips re-parse entirely                           ║
-// ║  • Debounced settings persistence (300 ms) –             ║
-// ║    slider drags don't hammer disk I/O                    ║
-// ║  • Granular state model + copyWith guards –              ║
-// ║    unchanged fields don't trigger listener notify        ║
-// ║  • Settings load: parallel Future.wait instead of        ║
-// ║    sequential awaits                                     ║
-// ║  • _ttsSubscription correctly closed on dispose          ║
-// ║  • Readability JS cached on first load (singleton)       ║
-// ║  • Error states carry actionable codes, not raw strings  ║
-// ╚══════════════════════════════════════════════════════════╝
-
-import 'dart:async';
-import 'dart:convert';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:html/parser.dart' as html_parser;
-import 'package:html/dom.dart' as dom;
 
+import '../../../../domain/entities/news_article.dart';
+import '../../../../domain/repositories/news_repository.dart';
+import '../../../../infrastructure/services/html/reader_html_parser.dart';
 import '../models/reader_article.dart';
+import '../models/reader_settings.dart';
 import '../../../../core/tts/domain/entities/tts_chunk.dart';
 import '../../../../core/tts/presentation/providers/tts_controller.dart';
-import '../../../../core/di/providers.dart' show appNetworkServiceProvider;
-import '../models/reader_settings.dart';
+import '../../../../core/di/providers.dart' show appNetworkServiceProvider, articleScraperServiceProvider;
 import '../../../../domain/repositories/settings_repository.dart';
 import '../../../providers/app_settings_providers.dart';
-
-// ─────────────────────────────────────────────
-// ISOLATE PAYLOAD TYPES
-// All fields must be primitive / JSON-serialisable to cross
-// Isolate boundaries without copies via TransferableTypedData.
-// ─────────────────────────────────────────────
-class ReaderHtmlProcessInput {
-  const ReaderHtmlProcessInput({
-    required this.content,
-    required this.articleTitle,
-    required this.noiseTokens,
-    required this.noisyPrefixes,
-    this.strictMode = true,
-  });
-
-  final String content;
-  final String articleTitle;
-  final List<String> noiseTokens;
-  final List<String> noisyPrefixes;
-  final bool strictMode;
-}
-
-@visibleForTesting
-class ReaderHtmlProcessOutput {
-  const ReaderHtmlProcessOutput({
-    required this.html,
-    required this.chunks,
-    required this.removedElements,
-    required this.linkHeavyRemoved,
-    required this.headlineListRemoved,
-    required this.contaminationScore,
-    required this.contentLength,
-  });
-
-  final String html;
-  final List<TtsChunk> chunks;
-  final int removedElements;
-  final int linkHeavyRemoved;
-  final int headlineListRemoved;
-  final double contaminationScore;
-  final int contentLength;
-}
-
-class _ReaderRemovalStats {
-  const _ReaderRemovalStats({
-    required this.removedElements,
-    required this.linkHeavyRemoved,
-    required this.headlineListRemoved,
-  });
-
-  final int removedElements;
-  final int linkHeavyRemoved;
-  final int headlineListRemoved;
-}
-
-const int _kStrictMinContentLength = 420;
-const int _kSoftMinContentLength = 220;
-const double _kStrictMaxContamination = 0.34;
-const double _kSoftMaxContamination = 0.55;
-
-enum ReaderPageType { article, liveFeed, listing, unknown }
-
-enum ReaderTitleSource {
-  hint,
-  metaOg,
-  metaTwitter,
-  jsonld,
-  h1,
-  documentTitle,
-  fallback,
-}
-
-extension ReaderPageTypeWire on ReaderPageType {
-  String get wireValue {
-    switch (this) {
-      case ReaderPageType.article:
-        return 'article';
-      case ReaderPageType.liveFeed:
-        return 'live_feed';
-      case ReaderPageType.listing:
-        return 'listing';
-      case ReaderPageType.unknown:
-        return 'unknown';
-    }
-  }
-
-  static ReaderPageType fromWire(Object? raw) {
-    switch (raw?.toString().trim().toLowerCase()) {
-      case 'article':
-        return ReaderPageType.article;
-      case 'live_feed':
-      case 'live':
-        return ReaderPageType.liveFeed;
-      case 'listing':
-      case 'collection':
-        return ReaderPageType.listing;
-      default:
-        return ReaderPageType.unknown;
-    }
-  }
-}
-
-extension ReaderTitleSourceWire on ReaderTitleSource {
-  String get wireValue {
-    switch (this) {
-      case ReaderTitleSource.hint:
-        return 'hint';
-      case ReaderTitleSource.metaOg:
-        return 'meta_og';
-      case ReaderTitleSource.metaTwitter:
-        return 'meta_twitter';
-      case ReaderTitleSource.jsonld:
-        return 'jsonld';
-      case ReaderTitleSource.h1:
-        return 'h1';
-      case ReaderTitleSource.documentTitle:
-        return 'document_title';
-      case ReaderTitleSource.fallback:
-        return 'fallback';
-    }
-  }
-
-  static ReaderTitleSource fromWire(Object? raw) {
-    switch (raw?.toString().trim().toLowerCase()) {
-      case 'hint':
-        return ReaderTitleSource.hint;
-      case 'meta_og':
-      case 'og':
-        return ReaderTitleSource.metaOg;
-      case 'meta_twitter':
-      case 'twitter':
-        return ReaderTitleSource.metaTwitter;
-      case 'jsonld':
-      case 'json-ld':
-        return ReaderTitleSource.jsonld;
-      case 'h1':
-        return ReaderTitleSource.h1;
-      case 'document_title':
-      case 'doc_title':
-        return ReaderTitleSource.documentTitle;
-      default:
-        return ReaderTitleSource.fallback;
-    }
-  }
-}
-
-@immutable
-class ReaderExtractionMeta {
-  const ReaderExtractionMeta({
-    required this.pageType,
-    required this.titleSource,
-    required this.qualityScore,
-    this.failureCode,
-  });
-
-  final ReaderPageType pageType;
-  final ReaderTitleSource titleSource;
-  final double qualityScore;
-  final String? failureCode;
-
-  bool get isSupportedArticle => pageType == ReaderPageType.article;
-
-  static ReaderExtractionMeta fromPayload(Map<String, dynamic>? payload) {
-    if (payload == null) {
-      return const ReaderExtractionMeta(
-        pageType: ReaderPageType.unknown,
-        titleSource: ReaderTitleSource.fallback,
-        qualityScore: 0,
-      );
-    }
-    final qualityRaw = payload['qualityScore'];
-    final qualityScore = switch (qualityRaw) {
-      final num n => n.toDouble(),
-      final String s => double.tryParse(s) ?? 0.0,
-      _ => 0.0,
-    };
-    final failureCodeRaw = payload['failureCode']?.toString().trim();
-    return ReaderExtractionMeta(
-      pageType: ReaderPageTypeWire.fromWire(payload['pageType']),
-      titleSource: ReaderTitleSourceWire.fromWire(payload['titleSource']),
-      qualityScore: qualityScore,
-      failureCode: (failureCodeRaw == null || failureCodeRaw.isEmpty)
-          ? null
-          : failureCodeRaw,
-    );
-  }
-}
-
-@visibleForTesting
-bool passesReaderQualityGate({
-  required int contentLength,
-  required double contaminationScore,
-  required bool strict,
-}) {
-  final minLength = strict ? _kStrictMinContentLength : _kSoftMinContentLength;
-  final maxContamination = strict
-      ? _kStrictMaxContamination
-      : _kSoftMaxContamination;
-  return contentLength >= minLength && contaminationScore <= maxContamination;
-}
-
-@visibleForTesting
-String chooseReaderExtractionPass({
-  required ReaderHtmlProcessOutput strictOutput,
-  required ReaderHtmlProcessOutput softOutput,
-}) {
-  if (passesReaderQualityGate(
-    contentLength: strictOutput.contentLength,
-    contaminationScore: strictOutput.contaminationScore,
-    strict: true,
-  )) {
-    return 'strict';
-  }
-  if (passesReaderQualityGate(
-    contentLength: softOutput.contentLength,
-    contaminationScore: softOutput.contaminationScore,
-    strict: false,
-  )) {
-    return 'soft';
-  }
-  return 'fallback';
-}
-
-/// Top-level function required by `compute()` — must not be a closure
-/// or instance method so Dart can spawn it in a separate Isolate.
-ReaderHtmlProcessOutput processReaderHtmlForTtsIsolate(
-  ReaderHtmlProcessInput input,
-) {
-  final document = html_parser.parseFragment(input.content);
-  final List<TtsChunk> chunks = [];
-  final seenSentenceFingerprints = <String, int>{};
-  int chunkCount = 0;
-
-  final removalStats = _removeNoiseAndMetadata(document, input);
-  _normalizeForMobileReadability(document);
-
-  // ── Walk & annotate text nodes ──────────────────────
-  final sentenceRegExp = RegExp(r'(?<=[.!?।])\s+');
-
-  void walk(dom.Node node) {
-    if (node.nodeType == dom.Node.TEXT_NODE) {
-      final text = _compactWhitespace(node.text ?? '');
-      if (text.length > 5) {
-        final parent = node.parentNode;
-        if (parent == null) return;
-        final index = parent.nodes.indexOf(node);
-        if (index < 0) return;
-        parent.nodes.removeAt(index);
-        final parentTag = parent is dom.Element
-            ? parent.localName?.toLowerCase()
-            : null;
-
-        final parts = text.split(sentenceRegExp);
-        final nodesToInsert = <dom.Node>[];
-
-        for (var i = 0; i < parts.length; i++) {
-          final part = _compactWhitespace(parts[i]);
-          final isHeadingParent =
-              parentTag == 'h1' ||
-              parentTag == 'h2' ||
-              parentTag == 'h3' ||
-              parentTag == 'h4' ||
-              parentTag == 'h5' ||
-              parentTag == 'h6';
-          if (_looksLikeNoisySentence(
-            part,
-            input,
-            isHeading: isHeadingParent,
-          )) {
-            continue;
-          }
-
-          final fingerprint = _normalizedComparable(part);
-          if (fingerprint.length < 8) {
-            continue;
-          }
-          final seenCount = (seenSentenceFingerprints[fingerprint] ?? 0) + 1;
-          seenSentenceFingerprints[fingerprint] = seenCount;
-          if (seenCount > 1 && part.length < 180) continue;
-
-          final finalPart = i < parts.length - 1 ? '$part ' : part;
-
-          chunks.add(
-            TtsChunk(
-              index: chunkCount,
-              text: finalPart.trim(),
-              estimatedDuration: Duration(milliseconds: finalPart.length * 40),
-            ),
-          );
-
-          final sentenceNode =
-              parentTag == 'a' ? dom.Element.tag('span') : dom.Element.tag('a')
-                ..attributes['href'] = 'reader://chunk/$chunkCount'
-                ..attributes['style'] = 'color:inherit;text-decoration:none;';
-
-          sentenceNode
-            ..classes.add('reader-sentence')
-            ..classes.add('reader-sentence-anchor')
-            ..attributes['data-index'] = chunkCount.toString()
-            ..text = finalPart;
-
-          nodesToInsert.add(sentenceNode);
-          nodesToInsert.add(dom.Text(' '));
-          chunkCount++;
-        }
-
-        parent.nodes.insertAll(index, nodesToInsert);
-      }
-    } else if (node.hasChildNodes()) {
-      for (final child in List<dom.Node>.from(node.nodes)) {
-        walk(child);
-      }
-    }
-  }
-
-  walk(document);
-
-  final contentLength = chunks.fold<int>(
-    0,
-    (sum, chunk) => sum + chunk.text.length,
-  );
-  final contaminationScore = _estimateChunkContaminationScore(chunks, input);
-
-  return ReaderHtmlProcessOutput(
-    html: document.outerHtml,
-    chunks: chunks,
-    removedElements: removalStats.removedElements,
-    linkHeavyRemoved: removalStats.linkHeavyRemoved,
-    headlineListRemoved: removalStats.headlineListRemoved,
-    contaminationScore: contaminationScore,
-    contentLength: contentLength,
-  );
-}
-
-const List<String> _kMetadataMarkers = <String>[
-  'breadcrumb',
-  'breadcrumbs',
-  'byline',
-  'author',
-  'published',
-  'publish',
-  'updated',
-  'timestamp',
-  'date',
-  'category',
-  'tag',
-  'share',
-  'social',
-  'related',
-  'recommended',
-  'trending',
-  'comment',
-  'newsletter',
-  'subscribe',
-  'read-more',
-  'also-read',
-  'প্রকাশ',
-  'সংশ্লিষ্ট',
-  'সম্পর্কিত',
-  'জনপ্রিয়',
-];
-
-final RegExp _kMetadataLinePattern = RegExp(
-  r'^\s*(published|posted|updated|last updated|source|by|read more|also read|advertisement|sponsored|'
-  r'প্রকাশ(?:িত)?|আপডেট|হালনাগাদ|সূত্র|আরও পড়ুন|সংশ্লিষ্ট)\b[\s:–-]*',
-  caseSensitive: false,
-);
-
-final RegExp _kBreadcrumbPattern = RegExp(r'(\s[>›|/]\s)|(^[>›|/])');
-final RegExp _kUrlPattern = RegExp(
-  r'https?://\S+|www\.\S+',
-  caseSensitive: false,
-);
-
-String _compactWhitespace(String value) =>
-    value.replaceAll(RegExp(r'\s+'), ' ').trim();
-
-String _normalizedComparable(String value) =>
-    value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9\u0980-\u09ff]+'), '');
-
-String _normalizeHostPrimaryLabel(String? rawUrl) {
-  final parsed = Uri.tryParse((rawUrl ?? '').trim());
-  final host = (parsed?.host ?? '').toLowerCase();
-  if (host.isEmpty) return '';
-  final cleaned = host
-      .replaceFirst(RegExp(r'^www\.'), '')
-      .replaceFirst(RegExp(r'^m\.'), '')
-      .replaceFirst(RegExp(r'^amp\.'), '');
-  final primary = cleaned.split('.').first;
-  return _normalizedComparable(primary);
-}
-
-bool _isLikelyBrandingTitle(
-  String title, {
-  String? siteName,
-  String? sourceUrl,
-}) {
-  final cleaned = _compactWhitespace(title);
-  if (cleaned.isEmpty) return false;
-
-  final comparable = _normalizedComparable(cleaned);
-  if (comparable.isEmpty) return false;
-
-  final siteComparable = _normalizedComparable(siteName ?? '');
-  if (siteComparable.isNotEmpty &&
-      (comparable == siteComparable ||
-          comparable.contains(siteComparable) ||
-          siteComparable.contains(comparable))) {
-    return true;
-  }
-
-  final hostComparable = _normalizeHostPrimaryLabel(sourceUrl);
-  if (hostComparable.isNotEmpty &&
-      (comparable == hostComparable ||
-          comparable.contains(hostComparable) ||
-          hostComparable.contains(comparable))) {
-    return true;
-  }
-
-  return false;
-}
-
-int _titleQualityScore(String title) {
-  final cleaned = _compactWhitespace(title);
-  if (cleaned.isEmpty) return -999;
-  final words = cleaned
-      .split(RegExp(r'\s+'))
-      .where((word) => word.trim().isNotEmpty)
-      .length;
-  final hasHeadlinePunctuation = RegExp(r'[,;:!?।]').hasMatch(cleaned);
-  final hasSiteDelimiter = RegExp(r'\s[-|–—]\s').hasMatch(cleaned);
-
-  var score = cleaned.length.clamp(0, 160);
-  if (words >= 4 && words <= 24) {
-    score += 45;
-  } else if (words <= 2) {
-    score -= 40;
-  }
-  if (hasHeadlinePunctuation) score += 12;
-  if (hasSiteDelimiter) score -= 22;
-
-  return score;
-}
-
-@visibleForTesting
-String resolvePreferredReaderTitle({
-  required String extractedTitle,
-  required String? titleHint,
-  String? siteName,
-  String? sourceUrl,
-}) {
-  final cleanedExtracted = _compactWhitespace(extractedTitle);
-  final hinted = _compactWhitespace(titleHint ?? '');
-
-  if (cleanedExtracted.isEmpty && hinted.isEmpty) {
-    return 'Reader mode';
-  }
-  if (cleanedExtracted.isEmpty) return hinted;
-  if (hinted.isEmpty) return cleanedExtracted;
-
-  final extractedBranding = _isLikelyBrandingTitle(
-    cleanedExtracted,
-    siteName: siteName,
-    sourceUrl: sourceUrl,
-  );
-  final hintedBranding = _isLikelyBrandingTitle(
-    hinted,
-    siteName: siteName,
-    sourceUrl: sourceUrl,
-  );
-
-  if (extractedBranding && !hintedBranding) return hinted;
-  if (hintedBranding && !extractedBranding) return cleanedExtracted;
-
-  final extractedScore =
-      _titleQualityScore(cleanedExtracted) - (extractedBranding ? 120 : 0);
-  final hintedScore = _titleQualityScore(hinted) - (hintedBranding ? 120 : 0);
-
-  if (hintedScore >= extractedScore + 30) return hinted;
-  return cleanedExtracted;
-}
-
-bool _isDuplicateHeadline(String text, String articleTitle) {
-  if (articleTitle.trim().isEmpty) return false;
-  final normalizedText = _normalizedComparable(text);
-  final normalizedTitle = _normalizedComparable(articleTitle);
-  if (normalizedText.isEmpty || normalizedTitle.isEmpty) return false;
-  if (normalizedText == normalizedTitle) return true;
-  if (normalizedText.length > normalizedTitle.length + 8) return false;
-  return normalizedText.contains(normalizedTitle) ||
-      normalizedTitle.contains(normalizedText);
-}
-
-bool _looksLikeNoisySentence(
-  String text,
-  ReaderHtmlProcessInput input, {
-  bool isHeading = false,
-  bool hasNoiseClass = false,
-}) {
-  if (text.isEmpty) return true;
-  final lower = text.toLowerCase();
-  final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
-  final hasSentencePunctuation = RegExp(r'[.!?।]').hasMatch(text);
-
-  if (input.noisyPrefixes.any(lower.startsWith)) return true;
-  if (_kUrlPattern.hasMatch(text)) return true;
-  if (_kMetadataLinePattern.hasMatch(lower) && text.length < 180) return true;
-  if (_isDuplicateHeadline(text, input.articleTitle) &&
-      words <= 14 &&
-      text.length <= input.articleTitle.length + 24) {
-    return true;
-  }
-  if (hasNoiseClass &&
-      text.length < 180 &&
-      !hasSentencePunctuation &&
-      words <= 18) {
-    return true;
-  }
-
-  if (isHeading) {
-    if (_isDuplicateHeadline(text, input.articleTitle)) return true;
-    if (!hasNoiseClass && words <= 14 && text.length >= 6) return false;
-  }
-
-  if (words < 1) return true;
-  if (words <= 1 && text.length < 8 && !text.contains(RegExp(r'[.!?।]'))) {
-    return true;
-  }
-  if (!isHeading &&
-      RegExp(r'^[A-Z0-9\s|:/_-]{2,}$').hasMatch(text) &&
-      text.length < 90) {
-    return true;
-  }
-
-  final alphaNumCount = RegExp(
-    r'[A-Za-z0-9\u0980-\u09ff]',
-  ).allMatches(text).length;
-  if (alphaNumCount > 0 &&
-      (text.length - alphaNumCount) / text.length > 0.55 &&
-      text.length < 140) {
-    return true;
-  }
-
-  return false;
-}
-
-bool _looksLikeHeadlineListBlock({
-  required String text,
-  required int anchorCount,
-  required int shortAnchorCount,
-  required int listItemCount,
-  required double linkDensity,
-}) {
-  if (anchorCount < 2) return false;
-  final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
-  final headlineLike = !RegExp(r'[.!?।]').hasMatch(text) && words <= 20;
-  if (headlineLike && shortAnchorCount >= 2) return true;
-  if (listItemCount >= 3 && shortAnchorCount >= 2) return true;
-  if (linkDensity > 0.60 && shortAnchorCount >= 2) return true;
-  return false;
-}
-
-double _estimateChunkContaminationScore(
-  List<TtsChunk> chunks,
-  ReaderHtmlProcessInput input,
-) {
-  if (chunks.isEmpty) return 1.0;
-  final sample = chunks.take(12);
-  var total = 0;
-  var contaminated = 0;
-  var punctuated = 0;
-  var headlineLikeCount = 0;
-
-  for (final chunk in sample) {
-    final text = _compactWhitespace(chunk.text);
-    if (text.isEmpty) continue;
-    total++;
-    final lower = text.toLowerCase();
-    final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
-    final hasPunctuation = RegExp(r'[.!?।]').hasMatch(text);
-    if (hasPunctuation) {
-      punctuated++;
-    }
-    final looksHeadline = !hasPunctuation && words >= 2 && words <= 16;
-    if (looksHeadline) {
-      headlineLikeCount++;
-    }
-    final hasNoise =
-        input.noiseTokens.any(lower.contains) ||
-        _kMetadataMarkers.any(lower.contains) ||
-        _kMetadataLinePattern.hasMatch(lower);
-    if (hasNoise || looksHeadline) contaminated++;
-  }
-
-  if (total == 0) return 1.0;
-  final baseScore = contaminated / total;
-  final punctuationRatio = punctuated / total;
-  final headlineRatio = headlineLikeCount / total;
-
-  var adjusted = baseScore;
-  if (punctuationRatio < 0.20) adjusted += 0.22;
-  if (headlineRatio > 0.55) adjusted += 0.22;
-  if (punctuationRatio < 0.10 && headlineRatio > 0.45) {
-    adjusted += 0.20;
-  }
-
-  return adjusted.clamp(0.0, 1.0);
-}
-
-_ReaderRemovalStats _removeNoiseAndMetadata(
-  dom.DocumentFragment document,
-  ReaderHtmlProcessInput input,
-) {
-  var removedElements = 0;
-  var linkHeavyRemoved = 0;
-  var headlineListRemoved = 0;
-
-  document
-      .querySelectorAll(
-        'script,style,iframe,nav,aside,footer,form,noscript,button,svg,canvas,header,'
-        '.ads,.advertisement,.social-share,.share-tools,.related,.recommended,'
-        '.trending,.newsletter,.comments,.comment,[role="navigation"],[role="complementary"]',
-      )
-      .forEach((e) {
-        e.remove();
-        removedElements++;
-      });
-
-  final allElements = List<dom.Element>.from(document.querySelectorAll('*'));
-  for (final element in allElements) {
-    final marker = _compactWhitespace(
-      '${element.className.toLowerCase()} ${element.id.toLowerCase()} '
-      '${(element.attributes['role'] ?? '').toLowerCase()} '
-      '${(element.attributes['aria-label'] ?? '').toLowerCase()}',
-    );
-    final text = _compactWhitespace(element.text);
-    final textLower = text.toLowerCase();
-    final tag = (element.localName ?? '').toLowerCase();
-    final isHeading = tag.startsWith('h');
-    if (text.isEmpty) continue;
-
-    final anchors = element.querySelectorAll('a');
-    final anchorCount = anchors.length;
-    final shortAnchorCount = anchors
-        .where(
-          (a) =>
-              _compactWhitespace(
-                a.text,
-              ).split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length <=
-              8,
-        )
-        .length;
-    final anchorTextLength = anchors.fold<int>(
-      0,
-      (sum, a) => sum + _compactWhitespace(a.text).length,
-    );
-    final linkDensity = anchorTextLength / text.length.clamp(1, 1 << 20);
-    final listItemCount = element.querySelectorAll('li').length;
-
-    final hasNoiseMarker =
-        input.noiseTokens.any(marker.contains) ||
-        _kMetadataMarkers.any(marker.contains);
-    final isMetadataLine =
-        text.length <= 140 &&
-        (_kMetadataLinePattern.hasMatch(textLower) ||
-            _kBreadcrumbPattern.hasMatch(text));
-    final isCategoryLike =
-        text.length <= 60 &&
-        (marker.contains('category') ||
-            marker.contains('tag') ||
-            marker.contains('topic'));
-    final isDuplicateTitle =
-        text.length <= input.articleTitle.length + 16 &&
-        _isDuplicateHeadline(text, input.articleTitle) &&
-        (isHeading || marker.contains('title') || marker.contains('headline'));
-    final isNoisySentence = _looksLikeNoisySentence(
-      text,
-      input,
-      isHeading: isHeading,
-      hasNoiseClass: hasNoiseMarker,
-    );
-    final isBoilerplateBlock =
-        hasNoiseMarker &&
-        (text.length <= 260 || tag == 'section' || tag == 'div' || tag == 'ul');
-    final isLinkHeavyBlock =
-        anchorCount >= 3 &&
-        shortAnchorCount >= 2 &&
-        ((input.strictMode && linkDensity >= 0.45) ||
-            (!input.strictMode && linkDensity >= 0.75));
-    final isHeadlineListBlock = _looksLikeHeadlineListBlock(
-      text: text,
-      anchorCount: anchorCount,
-      shortAnchorCount: shortAnchorCount,
-      listItemCount: listItemCount,
-      linkDensity: linkDensity,
-    );
-    final isSuspiciousHeading =
-        input.strictMode &&
-        isHeading &&
-        text.length <= 120 &&
-        !_isDuplicateHeadline(text, input.articleTitle) &&
-        (anchorCount > 0 || hasNoiseMarker || isHeadlineListBlock);
-
-    if ((tag != 'article' && tag != 'main') &&
-        (tag == 'label' ||
-            isDuplicateTitle ||
-            isCategoryLike ||
-            isMetadataLine ||
-            isNoisySentence ||
-            isBoilerplateBlock ||
-            isSuspiciousHeading ||
-            isLinkHeavyBlock ||
-            isHeadlineListBlock)) {
-      if (isLinkHeavyBlock) linkHeavyRemoved++;
-      if (isHeadlineListBlock) headlineListRemoved++;
-      element.remove();
-      removedElements++;
-    }
-  }
-
-  return _ReaderRemovalStats(
-    removedElements: removedElements,
-    linkHeavyRemoved: linkHeavyRemoved,
-    headlineListRemoved: headlineListRemoved,
-  );
-}
-
-void _appendInlineStyle(dom.Element element, String style) {
-  final current = element.attributes['style']?.trim() ?? '';
-  if (current.isEmpty) {
-    element.attributes['style'] = style;
-    return;
-  }
-  final separator = current.endsWith(';') ? '' : ';';
-  element.attributes['style'] = '$current$separator$style';
-}
-
-void _normalizeForMobileReadability(dom.DocumentFragment document) {
-  for (final p in document.querySelectorAll('p,li,blockquote')) {
-    _appendInlineStyle(
-      p,
-      'text-align:justify;line-height:1.75;word-break:break-word;overflow-wrap:anywhere;margin:0 0 1em 0;',
-    );
-  }
-  for (final heading in document.querySelectorAll('h1,h2,h3')) {
-    _appendInlineStyle(
-      heading,
-      'line-height:1.3;margin:1.1em 0 0.45em 0;font-weight:700;',
-    );
-  }
-  for (final list in document.querySelectorAll('ul,ol')) {
-    _appendInlineStyle(list, 'padding-left:1.2em;margin:0.2em 0 1em 0;');
-  }
-  for (final img in document.querySelectorAll('img')) {
-    _appendInlineStyle(
-      img,
-      'max-width:100%;height:auto;display:block;margin:16px auto;border-radius:8px;',
-    );
-  }
-  for (final table in document.querySelectorAll('table')) {
-    _appendInlineStyle(table, 'display:block;overflow-x:auto;width:100%;');
-  }
-  for (final label in document.querySelectorAll(
-    '.category,.categories,[class*="category"],[class*="tag"],[class*="label"],'
-    '[class*="badge"],[id*="category"],[id*="tag"]',
-  )) {
-    _appendInlineStyle(
-      label,
-      'position:static;top:auto;right:auto;bottom:auto;left:auto;transform:none;',
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// NOISE CONSTANTS  (defined once at module level)
-// ─────────────────────────────────────────────
-const _kNoiseTokens = <String>[
-  'related',
-  'recommend',
-  'recommended',
-  'trending',
-  'popular',
-  'newsletter',
-  'subscribe',
-  'comment',
-  'share',
-  'sponsored',
-  'advert',
-  'read-more',
-  'more-news',
-  'also-read',
-  'you-may-like',
-  'more-from',
-  'more-stories',
-  'আরও-পড়ুন',
-  'আরও-সংবাদ',
-  'সম্পর্কিত',
-  'সংশ্লিষ্ট',
-  'জনপ্রিয়',
-  'ট্রেন্ডিং',
-];
-
-const _kNoisyPrefixes = <String>[
-  'read more',
-  'also read',
-  'related news',
-  'related articles',
-  'you may also like',
-  'recommended for you',
-  'trending now',
-  'more from',
-  'follow us',
-  'subscribe',
-  'comments',
-  'advertisement',
-  'sponsored',
-  'আরও পড়ুন',
-  'আরও দেখুন',
-  'সম্পর্কিত খবর',
-  'সংশ্লিষ্ট খবর',
-  'জনপ্রিয়',
-  'ট্রেন্ডিং',
-];
-
-// ─────────────────────────────────────────────
-// READER STATE
-// ─────────────────────────────────────────────
-@immutable
+import 'package:html/parser.dart' as html_parser;
+import 'package:html/dom.dart' as dom;
 class ReaderState {
   const ReaderState({
     this.isReaderMode = false,
@@ -1008,6 +159,11 @@ class _LruArticleCache {
 // ─────────────────────────────────────────────
 // READABILITY SCRIPT – module-level singleton
 // ─────────────────────────────────────────────
+String _compactWhitespace(String value) =>
+    value.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+String _normalizedComparable(String value) =>
+    value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9\u0980-\u09ff]+'), '');
 String? _readabilityScriptSingleton;
 
 Future<String?> _loadReadabilityScript() async {
@@ -1046,8 +202,9 @@ class ReaderController extends StateNotifier<ReaderState> {
   ProviderSubscription? _ttsSubscription;
   InAppWebViewController? _webViewController;
 
-  // In-flight extraction cancellation token.
-  bool _extractionCancelled = false;
+  // In-flight extraction generation token.
+  int _extractionGeneration = 0;
+  String? _lastExtractedUrl;
 
   // Debounce timers for settings persistence.
   Timer? _fontSizeDebounce;
@@ -1064,7 +221,7 @@ class ReaderController extends StateNotifier<ReaderState> {
     _fontSizeDebounce?.cancel();
     _fontFamilyDebounce?.cancel();
     _themeDebounce?.cancel();
-    _extractionCancelled = true;
+    _cancelActiveExtraction();
     super.dispose();
   }
 
@@ -1074,26 +231,66 @@ class ReaderController extends StateNotifier<ReaderState> {
   }
 
   // ── Toggle ───────────────────────────────────
-  Future<void> toggleReaderMode({String? urlHint, String? titleHint}) async {
+  Future<void> toggleReaderMode({
+    String? urlHint,
+    String? titleHint,
+    bool allowPublisherFallback = false,
+    String? rawHtmlHint,
+  }) async {
+    final normalizedUrl = (urlHint ?? '').trim();
     if (state.isReaderMode) {
-      state = state.copyWith(isReaderMode: false);
+      _cancelActiveExtraction();
+      state = ReaderState(
+        article: state.article,
+        pageType: state.pageType,
+        titleSource: state.titleSource,
+        qualityScore: state.qualityScore,
+        chunks: state.chunks,
+        processedContent: state.processedContent,
+        fontSize: state.fontSize,
+        fontFamily: state.fontFamily,
+        readerTheme: state.readerTheme,
+      );
       stopTts();
     } else {
-      if (state.article != null) {
-        state = state.copyWith(isReaderMode: true);
+      final hasReusableArticle =
+          state.article != null &&
+          state.chunks.isNotEmpty &&
+          normalizedUrl.isNotEmpty &&
+          normalizedUrl == _lastExtractedUrl;
+      if (hasReusableArticle) {
+        // Stop any in-flight TTS from the previous reader session and reset
+        // the chunk position so the subscription listener doesn't carry over
+        // stale indices into the new session.
+        stopTts();
+        state = ReaderState(
+          isReaderMode: true,
+          article: state.article,
+          pageType: state.pageType,
+          titleSource: state.titleSource,
+          qualityScore: state.qualityScore,
+          chunks: state.chunks,
+          processedContent: state.processedContent,
+          fontSize: state.fontSize,
+          fontFamily: state.fontFamily,
+          readerTheme: state.readerTheme,
+        );
         return;
       }
-      await extractContent(urlHint: urlHint, titleHint: titleHint);
+      await extractContent(
+        urlHint: urlHint,
+        titleHint: titleHint,
+        allowPublisherFallback: allowPublisherFallback,
+        rawHtmlHint: rawHtmlHint,
+      );
     }
   }
 
   void clearState() {
+    _lastExtractedUrl = null;
     state = ReaderState(
       isReaderMode: state.isReaderMode,
       isLoading: true,
-      pageType: ReaderPageType.unknown,
-      titleSource: ReaderTitleSource.fallback,
-      qualityScore: 0,
       fontSize: state.fontSize,
       fontFamily: state.fontFamily,
       readerTheme: state.readerTheme,
@@ -1101,6 +298,7 @@ class ReaderController extends StateNotifier<ReaderState> {
   }
 
   void markExtractionFailure({required String message, String? errorCode}) {
+    _lastExtractedUrl = null;
     state = state.copyWith(
       isLoading: false,
       errorMessage: message,
@@ -1111,9 +309,29 @@ class ReaderController extends StateNotifier<ReaderState> {
     );
   }
 
+  void invalidateForPageChange({bool keepReaderMode = false}) {
+    _cancelActiveExtraction();
+    _lastExtractedUrl = null;
+    state = ReaderState(
+      isReaderMode: keepReaderMode,
+      fontSize: state.fontSize,
+      fontFamily: state.fontFamily,
+      readerTheme: state.readerTheme,
+    );
+  }
+
   // ── Content extraction ───────────────────────
-  Future<void> extractContent({String? urlHint, String? titleHint}) async {
+  Future<void> extractContent({
+    String? urlHint,
+    String? titleHint,
+    bool allowPublisherFallback = false,
+    String? rawHtmlHint,
+  }) async {
+    final extractionToken = _beginExtraction();
     if (_webViewController == null) {
+      debugPrint(
+        '[ReaderController] extractContent aborted: webViewController=null',
+      );
       state = state.copyWith(
         isReaderMode: false,
         isLoading: false,
@@ -1124,14 +342,16 @@ class ReaderController extends StateNotifier<ReaderState> {
       return;
     }
 
-    // Cancel any previous in-flight extraction.
-    _extractionCancelled = true;
-    await Future.microtask(() {}); // yield to event loop
-    _extractionCancelled = false;
-
     // Check cache first.
     if (urlHint != null && _cache.contains(urlHint)) {
       final cached = _cache.get(urlHint)!;
+      debugPrint(
+        '[ReaderController] cache hit '
+        '| url=$urlHint '
+        '| chunks=${cached.chunks.length} '
+        '| textLen=${cached.article.textContent.length}',
+      );
+      _lastExtractedUrl = urlHint.trim();
       state = state.copyWith(
         isReaderMode: true,
         isLoading: false,
@@ -1141,18 +361,33 @@ class ReaderController extends StateNotifier<ReaderState> {
         pageType: ReaderPageType.article,
         titleSource: ReaderTitleSource.fallback,
         qualityScore: 1.0,
-        errorCode: null,
-        errorMessage: null,
       );
       return;
     }
 
     // Clear old state before starting new extraction to avoid ghosting.
     clearState();
+    ReaderExtractionMeta? unsupportedMeta;
+    final extractionUrl = (urlHint ?? '').trim();
+    final likelyArticleUrl = looksLikeReaderArticleUrl(extractionUrl);
+    final trustedArticleHost = _isTrustedReaderFallbackHost(extractionUrl);
+    var allowUnsupportedAttempt = false;
+    var allowUnsupportedRecovery = false;
+    debugPrint(
+      '[ReaderController] extractContent start '
+      '| url=$extractionUrl '
+      '| titleHint=${(titleHint ?? '').trim()} '
+      '| likelyArticleUrl=$likelyArticleUrl '
+      '| trustedHost=$trustedArticleHost '
+      '| publisherFallback=$allowPublisherFallback',
+    );
 
     try {
       final script = await _loadReadabilityScript();
       if (script == null) {
+        debugPrint(
+          '[ReaderController] extractContent script missing (readability.js).',
+        );
         state = state.copyWith(
           isLoading: false,
           errorMessage: 'Could not load Readability script.',
@@ -1160,16 +395,39 @@ class ReaderController extends StateNotifier<ReaderState> {
         );
         return;
       }
-      if (_extractionCancelled) return;
+      debugPrint('[ReaderController] readability script loaded.');
+      if (_shouldAbortExtraction(extractionToken)) return;
 
       final preflightMeta = await _runPageClassification(
         urlHint: urlHint,
         titleHint: titleHint,
       );
-      if (_extractionCancelled) return;
+      if (_shouldAbortExtraction(extractionToken)) return;
+      allowUnsupportedAttempt = shouldAttemptUnsupportedReaderExtraction(
+        allowPublisherFallback: allowPublisherFallback,
+        likelyArticleUrl: likelyArticleUrl,
+        classifiedPageType: preflightMeta?.pageType,
+      );
+      allowUnsupportedRecovery = shouldAllowUnsupportedReaderRecovery(
+        allowPublisherFallback: allowPublisherFallback,
+        likelyArticleUrl: likelyArticleUrl,
+        trustedArticleHost: trustedArticleHost,
+        classifiedPageType: preflightMeta?.pageType,
+      );
+      debugPrint(
+        '[ReaderController] preflight '
+        '| pageType=${preflightMeta?.pageType.wireValue ?? 'null'} '
+        '| score=${preflightMeta?.qualityScore.toStringAsFixed(2) ?? 'null'} '
+        '| failure=${preflightMeta?.failureCode ?? 'none'} '
+        '| allowUnsupportedAttempt=$allowUnsupportedAttempt '
+        '| allowUnsupportedRecovery=$allowUnsupportedRecovery',
+      );
       if (preflightMeta != null && !preflightMeta.isSupportedArticle) {
-        _setUnsupportedPageState(preflightMeta);
-        return;
+        unsupportedMeta = preflightMeta;
+        if (!allowUnsupportedAttempt && !allowUnsupportedRecovery) {
+          _setUnsupportedPageState(preflightMeta);
+          return;
+        }
       }
 
       final strictPayload = await _runReadabilityExtractionPass(
@@ -1178,12 +436,12 @@ class ReaderController extends StateNotifier<ReaderState> {
         titleHint: titleHint,
         timeout: _adaptiveExtractionTimeout(strictMode: true, urlHint: urlHint),
         urlHint: urlHint,
+        allowUnsupportedPageAttempt: allowUnsupportedAttempt,
       );
-      if (_extractionCancelled) return;
+      if (_shouldAbortExtraction(extractionToken)) return;
       final strictMeta = ReaderExtractionMeta.fromPayload(strictPayload);
       if (strictPayload != null && !strictMeta.isSupportedArticle) {
-        _setUnsupportedPageState(strictMeta);
-        return;
+        unsupportedMeta ??= strictMeta;
       }
 
       final strictArticle = strictPayload == null
@@ -1199,7 +457,16 @@ class ReaderController extends StateNotifier<ReaderState> {
               article: strictArticle,
               strictMode: true,
             );
-      if (_extractionCancelled) return;
+      debugPrint(
+        '[ReaderController] strict pass '
+        '| payload=${strictPayload == null ? 'null' : 'ok'} '
+        '| pageType=${strictMeta.pageType.wireValue} '
+        '| score=${strictMeta.qualityScore.toStringAsFixed(2)} '
+        '| articleLen=${strictArticle?.textContent.length ?? 0} '
+        '| chunks=${strictProcessed?.chunks.length ?? 0} '
+        '| contentLen=${strictProcessed?.contentLength ?? 0}',
+      );
+      if (_shouldAbortExtraction(extractionToken)) return;
 
       final softPayload =
           (strictProcessed == null ||
@@ -1217,13 +484,13 @@ class ReaderController extends StateNotifier<ReaderState> {
                 urlHint: urlHint,
               ),
               urlHint: urlHint,
+              allowUnsupportedPageAttempt: allowUnsupportedAttempt,
             )
           : null;
-      if (_extractionCancelled) return;
+      if (_shouldAbortExtraction(extractionToken)) return;
       final softMeta = ReaderExtractionMeta.fromPayload(softPayload);
       if (softPayload != null && !softMeta.isSupportedArticle) {
-        _setUnsupportedPageState(softMeta);
-        return;
+        unsupportedMeta ??= softMeta;
       }
 
       final softArticle = softPayload == null
@@ -1239,7 +506,16 @@ class ReaderController extends StateNotifier<ReaderState> {
               article: softArticle,
               strictMode: false,
             );
-      if (_extractionCancelled) return;
+      debugPrint(
+        '[ReaderController] soft pass '
+        '| payload=${softPayload == null ? 'null' : 'ok'} '
+        '| pageType=${softMeta.pageType.wireValue} '
+        '| score=${softMeta.qualityScore.toStringAsFixed(2)} '
+        '| articleLen=${softArticle?.textContent.length ?? 0} '
+        '| chunks=${softProcessed?.chunks.length ?? 0} '
+        '| contentLen=${softProcessed?.contentLength ?? 0}',
+      );
+      if (_shouldAbortExtraction(extractionToken)) return;
 
       ReaderArticle? article = strictArticle ?? softArticle;
       ReaderHtmlProcessOutput? processed = strictProcessed ?? softProcessed;
@@ -1287,6 +563,11 @@ class ReaderController extends StateNotifier<ReaderState> {
         processed = softProcessed;
         selectedMeta = softMeta;
       }
+      debugPrint(
+        '[ReaderController] selected pass pre-fallback | selected=$selectedPass '
+        '| articleLen=${article?.textContent.length ?? 0} '
+        '| processedLen=${processed?.contentLength ?? 0}',
+      );
 
       if ((article == null || processed == null) ||
           selectedPass == 'fallback') {
@@ -1296,13 +577,37 @@ class ReaderController extends StateNotifier<ReaderState> {
           titleSource: ReaderTitleSource.fallback,
           qualityScore: 0,
         );
+        if (article == null &&
+            rawHtmlHint != null &&
+            rawHtmlHint.trim().length >= 300) {
+          final hintedArticle = _readerArticleFromStoredHtml(
+            htmlContent: rawHtmlHint,
+            titleHint: titleHint,
+            urlHint: urlHint,
+          );
+          debugPrint(
+            '[ReaderController] html-hint fallback '
+            '| article=${hintedArticle == null ? 'null' : 'ok'} '
+            '| textLen=${hintedArticle?.textContent.length ?? 0}',
+          );
+          if (hintedArticle != null) {
+            article = hintedArticle;
+            selectedPass = 'html_hint';
+          }
+        }
+
         if (article == null) {
           final lightweight = await _extractContentWithLightweightFallback();
           fallbackPayload = _decodeExtractionPayload(lightweight);
           fallbackMeta = ReaderExtractionMeta.fromPayload(fallbackPayload);
+          debugPrint(
+            '[ReaderController] lightweight fallback '
+            '| payload=${fallbackPayload == null ? 'null' : 'ok'} '
+            '| pageType=${fallbackMeta.pageType.wireValue} '
+            '| score=${fallbackMeta.qualityScore.toStringAsFixed(2)}',
+          );
           if (fallbackPayload != null && !fallbackMeta.isSupportedArticle) {
-            _setUnsupportedPageState(fallbackMeta);
-            return;
+            unsupportedMeta ??= fallbackMeta;
           }
           if (fallbackPayload != null) {
             article = _readerArticleFromPayload(
@@ -1314,34 +619,234 @@ class ReaderController extends StateNotifier<ReaderState> {
         }
 
         if (article == null) {
+          var bestEffortArticle = await _extractBestEffortReaderArticle(
+            titleHint: titleHint,
+            urlHint: urlHint,
+          );
+          if (allowPublisherFallback &&
+              (bestEffortArticle == null ||
+                  bestEffortArticle.textContent.length < 90)) {
+            await Future<void>.delayed(const Duration(milliseconds: 550));
+            final retryBestEffortArticle =
+                await _extractBestEffortReaderArticle(
+                  titleHint: titleHint,
+                  urlHint: urlHint,
+                );
+            if (retryBestEffortArticle != null &&
+                retryBestEffortArticle.textContent.length >
+                    (bestEffortArticle?.textContent.length ?? 0)) {
+              bestEffortArticle = retryBestEffortArticle;
+            }
+          }
+          debugPrint(
+            '[ReaderController] best-effort fallback '
+            '| article=${bestEffortArticle == null ? 'null' : 'ok'} '
+            '| textLen=${bestEffortArticle?.textContent.length ?? 0}',
+          );
+          if (bestEffortArticle != null) {
+            article = bestEffortArticle;
+          }
+        }
+
+        if (article == null &&
+            extractionUrl.isNotEmpty &&
+            ref
+                .read(articleScraperServiceProvider)
+                .canScrapeUrl(extractionUrl) &&
+            (allowPublisherFallback ||
+                likelyArticleUrl ||
+                trustedArticleHost)) {
+          final scrapedHtml = await ref
+              .read(articleScraperServiceProvider)
+              .extractArticleContent(extractionUrl)
+              .timeout(const Duration(seconds: 8), onTimeout: () => null);
+          final scrapedArticle = scrapedHtml == null
+              ? null
+              : _readerArticleFromStoredHtml(
+                  htmlContent: scrapedHtml,
+                  titleHint: titleHint,
+                  urlHint: urlHint,
+                );
+          debugPrint(
+            '[ReaderController] network-scrape fallback '
+            '| html=${scrapedHtml == null ? 'null' : 'ok'} '
+            '| article=${scrapedArticle == null ? 'null' : 'ok'} '
+            '| textLen=${scrapedArticle?.textContent.length ?? 0}',
+          );
+          if (scrapedArticle != null) {
+            article = scrapedArticle;
+            selectedPass = 'network_scrape';
+          }
+        }
+
+        if (article == null) {
+          if (unsupportedMeta != null) {
+            if (!allowUnsupportedRecovery) {
+              _setUnsupportedPageState(unsupportedMeta);
+              return;
+            }
+          }
           state = state.copyWith(
             isLoading: false,
             errorMessage: 'Page content could not be extracted.',
             errorCode: 'parse_fail',
           );
+          debugPrint(
+            '[ReaderController] parse_fail '
+            '| unsupported=${unsupportedMeta?.pageType.wireValue ?? 'none'} '
+            '| likelyArticleUrl=$likelyArticleUrl '
+            '| trustedHost=$trustedArticleHost',
+          );
           return;
         }
 
         final fallbackChunks = _buildFallbackChunks(article.textContent);
+        final fallbackHtml = _plainTextToReaderHtml(article.textContent);
         final fallbackQualityScore = _scoreChunkBodyQuality(
           fallbackChunks,
           article.textContent,
         );
-        if (fallbackQualityScore < 0.52 ||
-            article.textContent.length < _kSoftMinContentLength) {
-          state = state.copyWith(
-            isLoading: false,
-            errorMessage: 'Reader mode could not isolate article-only content.',
-            errorCode: 'reader_quality_fail',
+        final fallbackReadableBody = looksLikeReaderBodyText(
+          article.textContent,
+        );
+        if (!passesReaderFallbackQualityGate(
+          contentLength: article.textContent.length,
+          chunkCount: fallbackChunks.length,
+          qualityScore: fallbackQualityScore,
+          likelyReadableBody: fallbackReadableBody,
+          classifiedPageType: unsupportedMeta?.pageType,
+          allowFeedLikeRecovery: allowPublisherFallback,
+        )) {
+          debugPrint(
+            '[ReaderController] fallback quality gate failed '
+            '| textLen=${article.textContent.length} '
+            '| chunkCount=${fallbackChunks.length} '
+            '| quality=${fallbackQualityScore.toStringAsFixed(2)} '
+            '| readable=$fallbackReadableBody '
+            '| unsupported=${unsupportedMeta?.pageType.wireValue ?? 'none'}',
+          );
+          final rescueChunks = fallbackChunks.isNotEmpty
+              ? fallbackChunks
+              : _buildEmergencyFallbackChunks(article.textContent);
+          final rescueEligible =
+              rescueChunks.isNotEmpty &&
+              ((unsupportedMeta == null && fallbackReadableBody) ||
+                  allowUnsupportedRecovery ||
+                  article.textContent.length >= 180);
+          if (!rescueEligible) {
+            final emergencyArticle = await _extractBestEffortReaderArticle(
+              titleHint: titleHint,
+              urlHint: urlHint,
+            );
+            debugPrint(
+              '[ReaderController] emergency best-effort '
+              '| article=${emergencyArticle == null ? 'null' : 'ok'} '
+              '| textLen=${emergencyArticle?.textContent.length ?? 0}',
+            );
+            final emergencyChunks = emergencyArticle == null
+                ? const <TtsChunk>[]
+                : _buildEmergencyFallbackChunks(emergencyArticle.textContent);
+            if (emergencyArticle != null && emergencyChunks.isNotEmpty) {
+              article = emergencyArticle;
+              processed = ReaderHtmlProcessOutput(
+                html: _plainTextToReaderHtml(article.textContent),
+                chunks: emergencyChunks,
+                removedElements: 0,
+                linkHeavyRemoved: 0,
+                headlineListRemoved: 0,
+                contaminationScore: 1.0,
+                contentLength: article.textContent.length,
+              );
+              selectedPass = 'emergency_rescue';
+              selectedMeta = const ReaderExtractionMeta(
+                pageType: ReaderPageType.article,
+                titleSource: ReaderTitleSource.fallback,
+                qualityScore: 0.42,
+              );
+              _logExtractionTelemetry(
+                selectedPass: selectedPass,
+                processed: processed,
+                meta: selectedMeta,
+              );
+              if (_shouldAbortExtraction(extractionToken)) return;
+              _lastExtractedUrl = extractionUrl;
+              state = state.copyWith(
+                isReaderMode: true,
+                isLoading: false,
+                article: article,
+                processedContent: processed.html,
+                chunks: processed.chunks,
+                pageType: selectedMeta.pageType,
+                titleSource: selectedMeta.titleSource,
+                qualityScore: selectedMeta.qualityScore,
+              );
+              return;
+            }
+            if (unsupportedMeta != null) {
+              if (!allowUnsupportedRecovery) {
+                _setUnsupportedPageState(unsupportedMeta);
+                return;
+              }
+            }
+            debugPrint(
+              '[ReaderController] fallback rejected '
+              '| len=${article.textContent.length} '
+              '| chunks=${fallbackChunks.length} '
+              '| score=${fallbackQualityScore.toStringAsFixed(2)} '
+              '| readable=$fallbackReadableBody '
+              '| likelyArticleUrl=$likelyArticleUrl '
+              '| trustedArticleHost=$trustedArticleHost '
+              '| unsupported=${unsupportedMeta?.pageType.wireValue ?? 'none'}',
+            );
+            state = state.copyWith(
+              isLoading: false,
+              errorMessage:
+                  'Reader mode could not isolate article-only content.',
+              errorCode: 'reader_quality_fail',
+              pageType: ReaderPageType.article,
+              titleSource: ReaderTitleSource.fallback,
+              qualityScore: fallbackQualityScore,
+            );
+            return;
+          }
+
+          processed = ReaderHtmlProcessOutput(
+            html: fallbackHtml,
+            chunks: rescueChunks,
+            removedElements: 0,
+            linkHeavyRemoved: 0,
+            headlineListRemoved: 0,
+            contaminationScore: 1.0,
+            contentLength: article.textContent.length,
+          );
+          selectedPass = 'fallback_rescue';
+          selectedMeta = ReaderExtractionMeta(
             pageType: ReaderPageType.article,
             titleSource: ReaderTitleSource.fallback,
-            qualityScore: fallbackQualityScore,
+            qualityScore: fallbackQualityScore.clamp(0.28, 0.72),
+          );
+          _logExtractionTelemetry(
+            selectedPass: selectedPass,
+            processed: processed,
+            meta: selectedMeta,
+          );
+          if (_shouldAbortExtraction(extractionToken)) return;
+          _lastExtractedUrl = extractionUrl;
+          state = state.copyWith(
+            isReaderMode: true,
+            isLoading: false,
+            article: article,
+            processedContent: processed.html,
+            chunks: processed.chunks,
+            pageType: selectedMeta.pageType,
+            titleSource: selectedMeta.titleSource,
+            qualityScore: selectedMeta.qualityScore,
           );
           return;
         }
 
         processed = ReaderHtmlProcessOutput(
-          html: article.content,
+          html: fallbackHtml,
           chunks: fallbackChunks,
           removedElements: 0,
           linkHeavyRemoved: 0,
@@ -1365,7 +870,7 @@ class ReaderController extends StateNotifier<ReaderState> {
         meta: selectedMeta,
       );
 
-      if (_extractionCancelled) return;
+      if (_shouldAbortExtraction(extractionToken)) return;
 
       // Populate cache.
       final cacheKey = (urlHint ?? '').trim();
@@ -1379,6 +884,7 @@ class ReaderController extends StateNotifier<ReaderState> {
           ),
         );
       }
+      _lastExtractedUrl = cacheKey.isNotEmpty ? cacheKey : null;
 
       state = state.copyWith(
         isReaderMode: true,
@@ -1390,10 +896,9 @@ class ReaderController extends StateNotifier<ReaderState> {
         titleSource: selectedMeta.titleSource,
         qualityScore: selectedMeta.qualityScore,
         errorCode: selectedMeta.failureCode,
-        errorMessage: null,
       );
     } catch (e, s) {
-      if (_extractionCancelled) return;
+      if (_shouldAbortExtraction(extractionToken)) return;
       debugPrint('[ReaderController] extractContent error: $e\n$s');
       state = state.copyWith(
         isLoading: false,
@@ -1458,8 +963,6 @@ class ReaderController extends StateNotifier<ReaderState> {
       ReaderPageType.unknown => 'this page',
     };
     state = ReaderState(
-      isReaderMode: false,
-      isLoading: false,
       errorCode: meta.failureCode ?? 'reader_unsupported_page_type',
       errorMessage:
           'Reader mode supports single-article pages only. This looks like $pageLabel.',
@@ -1483,6 +986,42 @@ class ReaderController extends StateNotifier<ReaderState> {
   const URL_HINT = $urlHintLiteral;
   const TITLE_HINT = $titleHintLiteral;
   const normalize = (value) => String(value || '').replace(/\\u00a0/g, ' ').replace(/\\s+/g, ' ').trim();
+  let pagePath = '';
+  let host = '';
+  try {
+    const currentUrl = new URL(URL_HINT || location.href);
+    pagePath = currentUrl.pathname.toLowerCase();
+    host = currentUrl.hostname.toLowerCase();
+  } catch (_) {}
+
+  const hostAdapter = (() => {
+    if (host.includes('prothomalo.com')) {
+      return {
+        rootSelectors: ['article', 'div[itemprop="articleBody"]', '.story-content', '.story-body', '.story-element.story-element-text']
+      };
+    }
+    if (host.includes('bd-pratidin.com')) {
+      return {
+        rootSelectors: ['article', '.details', '.news-content', '[itemprop="articleBody"]']
+      };
+    }
+    if (host.includes('thedailystar.net')) {
+      return {
+        rootSelectors: ['article', '.article-body', '.section-content']
+      };
+    }
+    if (host.includes('banglanews24.com')) {
+      return {
+        rootSelectors: ['article', '.news-article-content', '.article-details']
+      };
+    }
+    if (host.includes('bbc.com') || host.includes('bbc.co.uk')) {
+      return {
+        rootSelectors: ['article', '[data-component="text-block"]', '.story-body__inner']
+      };
+    }
+    return null;
+  })();
 
   const collectTypes = (node, out) => {
     if (!node) return;
@@ -1516,11 +1055,130 @@ class ReaderController extends StateNotifier<ReaderState> {
   const hasArticleType = Array.from(jsonLdTypes).some((t) =>
     t.includes('newsarticle') || t.includes('article') || t.includes('reportagenewsarticle')
   );
+  const liveUrlPattern = /(?:^|\\/)(live|live-updates?|liveblog|live-blog|minute-by-minute)(?:[-_/]|\\/|\$)/i;
+  const timestampSelector =
+    'time,[datetime],[class*="timestamp"],[class*="updated"],[class*="time"],[id*="time"]';
+  const updatePattern = /updated|live|minute|min ago|আপডেট|হালনাগাদ|লাইভ/gi;
+  const rootNoisePattern =
+    /(related|recommend|trending|popular|share|comment|more-news|also-read|top-news|latest|story-list|newsletter|subscribe)/i;
 
-  const bodyText = normalize(document.body?.innerText || '');
-  const allAnchors = Array.from(document.querySelectorAll('a'));
+  const prepareRootClone = (node) => {
+    if (!node) return null;
+    const clone = node.cloneNode(true);
+    const noiseSelectors = [
+      'script', 'style', 'nav', 'footer', 'aside', 'noscript', 'header',
+      '.related', '.related-news', '.recommended', '.trending', '.most-read',
+      '.most-popular', '.more-news', '.also-read', '.share', '.share-tools',
+      '.comments', '.newsletter', '[class*="stock"]', '[class*="ticker"]',
+      '[class*="marquee"]', '[class*="liveData"]', '[class*="live-data"]',
+      '[id*="stock"]', '[id*="ticker"]', '[id*="taboola"]', '[id*="outbrain"]',
+      '[role="navigation"]', '[role="complementary"]'
+    ];
+    noiseSelectors.forEach((sel) => {
+      try {
+        clone.querySelectorAll(sel).forEach((el) => el.remove());
+      } catch (_) {}
+    });
+    return clone;
+  };
+
+  const pickPrimaryRoot = () => {
+    const selectors = [
+      'article',
+      'main article',
+      '[itemprop*="articleBody"]',
+      '[role="main"] article',
+      '.article-body',
+      '.articleBody',
+      '.story-body',
+      '.story-content',
+      '.news-content',
+      '.section-content',
+      'main',
+      '[role="main"]',
+      '[class*="article"]',
+      '[class*="story"]',
+      '[class*="content"]'
+    ];
+    if (hostAdapter?.rootSelectors) {
+      selectors.unshift(...hostAdapter.rootSelectors);
+    }
+    const seen = new Set();
+    let best = null;
+    let bestScore = -1;
+    selectors.forEach((selector) => {
+      document.querySelectorAll(selector).forEach((el) => {
+        if (!el || seen.has(el)) return;
+        seen.add(el);
+        const candidate = prepareRootClone(el);
+        const text = normalize(candidate?.innerText || candidate?.textContent || '');
+        if (text.length < 140) return;
+        const paragraphCount = candidate?.querySelectorAll('p').length || 0;
+        const anchors = Array.from(candidate?.querySelectorAll('a') || []);
+        const shortAnchors = anchors.filter(
+          (a) => normalize(a.innerText || a.textContent || '').split(/\\s+/).filter(Boolean).length <= 9
+        ).length;
+        const anchorTextLen = anchors.reduce(
+          (sum, a) => sum + normalize(a.innerText || a.textContent || '').length,
+          0
+        );
+        const localLinkDensity = anchorTextLen / Math.max(text.length, 1);
+        const listItems = candidate?.querySelectorAll('li').length || 0;
+        const marker = String((el.className || '') + ' ' + (el.id || '')).toLowerCase();
+        const markerPenalty = rootNoisePattern.test(marker) ? 260 : 0;
+        const score =
+          text.length +
+          (paragraphCount * 135) -
+          Math.round(localLinkDensity * 760) -
+          (shortAnchors * 22) -
+          (listItems * 16) -
+          markerPenalty;
+        if (score > bestScore) {
+          best = candidate;
+          bestScore = score;
+        }
+      });
+    });
+    return best;
+  };
+
+  // Remove stock tickers, marquees, and live-data widgets before measuring
+  // link density, as they contain massive numbers of short <a> tags that would
+  // otherwise cause legitimate articles to be misclassified as listing pages.
+  const bodyClone = document.body ? document.body.cloneNode(true) : null;
+  if (bodyClone) {
+    const noiseSelectors = [
+      'script', 'style', 'nav', 'footer', 'aside', 'noscript', 'header',
+      '[class*="stock"]', '[class*="marquee"]', '[class*="ticker"]',
+      '[class*="liveData"]', '[class*="live-data"]', '[class*="exchange"]',
+      '[id*="stock"]', '[id*="ticker"]', '[id*="taboola"]', '[id*="outbrain"]',
+      '[role="navigation"]', '[role="complementary"]'
+    ];
+    noiseSelectors.forEach((sel) => {
+      try { bodyClone.querySelectorAll(sel).forEach((el) => el.remove()); } catch (_) {}
+    });
+  }
+  const bodyText = normalize((bodyClone || document.body)?.innerText || '');
+  const allAnchors = Array.from((bodyClone || document.body)?.querySelectorAll('a') || []);
   const totalAnchorText = allAnchors.reduce((sum, a) => sum + normalize(a.innerText || a.textContent || '').length, 0);
   const linkDensity = totalAnchorText / Math.max(bodyText.length, 1);
+  const primaryRoot = pickPrimaryRoot();
+  const primaryText = normalize(primaryRoot?.innerText || primaryRoot?.textContent || '');
+  const primaryParagraphCount = primaryRoot?.querySelectorAll('p').length || 0;
+  const primaryAnchors = Array.from(primaryRoot?.querySelectorAll('a') || []);
+  const primaryAnchorTextLen = primaryAnchors.reduce(
+    (sum, a) => sum + normalize(a.innerText || a.textContent || '').length,
+    0
+  );
+  const primaryLinkDensity = primaryAnchorTextLen / Math.max(primaryText.length, 1);
+  const primaryTimestampNodes = primaryRoot?.querySelectorAll(timestampSelector).length || 0;
+  const primaryUpdateMentions = (primaryText.match(updatePattern) || []).length;
+  const primaryHeadlineAnchors = primaryAnchors.filter(
+    (a) => normalize(a.innerText || a.textContent || '').length >= 18
+  );
+  const primaryShortHeadlineAnchors = primaryHeadlineAnchors.filter(
+    (a) => normalize(a.innerText || a.textContent || '').split(/\\s+/).filter(Boolean).length <= 14
+  );
 
   const headlineAnchors = Array.from(
     document.querySelectorAll(
@@ -1531,34 +1189,67 @@ class ReaderController extends StateNotifier<ReaderState> {
   const shortHeadlineAnchors = headlineAnchors.filter(
     (a) => normalize(a.innerText || a.textContent || '').split(/\\s+/).filter(Boolean).length <= 14
   );
-  const timestampNodes = document.querySelectorAll(
-    'time,[datetime],[class*="timestamp"],[class*="updated"],[class*="time"],[id*="time"]'
-  ).length;
-  const updateMentions = (bodyText.match(/updated|live|minute|min ago|আপডেট|হালনাগাদ|লাইভ/gi) || []).length;
+  const timestampNodes = document.querySelectorAll(timestampSelector).length;
+  const updateMentions = (bodyText.match(updatePattern) || []).length;
   const paragraphCount = document.querySelectorAll('article p, main p, p').length;
   const h1Text = normalize(document.querySelector('h1')?.innerText || '');
 
   let pageType = 'unknown';
   let qualityScore = 0.35;
 
-  const liveSignal = hasLiveType ||
-    ((timestampNodes >= 8 || updateMentions >= 6) && headlineAnchors.length >= 5 && linkDensity >= 0.16);
-  const listingSignal = hasListingType ||
-    (headlineAnchors.length >= 8 && shortHeadlineAnchors.length >= 6 && linkDensity >= 0.18);
-  const articleSignal = hasArticleType || (h1Text.length >= 12 && paragraphCount >= 3 && linkDensity < 0.45);
+  const strongArticleRoot =
+    primaryText.length >= 420 &&
+    primaryParagraphCount >= 4 &&
+    primaryLinkDensity < 0.32;
+  const moderateArticleRoot =
+    h1Text.length >= 12 &&
+    primaryText.length >= 220 &&
+    primaryParagraphCount >= 2 &&
+    primaryLinkDensity < 0.38;
+  const liveUrlSignal =
+    liveUrlPattern.test(pagePath) &&
+    (primaryTimestampNodes >= 2 || primaryUpdateMentions >= 4 || timestampNodes >= 6);
+  const liveRootSignal =
+    primaryTimestampNodes >= 5 &&
+    primaryUpdateMentions >= 4 &&
+    (primaryParagraphCount >= 5 ||
+      primaryShortHeadlineAnchors.length >= 2 ||
+      primaryLinkDensity >= 0.08);
+  const listingSignal =
+    hasListingType ||
+    ((headlineAnchors.length >= 8 &&
+      shortHeadlineAnchors.length >= 6 &&
+      linkDensity >= 0.18) &&
+      !(strongArticleRoot || moderateArticleRoot));
+  const articleSignal =
+    hasArticleType ||
+    strongArticleRoot ||
+    moderateArticleRoot ||
+    (h1Text.length >= 12 && paragraphCount >= 3 && linkDensity < 0.45);
 
-  if (liveSignal) {
+  if (hasLiveType || liveUrlSignal || liveRootSignal) {
     pageType = 'live_feed';
     qualityScore = 0.95;
-  } else if (listingSignal) {
-    pageType = 'listing';
-    qualityScore = 0.92;
   } else if (articleSignal) {
     pageType = 'article';
     qualityScore = 0.84;
-  } else if (h1Text.length >= 10 && paragraphCount >= 2) {
+  } else if (listingSignal) {
+    pageType = 'listing';
+    qualityScore = 0.92;
+  } else if (
+    h1Text.length >= 10 &&
+    (primaryParagraphCount >= 2 || paragraphCount >= 2) &&
+    (primaryLinkDensity < 0.42 || linkDensity < 0.34)
+  ) {
     pageType = 'article';
     qualityScore = 0.64;
+  } else if (
+    h1Text.length >= 10 &&
+    (primaryParagraphCount >= 1 || paragraphCount >= 1) &&
+    (primaryLinkDensity < 0.30 || linkDensity < 0.28)
+  ) {
+    pageType = 'article';
+    qualityScore = 0.56;
   }
 
   const failureCode = pageType === 'article' ? null : 'reader_unsupported_page_type';
@@ -1579,6 +1270,7 @@ class ReaderController extends StateNotifier<ReaderState> {
     required String? titleHint,
     required Duration timeout,
     required String? urlHint,
+    bool allowUnsupportedPageAttempt = false,
   }) async {
     if (_webViewController == null) return null;
     try {
@@ -1589,6 +1281,7 @@ class ReaderController extends StateNotifier<ReaderState> {
               strictMode: strictMode,
               titleHint: titleHint,
               urlHint: urlHint,
+              allowUnsupportedPageAttempt: allowUnsupportedPageAttempt,
             ),
           )
           .timeout(timeout);
@@ -1635,15 +1328,20 @@ class ReaderController extends StateNotifier<ReaderState> {
     required bool strictMode,
     required String? titleHint,
     required String? urlHint,
+    required bool allowUnsupportedPageAttempt,
   }) {
     final strictLiteral = strictMode ? 'true' : 'false';
     final titleHintLiteral = jsonEncode((titleHint ?? '').trim());
     final urlHintLiteral = jsonEncode((urlHint ?? '').trim());
+    final allowUnsupportedAttemptLiteral = allowUnsupportedPageAttempt
+        ? 'true'
+        : 'false';
     return '''
 (function() {
   const STRICT_MODE = $strictLiteral;
   const TITLE_HINT = $titleHintLiteral;
   const URL_HINT = $urlHintLiteral;
+  const ALLOW_UNSUPPORTED_ATTEMPT = $allowUnsupportedAttemptLiteral;
 
   const normalize = (value) => String(value || '')
     .replace(/\\u00a0/g, ' ')
@@ -1655,9 +1353,12 @@ class ReaderController extends StateNotifier<ReaderState> {
     normalize(value).toLowerCase().replace(/[^a-z0-9\\u0980-\\u09ff]+/g, '');
 
   let host = '';
+  let pagePath = '';
   let hostComparable = '';
   try {
-    host = new URL(URL_HINT || location.href).hostname.toLowerCase();
+    const currentUrl = new URL(URL_HINT || location.href);
+    host = currentUrl.hostname.toLowerCase();
+    pagePath = currentUrl.pathname.toLowerCase();
     hostComparable = normalizeComparable(
       host.replace(/^www\\./, '').replace(/^m\\./, '').replace(/^amp\\./, '').split('.')[0]
     );
@@ -1796,11 +1497,46 @@ class ReaderController extends StateNotifier<ReaderState> {
     const hasArticleType = Array.from(jsonLdTypes).some((t) =>
       t.includes('newsarticle') || t.includes('article') || t.includes('reportagenewsarticle')
     );
+    const liveUrlPattern = /(?:^|\\/)(live|live-updates?|liveblog|live-blog|minute-by-minute)(?:[-_/]|\\/|\$)/i;
+    const timestampSelector =
+      'time,[datetime],[class*="timestamp"],[class*="updated"],[class*="time"],[id*="time"]';
+    const updatePattern = /updated|live|minute|min ago|আপডেট|হালনাগাদ|লাইভ/gi;
 
     const bodyText = normalize(document.body?.innerText || '');
     const allAnchors = Array.from(document.querySelectorAll('a'));
     const totalAnchorText = allAnchors.reduce((sum, a) => sum + normalize(a.innerText || a.textContent || '').length, 0);
     const linkDensity = totalAnchorText / Math.max(bodyText.length, 1);
+    const primaryRoot = (() => {
+      const candidates = collectRootCandidates();
+      let bestNode = null;
+      let bestScore = -1;
+      candidates.forEach((candidate) => {
+        const clone = candidate.cloneNode(true);
+        cleanup(clone);
+        const score = scoreCandidate(clone);
+        if (score > bestScore) {
+          bestScore = score;
+          bestNode = clone;
+        }
+      });
+      return bestNode;
+    })();
+    const primaryText = normalize(primaryRoot?.innerText || primaryRoot?.textContent || '');
+    const primaryParagraphCount = primaryRoot?.querySelectorAll('p').length || 0;
+    const primaryAnchors = Array.from(primaryRoot?.querySelectorAll('a') || []);
+    const primaryAnchorTextLen = primaryAnchors.reduce(
+      (sum, a) => sum + normalize(a.innerText || a.textContent || '').length,
+      0
+    );
+    const primaryLinkDensity = primaryAnchorTextLen / Math.max(primaryText.length, 1);
+    const primaryTimestampNodes = primaryRoot?.querySelectorAll(timestampSelector).length || 0;
+    const primaryUpdateMentions = (primaryText.match(updatePattern) || []).length;
+    const primaryHeadlineAnchors = primaryAnchors.filter(
+      (a) => normalize(a.innerText || a.textContent || '').length >= 16
+    );
+    const primaryShortHeadlineAnchors = primaryHeadlineAnchors.filter(
+      (a) => normalize(a.innerText || a.textContent || '').split(/\\s+/).filter(Boolean).length <= 14
+    );
 
     const headlineAnchors = Array.from(document.querySelectorAll(
       'article h2 a, article h3 a, [class*="headline"] a, [class*="story"] a, [class*="card"] h2 a, [class*="card"] h3 a'
@@ -1809,24 +1545,63 @@ class ReaderController extends StateNotifier<ReaderState> {
     const shortHeadlineAnchors = headlineAnchors.filter(
       (a) => normalize(a.innerText || a.textContent || '').split(/\\s+/).filter(Boolean).length <= 14
     );
-    const timestampNodes = document.querySelectorAll(
-      'time,[datetime],[class*="timestamp"],[class*="updated"],[class*="time"],[id*="time"]'
-    ).length;
-    const updateMentions = (bodyText.match(/updated|live|minute|min ago|আপডেট|হালনাগাদ|লাইভ/gi) || []).length;
+    const timestampNodes = document.querySelectorAll(timestampSelector).length;
+    const updateMentions = (bodyText.match(updatePattern) || []).length;
     const paragraphCount = document.querySelectorAll('article p, main p, p').length;
     const h1Text = normalize(document.querySelector('h1')?.innerText || '');
 
-    const liveSignal = hasLiveType ||
-      ((timestampNodes >= 8 || updateMentions >= 6) && headlineAnchors.length >= 5 && linkDensity >= 0.16);
-    const listingSignal = hasListingType ||
-      (headlineAnchors.length >= 8 && shortHeadlineAnchors.length >= 6 && linkDensity >= 0.18);
-    const articleSignal = hasArticleType || (h1Text.length >= 12 && paragraphCount >= 3 && linkDensity < 0.45);
+    const strongArticleRoot =
+      primaryText.length >= 420 &&
+      primaryParagraphCount >= 4 &&
+      primaryLinkDensity < 0.32;
+    const moderateArticleRoot =
+      h1Text.length >= 12 &&
+      primaryText.length >= 220 &&
+      primaryParagraphCount >= 2 &&
+      primaryLinkDensity < 0.38;
+    const liveUrlSignal =
+      liveUrlPattern.test(pagePath) &&
+      (primaryTimestampNodes >= 2 || primaryUpdateMentions >= 4 || timestampNodes >= 6);
+    const liveRootSignal =
+      primaryTimestampNodes >= 5 &&
+      primaryUpdateMentions >= 4 &&
+      (primaryParagraphCount >= 5 ||
+        primaryShortHeadlineAnchors.length >= 2 ||
+        primaryLinkDensity >= 0.08);
+    const listingSignal =
+      hasListingType ||
+      ((headlineAnchors.length >= 8 &&
+        shortHeadlineAnchors.length >= 6 &&
+        linkDensity >= 0.18) &&
+        !(strongArticleRoot || moderateArticleRoot));
+    const articleSignal =
+      hasArticleType ||
+      strongArticleRoot ||
+      moderateArticleRoot ||
+      (h1Text.length >= 12 && paragraphCount >= 3 && linkDensity < 0.45);
 
-    if (liveSignal) return { pageType: 'live_feed', qualityScore: 0.96 };
-    if (listingSignal) return { pageType: 'listing', qualityScore: 0.93 };
-    if (articleSignal) return { pageType: 'article', qualityScore: 0.84 };
-    if (h1Text.length >= 10 && paragraphCount >= 2) {
+    if (hasLiveType || liveUrlSignal || liveRootSignal) {
+      return { pageType: 'live_feed', qualityScore: 0.96 };
+    }
+    if (articleSignal) {
+      return { pageType: 'article', qualityScore: 0.84 };
+    }
+    if (listingSignal) {
+      return { pageType: 'listing', qualityScore: 0.93 };
+    }
+    if (
+      h1Text.length >= 10 &&
+      (primaryParagraphCount >= 2 || paragraphCount >= 2) &&
+      (primaryLinkDensity < 0.42 || linkDensity < 0.34)
+    ) {
       return { pageType: 'article', qualityScore: 0.64 };
+    }
+    if (
+      h1Text.length >= 10 &&
+      (primaryParagraphCount >= 1 || paragraphCount >= 1) &&
+      (primaryLinkDensity < 0.30 || linkDensity < 0.28)
+    ) {
+      return { pageType: 'article', qualityScore: 0.56 };
     }
     return { pageType: 'unknown', qualityScore: 0.35 };
   };
@@ -1838,7 +1613,11 @@ class ReaderController extends StateNotifier<ReaderState> {
     '.newsletter', '.comments', '.comment-section', '.cookie-banner',
     '.consent', '[role="navigation"]', '[role="complementary"]',
     '[class*="overlay"]', '[class*="popup"]', '[id*="overlay"]', '[id*="popup"]',
-    '[id*="taboola"]', '[id*="outbrain"]'
+    '[id*="taboola"]', '[id*="outbrain"]',
+    // Stock ticker / marquee widgets – contain many <a> tags and inflate link density
+    '[class*="stock"]', '[class*="marquee"]', '[class*="ticker"]',
+    '[class*="stockMarquee"]', '[id*="stock"]', '[id*="ticker"]',
+    '[class*="liveData"]', '[class*="live-data"]', '[class*="exchange"]'
   ];
   const strictSelectors = [
     '.related', '.related-posts', '.related-news', '.recommended',
@@ -1890,7 +1669,7 @@ class ReaderController extends StateNotifier<ReaderState> {
   const scoreCandidate = (node) => {
     if (!node) return -1;
     const text = normalize(node.innerText || node.textContent || '');
-    if (text.length < 180) return -1;
+    if (text.length < 120) return -1;
     const pCount = node.querySelectorAll ? node.querySelectorAll('p').length : 0;
     const links = node.querySelectorAll ? Array.from(node.querySelectorAll('a')) : [];
     const shortAnchors = links.filter((a) => normalize(a.innerText).split(/\\s+/).filter(Boolean).length <= 9).length;
@@ -2013,7 +1792,7 @@ class ReaderController extends StateNotifier<ReaderState> {
     }
 
     const pageMeta = classifyPageType();
-    if (pageMeta.pageType !== 'article') {
+    if (pageMeta.pageType !== 'article' && !ALLOW_UNSUPPORTED_ATTEMPT) {
       return JSON.stringify({
         pageType: pageMeta.pageType,
         titleSource: normalize(TITLE_HINT).length > 0 ? 'hint' : 'fallback',
@@ -2034,7 +1813,7 @@ class ReaderController extends StateNotifier<ReaderState> {
         workingRoot = holder;
         article.textContent = normalize(holder.innerText || holder.textContent || article.textContent || '');
       }
-      if (article && (!article.textContent || article.textContent.length < (STRICT_MODE ? 260 : 180))) {
+      if (article && (!article.textContent || article.textContent.length < (STRICT_MODE ? 220 : 140))) {
         article = null;
       }
     }
@@ -2054,7 +1833,7 @@ class ReaderController extends StateNotifier<ReaderState> {
       });
       if (!bestNode) return "null";
       const textContent = normalize(bestNode.innerText || bestNode.textContent || '');
-      if (textContent.length < (STRICT_MODE ? 220 : 160)) return "null";
+      if (textContent.length < (STRICT_MODE ? 150 : 110)) return "null";
       workingRoot = bestNode;
       const titlePick = resolveTitle(bestNode, '');
       article = {
@@ -2113,8 +1892,8 @@ class ReaderController extends StateNotifier<ReaderState> {
         ReaderHtmlProcessInput(
           content: article.content,
           articleTitle: article.title,
-          noiseTokens: _kNoiseTokens,
-          noisyPrefixes: _kNoisyPrefixes,
+          noiseTokens: kNoiseTokens,
+          noisyPrefixes: kNoisyPrefixes,
           strictMode: strictMode,
         ),
       ).timeout(const Duration(seconds: 5));
@@ -2163,7 +1942,7 @@ class ReaderController extends StateNotifier<ReaderState> {
       document.querySelector('main') ||
       document.body;
     const textContent = normalize(root?.innerText || root?.textContent || '');
-    if (textContent.length < 120) return "null";
+    if (textContent.length < 70) return "null";
 
     const title = normalize(document.title || '');
     const lines = textContent
@@ -2195,6 +1974,232 @@ class ReaderController extends StateNotifier<ReaderState> {
         .timeout(const Duration(seconds: 4), onTimeout: () => 'null');
   }
 
+  Future<ReaderArticle?> _extractBestEffortReaderArticle({
+    String? titleHint,
+    String? urlHint,
+  }) async {
+    if (_webViewController == null) return null;
+    try {
+      debugPrint(
+        '[ReaderController] running best-effort JS extraction '
+        '| url=${(urlHint ?? '').trim()}',
+      );
+      final result = await _webViewController!
+          .evaluateJavascript(
+            source:
+                '''
+(() => {
+  const normalize = (value) => String(value || '')
+    .replace(/\\u00a0/g, ' ')
+    .replace(/[ \\t]+/g, ' ')
+    .replace(/\\n{3,}/g, '\\n\\n')
+    .trim();
+  const normalizeComparable = (value) =>
+    normalize(value).toLowerCase().replace(/[^a-z0-9\\u0980-\\u09ff]+/g, '');
+  const TITLE_HINT = ${jsonEncode((titleHint ?? '').trim())};
+  const URL_HINT = ${jsonEncode((urlHint ?? '').trim())};
+  try {
+    const selectors = [
+      'article',
+      '[itemprop*="articleBody"]',
+      '.details',
+      '.news-content',
+      '.story-body',
+      '.article-body',
+      'main',
+      'body'
+    ];
+
+    const cleanNode = (node) => {
+      if (!node) return null;
+      const clone = node.cloneNode(true);
+      clone.querySelectorAll('script,style,nav,footer,aside,header,form,button,svg,canvas,iframe,noscript').forEach((el) => el.remove());
+      clone.querySelectorAll(
+        '.related,.related-news,.related-posts,.recommended,.trending,.popular,.most-read,.more-news,.also-read,.share,.share-tools,.social,.tags,.category,.newsletter,.subscribe,.video-player,.video-wrapper'
+      ).forEach((el) => el.remove());
+      return clone;
+    };
+
+    const scoreNode = (node) => {
+      const text = normalize(node?.innerText || node?.textContent || '');
+      if (text.length < 60) return -1e9;
+      const pCount = node.querySelectorAll ? node.querySelectorAll('p').length : 0;
+      const anchors = node.querySelectorAll ? Array.from(node.querySelectorAll('a')) : [];
+      const anchorTextLen = anchors.reduce((sum, a) => sum + normalize(a.innerText || '').length, 0);
+      const linkDensity = anchorTextLen / Math.max(text.length, 1);
+      const shortAnchors = anchors.filter((a) => normalize(a.innerText || '').split(/\\s+/).filter(Boolean).length <= 8).length;
+      const headingNodes = node.querySelectorAll ? node.querySelectorAll('h2,h3,h4,li').length : 0;
+      return (
+        text.length +
+        (pCount * 190) -
+        (Math.round(linkDensity * 1700)) -
+        (shortAnchors * 60) -
+        (headingNodes * 14)
+      );
+    };
+
+    let bestText = '';
+    let bestHtml = '';
+    let bestScore = -1e9;
+    for (const selector of selectors) {
+      const candidates = Array.from(document.querySelectorAll(selector));
+      for (const candidate of candidates) {
+        const cleaned = cleanNode(candidate);
+        if (!cleaned) continue;
+        const text = normalize(cleaned.innerText || cleaned.textContent || '');
+        const score = scoreNode(cleaned);
+        if (score > bestScore || (score === bestScore && text.length > bestText.length)) {
+          bestScore = score;
+          bestText = text;
+          bestHtml = String(cleaned.innerHTML || '');
+        }
+      }
+    }
+
+    const collectAggressiveLines = () => {
+      const unique = new Set();
+      const out = [];
+      const skipLine = (line) =>
+        /^(share|subscribe|sign in|login|read more|more news|more|advert|sponsored|আরও পড়ুন|সম্পর্কিত|সংশ্লিষ্ট|ভিডিও|ছবি)/i.test(line);
+      const pushLine = (line) => {
+        const clean = normalize(line);
+        if (clean.length < 16) return;
+        if (skipLine(clean)) return;
+        const key = clean.toLowerCase();
+        if (unique.has(key)) return;
+        unique.add(key);
+        out.push(clean);
+      };
+
+      if (TITLE_HINT) {
+        pushLine(TITLE_HINT);
+      }
+
+      const primaryBlocks = document.querySelectorAll(
+        'main p,main h1,main h2,main h3,article p,article h1,article h2,article h3,[itemprop*="headline"],[itemprop*="description"],[class*="headline"],[class*="title"],[class*="summary"],[class*="story"] p,[class*="story"] h2,[class*="story"] h3'
+      );
+      primaryBlocks.forEach((node) => {
+        const text = normalize(node?.innerText || node?.textContent || '');
+        if (!text) return;
+        text.split(/\\n+/).forEach(pushLine);
+      });
+
+      const titleComparable = normalizeComparable(TITLE_HINT);
+      if (titleComparable.length >= 8) {
+        const anchors = Array.from(document.querySelectorAll('a[href]'));
+        anchors.forEach((a) => {
+          const anchorText = normalize(a?.innerText || a?.textContent || '');
+          if (anchorText.length < 8) return;
+          const anchorComparable = normalizeComparable(anchorText);
+          if (!anchorComparable) return;
+          const isTitleMatch =
+            anchorComparable.includes(titleComparable) ||
+            titleComparable.includes(anchorComparable);
+          if (!isTitleMatch) return;
+          const container =
+            a.closest('article,section,main,div,li') ||
+            a.parentElement;
+          const contextText = normalize(
+            container?.innerText || container?.textContent || anchorText
+          );
+          contextText.split(/\\n+/).forEach(pushLine);
+        });
+      }
+
+      return out.slice(0, 260);
+    };
+
+    if (bestText.length < 40) {
+      const bodyText = normalize(document.body?.innerText || document.body?.textContent || '');
+      let lines = bodyText
+        .split(/\\n+/)
+        .map((line) => normalize(line))
+        .filter((line) => line.length >= 12)
+        .slice(0, 220);
+
+      if (bodyText.length < 80 || lines.length < 4) {
+        const aggressiveLines = collectAggressiveLines();
+        if (aggressiveLines.length > lines.length) {
+          lines = aggressiveLines;
+        }
+      }
+
+      bestText = lines.join('\\n');
+      if (!bestHtml || bestHtml.length < 20) {
+        bestHtml = lines.map((line) => '<p>' + line + '</p>').join('');
+      }
+    }
+
+    if (bestText.length < 40) return "null";
+
+    if (!bestHtml) {
+      const lines = bestText
+        .split(/\\n+/)
+        .map((line) => normalize(line))
+        .filter((line) => line.length >= 12)
+        .slice(0, 220);
+      bestHtml = lines.map((line) => '<p>' + line + '</p>').join('');
+    }
+
+    const title = normalize(
+      TITLE_HINT ||
+      document.querySelector('meta[property="og:title"]')?.content ||
+      document.querySelector('meta[name="twitter:title"]')?.content ||
+      document.querySelector('h1')?.innerText ||
+      document.title ||
+      'Reader mode'
+    );
+
+    return JSON.stringify({
+      title,
+      titleSource: TITLE_HINT ? 'hint' : 'fallback',
+      content: bestHtml,
+      textContent: bestText,
+      excerpt: bestText.substring(0, Math.min(bestText.length, 280)),
+      byline: '',
+      siteName: location?.hostname || '',
+      length: bestText.length,
+      pageType: 'article',
+      qualityScore: 0.42,
+      failureCode: null,
+      url: URL_HINT || location.href
+    });
+  } catch (e) {
+    return "null";
+  }
+})();
+''',
+          )
+          .timeout(const Duration(seconds: 4), onTimeout: () => 'null');
+      final payload = _decodeExtractionPayload(result);
+      if (payload == null) {
+        debugPrint('[ReaderController] best-effort JS payload null');
+        return null;
+      }
+      final article = _readerArticleFromPayload(
+        payload,
+        titleHint: titleHint,
+        urlHint: urlHint,
+      );
+      if (article.textContent.length < 40) {
+        debugPrint(
+          '[ReaderController] best-effort JS discarded: text too short '
+          '| textLen=${article.textContent.length}',
+        );
+        return null;
+      }
+      debugPrint(
+        '[ReaderController] best-effort JS success '
+        '| textLen=${article.textContent.length} '
+        '| title=${article.title}',
+      );
+      return article;
+    } catch (_) {
+      debugPrint('[ReaderController] best-effort JS extraction threw.');
+      return null;
+    }
+  }
+
   String _resolvePreferredTitle({
     required String extractedTitle,
     required String? titleHint,
@@ -2213,12 +2218,9 @@ class ReaderController extends StateNotifier<ReaderState> {
     String? urlHint,
   }) {
     final dynamic textRaw = payload['textContent'] ?? payload['text'] ?? '';
-    final String textContent = _compactWhitespace(textRaw.toString());
+    final String textContent = _normalizeReaderText(textRaw.toString());
 
     var content = (payload['content'] as String? ?? '').trim();
-    if (content.isEmpty && textContent.isNotEmpty) {
-      content = _plainTextToReaderHtml(textContent);
-    }
 
     var titleCandidate = _resolvePreferredTitle(
       extractedTitle: (payload['title'] as String? ?? '').trim(),
@@ -2239,6 +2241,9 @@ class ReaderController extends StateNotifier<ReaderState> {
         })
         .join('\n');
     var decontaminatedText = _stripLeadingReaderNoise(filteredText);
+    if (decontaminatedText.isEmpty && textContent.isNotEmpty) {
+      decontaminatedText = _stripLeadingReaderNoise(textContent);
+    }
     titleCandidate = _repairReaderTitle(
       currentTitle: titleCandidate,
       bodyText: decontaminatedText,
@@ -2249,6 +2254,9 @@ class ReaderController extends StateNotifier<ReaderState> {
       decontaminatedText,
       titleCandidate,
     );
+    if (content.isEmpty && decontaminatedText.isNotEmpty) {
+      content = _plainTextToReaderHtml(decontaminatedText);
+    }
 
     final excerptCandidate = (payload['excerpt'] as String? ?? '').trim();
     final excerpt = excerptCandidate.isNotEmpty
@@ -2264,6 +2272,83 @@ class ReaderController extends StateNotifier<ReaderState> {
     );
   }
 
+  ReaderArticle? _readerArticleFromStoredHtml({
+    required String htmlContent,
+    String? titleHint,
+    String? urlHint,
+  }) {
+    final trimmed = htmlContent.trim();
+    if (trimmed.isEmpty) return null;
+
+    final parsedDocument = html_parser.parse(trimmed);
+    final fragment = html_parser.parseFragment(
+      parsedDocument.body?.innerHtml ?? trimmed,
+    );
+    final siteName =
+        parsedDocument
+            .querySelector('meta[property="og:site_name"]')
+            ?.attributes['content']
+            ?.trim() ??
+        Uri.tryParse(urlHint ?? '')?.host ??
+        '';
+    final extractedTitle =
+        parsedDocument.querySelector('h1')?.text.trim() ??
+        parsedDocument.querySelector('title')?.text.trim() ??
+        '';
+
+    removeNoiseAndMetadata(
+      fragment,
+      ReaderHtmlProcessInput(
+        content: trimmed,
+        articleTitle: (titleHint ?? '').trim(),
+        noiseTokens: kNoiseTokens,
+        noisyPrefixes: kNoisyPrefixes,
+        strictMode: false,
+      ),
+    );
+    normalizeForMobileReadability(fragment);
+
+    final rawText = _normalizeReaderText(fragment.text ?? '');
+    if (rawText.length < 140) {
+      return null;
+    }
+
+    var titleCandidate = _resolvePreferredTitle(
+      extractedTitle: extractedTitle,
+      titleHint: titleHint,
+      siteName: siteName,
+      sourceUrl: urlHint,
+    );
+    var decontaminatedText = _stripLeadingReaderNoise(rawText);
+    titleCandidate = _repairReaderTitle(
+      currentTitle: titleCandidate,
+      bodyText: decontaminatedText,
+      siteName: siteName,
+      sourceUrl: urlHint,
+    );
+    decontaminatedText = _stripLeadingDuplicateTitle(
+      decontaminatedText,
+      titleCandidate,
+    );
+    if (decontaminatedText.length < 120) {
+      return null;
+    }
+
+    var content = fragment.outerHtml.trim();
+    if (content.isEmpty) {
+      content = _plainTextToReaderHtml(decontaminatedText);
+    }
+
+    return ReaderArticle(
+      title: titleCandidate,
+      content: content,
+      textContent: decontaminatedText,
+      excerpt: _excerptFromText(decontaminatedText),
+      siteName: siteName,
+      length: decontaminatedText.length,
+    );
+  }
+
   String _repairReaderTitle({
     required String currentTitle,
     required String bodyText,
@@ -2276,20 +2361,20 @@ class ReaderController extends StateNotifier<ReaderState> {
       return normalizedCurrent.isEmpty ? 'Reader mode' : normalizedCurrent;
     }
 
-    final currentBranding = _isLikelyBrandingTitle(
+    final currentBranding = isLikelyBrandingTitle(
       normalizedCurrent,
       siteName: siteName,
       sourceUrl: sourceUrl,
     );
-    final bodyBranding = _isLikelyBrandingTitle(
+    final bodyBranding = isLikelyBrandingTitle(
       bodyCandidate,
       siteName: siteName,
       sourceUrl: sourceUrl,
     );
     final currentScore =
-        _titleQualityScore(normalizedCurrent) - (currentBranding ? 140 : 0);
+        titleQualityScore(normalizedCurrent) - (currentBranding ? 140 : 0);
     final bodyScore =
-        _titleQualityScore(bodyCandidate) - (bodyBranding ? 140 : 0);
+        titleQualityScore(bodyCandidate) - (bodyBranding ? 140 : 0);
     final currentWords = normalizedCurrent
         .split(RegExp(r'\s+'))
         .where((w) => w.isNotEmpty)
@@ -2317,10 +2402,10 @@ class ReaderController extends StateNotifier<ReaderState> {
 
     for (final line in lines.take(6)) {
       final lower = line.toLowerCase();
-      if (_kNoisyPrefixes.any(lower.startsWith) ||
-          _kNoiseTokens.any(lower.contains) ||
-          _kMetadataLinePattern.hasMatch(lower) ||
-          _kUrlPattern.hasMatch(lower)) {
+      if (kNoisyPrefixes.any(lower.startsWith) ||
+          kNoiseTokens.any(lower.contains) ||
+          kMetadataLinePattern.hasMatch(lower) ||
+          kUrlPattern.hasMatch(lower)) {
         continue;
       }
       final words = line
@@ -2368,82 +2453,120 @@ class ReaderController extends StateNotifier<ReaderState> {
   }
 
   String _stripLeadingReaderNoise(String text) {
-    final lines = text
+    final lines = _sanitizeReaderBodyLines(text, aggressive: true);
+    if (lines.isEmpty) {
+      return '';
+    }
+    return lines.join('\n');
+  }
+
+  String _normalizeReaderText(String text) {
+    final normalized = text
+        .replaceAll('\u00a0', ' ')
+        .replaceAll(RegExp(r'\r\n?'), '\n')
+        .replaceAll(RegExp(r'[ \t]+'), ' ');
+    return normalized
+        .split('\n')
+        .map((line) => line.trim())
+        .join('\n')
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+        .trim();
+  }
+
+  bool _isLikelyReaderNoiseLine(String line) {
+    final lower = line.toLowerCase();
+    final words = line.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    final hasSentencePunctuation = RegExp(r'[.!?।]').hasMatch(line);
+    final hasNoisePrefix =
+        kNoisyPrefixes.any(lower.startsWith) ||
+        lower.startsWith('আরও পড়ুন') ||
+        lower.startsWith('সম্পর্কিত') ||
+        lower.startsWith('related') ||
+        lower.startsWith('recommended') ||
+        lower.startsWith('more news');
+    final hasNoiseToken = kNoiseTokens.any(lower.contains);
+    if (hasNoisePrefix) return true;
+    if (kMetadataLinePattern.hasMatch(lower) || kUrlPattern.hasMatch(lower)) {
+      return true;
+    }
+    if (hasNoiseToken &&
+        (!hasSentencePunctuation || words <= 18 || line.length < 90)) {
+      return true;
+    }
+    return false;
+  }
+
+  bool _isLikelyBodyLine(String line) {
+    final words = line.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    final hasSentencePunctuation = RegExp(r'[.!?।]').hasMatch(line);
+    if (words >= 10 && line.length >= 80) return true;
+    if (words >= 8 && hasSentencePunctuation && line.length >= 48) return true;
+    return false;
+  }
+
+  bool _isLikelyHeadlineDumpLine(String line) {
+    final words = line.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    final hasSentencePunctuation = RegExp(r'[.!?।]').hasMatch(line);
+    if (hasSentencePunctuation) return false;
+    if (words < 3 || words > 16) return false;
+    return line.length >= 16 && line.length <= 140;
+  }
+
+  List<String> _sanitizeReaderBodyLines(
+    String text, {
+    bool aggressive = false,
+  }) {
+    final lines = _normalizeReaderText(text)
         .split(RegExp(r'\n+'))
         .map(_compactWhitespace)
         .where((line) => line.isNotEmpty)
         .toList(growable: false);
-    if (lines.isEmpty) return text;
+    if (lines.isEmpty) return const <String>[];
 
-    bool isLikelyNoiseLine(String candidate) {
-      final lower = candidate.toLowerCase();
-      final words = candidate
-          .split(RegExp(r'\s+'))
-          .where((w) => w.isNotEmpty)
-          .length;
-      final hasSentencePunctuation = RegExp(r'[.!?।]').hasMatch(candidate);
-      final headlineLike = !hasSentencePunctuation && words <= 14;
-      final hasNoisePrefix =
-          _kNoisyPrefixes.any(lower.startsWith) ||
-          lower.startsWith('আরও পড়ুন') ||
-          lower.startsWith('সম্পর্কিত') ||
-          lower.startsWith('related') ||
-          lower.startsWith('recommended');
-      final hasNoiseToken = _kNoiseTokens.any(lower.contains);
-      if (hasNoisePrefix) return true;
-      if (hasNoiseToken &&
-          (!hasSentencePunctuation || words <= 18 || candidate.length < 90)) {
-        return true;
+    final firstBodyIndex = lines.indexWhere(_isLikelyBodyLine);
+    final startIndex = firstBodyIndex < 0 ? 0 : firstBodyIndex;
+    final cleaned = <String>[];
+
+    for (var i = startIndex; i < lines.length; i++) {
+      final line = lines[i];
+      if (_isLikelyReaderNoiseLine(line)) {
+        continue;
       }
-      if (headlineLike && words <= 5 && candidate.length < 56) return true;
-      return false;
-    }
-
-    var firstBodyIndex = 0;
-    var foundBody = false;
-    for (var i = 0; i < lines.length; i++) {
-      final candidate = lines[i];
-      if (!isLikelyNoiseLine(candidate)) {
-        firstBodyIndex = i;
-        foundBody = true;
-        break;
+      final headlineLike = _isLikelyHeadlineDumpLine(line);
+      if (headlineLike) {
+        final prevBody = i > startIndex && _isLikelyBodyLine(lines[i - 1]);
+        final nextBody =
+            i + 1 < lines.length && _isLikelyBodyLine(lines[i + 1]);
+        if (!prevBody && !nextBody) {
+          if (aggressive || line.length < 92) {
+            continue;
+          }
+        }
       }
-      firstBodyIndex = i + 1;
+      cleaned.add(line);
     }
 
-    if (!foundBody) {
-      // Entire extraction looks like a headline dump; force fallback path.
-      return '';
+    if (cleaned.isEmpty) return const <String>[];
+
+    while (cleaned.length > 2 &&
+        (_isLikelyReaderNoiseLine(cleaned.first) ||
+            (_isLikelyHeadlineDumpLine(cleaned.first) &&
+                !_isLikelyBodyLine(cleaned.first)))) {
+      cleaned.removeAt(0);
     }
-    if (firstBodyIndex <= 0 || firstBodyIndex >= lines.length) {
-      return lines.join('\n');
+    while (cleaned.length > 2 &&
+        (_isLikelyReaderNoiseLine(cleaned.last) ||
+            (_isLikelyHeadlineDumpLine(cleaned.last) &&
+                !_isLikelyBodyLine(cleaned.last)))) {
+      cleaned.removeLast();
     }
 
-    final bodyLines = lines
-        .sublist(firstBodyIndex)
-        .where((line) {
-          final lower = line.toLowerCase();
-          final noisyMarker =
-              _kNoisyPrefixes.any(lower.startsWith) ||
-              _kNoiseTokens.any(lower.contains) ||
-              _kMetadataLinePattern.hasMatch(lower);
-          if (!noisyMarker) return true;
-          final hasSentencePunctuation = RegExp(r'[.!?।]').hasMatch(line);
-          return hasSentencePunctuation && line.length > 70;
-        })
-        .toList(growable: false);
-
-    if (bodyLines.isEmpty) {
-      return '';
-    }
-    return bodyLines.join('\n');
+    return cleaned;
   }
 
   String _plainTextToReaderHtml(String text) {
     final escaper = const HtmlEscape();
-    final paragraphs = text
-        .split(RegExp(r'\n+'))
-        .map(_compactWhitespace)
+    final paragraphs = _sanitizeReaderBodyLines(text)
         .where((line) => line.length >= 12)
         .take(120)
         .map((line) => '<p>${escaper.convert(line)}</p>')
@@ -2475,9 +2598,9 @@ class ReaderController extends StateNotifier<ReaderState> {
       if (line.length >= 45 && words >= 8) longEnough++;
       final lower = line.toLowerCase();
       final hasNoise =
-          _kNoisyPrefixes.any(lower.startsWith) ||
-          _kNoiseTokens.any(lower.contains) ||
-          _kMetadataLinePattern.hasMatch(lower);
+          kNoisyPrefixes.any(lower.startsWith) ||
+          kNoiseTokens.any(lower.contains) ||
+          kMetadataLinePattern.hasMatch(lower);
       if (hasNoise) noisy++;
     }
     final total = sample.length;
@@ -2495,37 +2618,42 @@ class ReaderController extends StateNotifier<ReaderState> {
   }
 
   List<TtsChunk> _buildFallbackChunks(String text) {
-    final normalized = text
-        .split(RegExp(r'\n+'))
-        .map(_compactWhitespace)
-        .where((line) {
-          if (line.isEmpty) return false;
-          final lower = line.toLowerCase();
-          final noisyPrefix = _kNoisyPrefixes.any(lower.startsWith);
-          final noisyToken = _kNoiseTokens.any(lower.contains);
-          final metadataLike = _kMetadataLinePattern.hasMatch(lower);
-          if (!(noisyPrefix || noisyToken || metadataLike)) return true;
-          final hasSentencePunctuation = RegExp(r'[.!?।]').hasMatch(line);
-          return hasSentencePunctuation && line.length > 80;
-        })
-        .join(' ');
+    final cleanLines = _sanitizeReaderBodyLines(text);
+    final normalized = cleanLines.join(' ');
     if (normalized.isEmpty) return const <TtsChunk>[];
-    final sentences = normalized
+
+    final sentenceParts = normalized
         .split(RegExp(r'(?<=[.!?।])\s+'))
         .map(_compactWhitespace)
         .where((part) {
           if (part.length <= 1) return false;
           final lower = part.toLowerCase();
-          final noisyPrefix = _kNoisyPrefixes.any(lower.startsWith);
-          final noisyToken = _kNoiseTokens.any(lower.contains);
-          final metadataLike = _kMetadataLinePattern.hasMatch(lower);
+          final noisyPrefix = kNoisyPrefixes.any(lower.startsWith);
+          final noisyToken = kNoiseTokens.any(lower.contains);
+          final metadataLike = kMetadataLinePattern.hasMatch(lower);
           if (!(noisyPrefix || noisyToken || metadataLike)) return true;
           return part.length > 90 && RegExp(r'[.!?।]').hasMatch(part);
         })
-        .take(180);
+        .toList(growable: false);
+
+    List<String> chunkParts;
+    final hasSentenceBoundaries = sentenceParts.length > 1;
+    final oversizedSingleSentence =
+        sentenceParts.length == 1 && sentenceParts.first.length >= 520;
+    if (hasSentenceBoundaries && !oversizedSingleSentence) {
+      chunkParts = sentenceParts;
+    } else {
+      chunkParts = cleanLines
+          .where((line) => line.length >= 24)
+          .take(180)
+          .toList(growable: false);
+      if (chunkParts.isEmpty) {
+        chunkParts = sentenceParts;
+      }
+    }
 
     var index = 0;
-    return sentences
+    return chunkParts
         .map(
           (sentence) => TtsChunk(
             index: index++,
@@ -2536,6 +2664,61 @@ class ReaderController extends StateNotifier<ReaderState> {
         .toList(growable: false);
   }
 
+  List<TtsChunk> _buildEmergencyFallbackChunks(String text) {
+    final lines = _sanitizeReaderBodyLines(
+      text,
+      aggressive: true,
+    ).where((line) => line.length >= 20).toList(growable: false);
+    final parts = <String>[];
+    for (final line in lines) {
+      final lower = line.toLowerCase();
+      final noisyLine =
+          kNoisyPrefixes.any(lower.startsWith) ||
+          kNoiseTokens.any(lower.contains) ||
+          kMetadataLinePattern.hasMatch(lower);
+      if (!noisyLine) {
+        parts.add(line);
+      }
+    }
+
+    if (parts.isEmpty) {
+      final normalized = _compactWhitespace(text);
+      if (normalized.length >= 20) {
+        parts.addAll(
+          normalized
+              .split(RegExp(r'(?<=[.!?।])\s+'))
+              .map(_compactWhitespace)
+              .where((line) => line.length >= 20),
+        );
+      }
+    }
+
+    if (parts.isEmpty) return const <TtsChunk>[];
+    var index = 0;
+    return parts
+        .take(180)
+        .map(
+          (line) => TtsChunk(
+            index: index++,
+            text: line,
+            estimatedDuration: Duration(milliseconds: line.length * 40),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  bool _isTrustedReaderFallbackHost(String url) {
+    final uri = Uri.tryParse(url.trim());
+    final host = (uri?.host ?? '').toLowerCase();
+    if (host.isEmpty) return false;
+    return host.contains('bd-pratidin.com') ||
+        host.contains('prothomalo.com') ||
+        host.contains('thedailystar.net') ||
+        host.contains('banglanews24.com') ||
+        host.contains('jugantor.com') ||
+        host.contains('kalerkantho.com');
+  }
+
   String? _excerptFromText(String text) {
     if (text.isEmpty) return null;
     final limit = text.length > 280 ? 280 : text.length;
@@ -2543,10 +2726,22 @@ class ReaderController extends StateNotifier<ReaderState> {
   }
 
   // ── TTS controls ──────────────────────────────
-  Future<void> playFullArticle() async {
+  Future<void> playFullArticle({
+    String category = 'general',
+    String language = 'en',
+    String? introAnnouncement,
+  }) async {
     if (state.chunks.isEmpty) return;
     final ttsController = ref.read(ttsControllerProvider.notifier);
-    await ttsController.playChunks(state.chunks);
+    await ttsController.playChunks(
+      state.chunks,
+      category: category,
+      language: language,
+      title: state.article?.title,
+      author: state.article?.byline,
+      imageSource: state.article?.siteName,
+      introAnnouncement: introAnnouncement,
+    );
   }
 
   Future<void> seekToChunk(int chunkIndex) async {
@@ -2628,6 +2823,17 @@ class ReaderController extends StateNotifier<ReaderState> {
       () => _repository.setReaderTheme(theme.index),
     );
   }
+
+  int _beginExtraction() {
+    _extractionGeneration += 1;
+    return _extractionGeneration;
+  }
+
+  void _cancelActiveExtraction() {
+    _extractionGeneration += 1;
+  }
+
+  bool _shouldAbortExtraction(int token) => token != _extractionGeneration;
 }
 
 // ─────────────────────────────────────────────

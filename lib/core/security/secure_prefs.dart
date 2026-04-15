@@ -11,14 +11,16 @@ import 'package:flutter/foundation.dart';
 /// Use this instead of SharedPreferences for tokens, API keys, etc.
 
 class SecurePrefs {
-  SecurePrefs();
+  SecurePrefs({FlutterSecureStorage? storage})
+    : _storage = storage ?? sharedStorage;
 
-  final FlutterSecureStorage _storage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-    iOptions: IOSOptions(
-      accessibility: KeychainAccessibility.first_unlock_this_device,
-    ),
-  );
+  // Keep every secure-storage entry point on the same modern storage mode so
+  // the plugin doesn't bounce between legacy migration paths on each launch.
+  static const AndroidOptions androidOptions = AndroidOptions();
+  static const IOSOptions iosOptions = IOSOptions();
+  static const FlutterSecureStorage sharedStorage = FlutterSecureStorage();
+
+  final FlutterSecureStorage _storage;
 
   static const String _keyAuthToken = 'auth_token';
   static const String _keyRefreshToken = 'refresh_token';

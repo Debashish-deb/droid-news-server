@@ -234,7 +234,7 @@
         "print"
       ],
       "contact": {
-        "website": "assets/logos/intl-edu-3.png"
+        "website": "https://www.chronicle.com/"
       },
       "media": {
         "logo": "assets/logos/intl-edu-3.png"
@@ -497,34 +497,6 @@
       ]
     },
     {
-      "id": "bd-bn-29",
-      "name": "Jaijaidin",
-      "description": "Famous Bengali daily known for its distinct style.",
-      "type": "newspaper",
-      "country": "BD",
-      "language": "bn",
-      "region": "national",
-      "founded": 1984,
-      "headquarters": "Dhaka",
-      "premium": false,
-      "formats": [
-        "print",
-        "web"
-      ],
-      "contact": {
-        "website": "https://www.jaijaidinbd.com/"
-      },
-      "media": {
-        "logo": "assets/logos/bd-bn-20.png"
-      },
-      "tags": [
-        "national",
-        "bangla",
-        "bd",
-        "politics"
-      ]
-    },
-    {
       "id": "bd-bn-1",
       "name": "Prothom Alo",
       "description": "Leading Bengali daily newspaper known for its investigative journalism.",
@@ -641,7 +613,7 @@
       "type": "newspaper",
       "country": "BD",
       "language": "bn",
-      "region": "national",
+      "region": "education",
       "founded": 2018,
       "headquarters": "Dhaka",
       "premium": false,
@@ -670,7 +642,7 @@
       "type": "newspaper",
       "country": "BD",
       "language": "bn",
-      "region": "national",
+      "region": "education",
       "founded": 2015,
       "headquarters": "Dhaka",
       "premium": false,
@@ -822,8 +794,8 @@
         "website": "https://kathmandupost.com/"
       },
       "media": {
-        "logo": "assets/logos/int-6.png",
-        "logo_medium": "assets/logos/int-6.png"
+        "logo": "assets/logos/int-20.png",
+        "logo_medium": "assets/logos/int-20.png"
       },
       "tags": [
         "international",
@@ -1616,12 +1588,12 @@
         "national": null
       },
       "contact": {
-        "website": "https://www.jaijaidinbd.com/",
+        "website": "https://www.jaijaidin.news/",
         "email": null,
         "phone": null
       },
       "social": {
-        "facebook": "https://www.facebook.com/jaijaidinbd/",
+        "facebook": "https://www.facebook.com/groups/jaijaidin",
         "twitter": null,
         "instagram": null,
         "youtube": null,
@@ -1793,7 +1765,7 @@
       "type": "newspaper",
       "country": "BD",
       "language": "en",
-      "region": "national",
+      "region": "business",
       "founded": null,
       "headquarters": "Dhaka",
       "founder": "N/A",
@@ -2139,7 +2111,7 @@
         "national": null
       },
       "contact": {
-        "website": "[Alokito Bangladesh](http://www.alokitobangladesh.com/)",
+        "website": "https://www.alokitobangladesh.com/",
         "email": null,
         "phone": null
       },
@@ -2173,7 +2145,7 @@
       "type": "newspaper",
       "country": "BD",
       "language": "bn",
-      "region": "national",
+      "region": "regional",
       "founded": null,
       "headquarters": "N/A",
       "founder": "N/A",
@@ -2187,7 +2159,7 @@
         "national": null
       },
       "contact": {
-        "website": "[Daily Sangram](https://www.loc.gov/item/lcwaN0032135/)",
+        "website": "https://www.dailysangram.com/",
         "email": null,
         "phone": null
       },
@@ -2209,8 +2181,8 @@
         "parent_company": "N/A"
       },
       "tags": [
+        "regional",
         "bangla",
-        "national",
         "bd"
       ]
     },
@@ -2235,7 +2207,7 @@
         "national": null
       },
       "contact": {
-        "website": "[Ajker Patrika](https://webcatalog.io/en/apps/ajker-patrika)",
+        "website": "https://www.ajkerpatrika.com/",
         "email": null,
         "phone": null
       },
@@ -2283,7 +2255,7 @@
         "national": null
       },
       "contact": {
-        "website": "[Daily Dinkal](https://en.wikipedia.org/wiki/The_Daily_Dinkal)",
+        "website": "https://en.wikipedia.org/wiki/The_Daily_Dinkal",
         "email": null,
         "phone": null
       },
@@ -2331,7 +2303,7 @@
         "national": null
       },
       "contact": {
-        "website": "[Ajker Bazar](https://ajkeerbazar.com/)",
+        "website": "https://ajkeerbazar.com/",
         "email": null,
         "phone": null
       },
@@ -2379,7 +2351,7 @@
         "national": null
       },
       "contact": {
-        "website": "[Daily Nabochatona](https://dailynabochatona.com/)",
+        "website": "https://dailynabochatona.com/",
         "email": null,
         "phone": null
       },
@@ -2427,7 +2399,7 @@
         "national": null
       },
       "contact": {
-        "website": "[India Rail Info](https://d.indiarailinfo.com/blog/post/indianrail-indian-railway-irctc-enquiry/6616963)",
+        "website": "https://www.dailynayashatabdi.com/",
         "email": null,
         "phone": null
       },
@@ -2653,7 +2625,7 @@
       "type": "newspaper",
       "country": "BD",
       "language": "bn",
-      "region": "national",
+      "region": "education",
       "founded": null,
       "headquarters": null,
       "founder": null,
@@ -2689,8 +2661,8 @@
         "parent_company": null
       },
       "tags": [
+        "education",
         "bangla",
-        "national",
         "bd"
       ]
     },
@@ -2701,7 +2673,7 @@
       "type": "newspaper",
       "country": "BD",
       "language": "bn",
-      "region": "national",
+      "region": "cultural",
       "founded": 2013,
       "headquarters": "Dhaka",
       "founder": "N/A",
@@ -2736,9 +2708,9 @@
         "parent_company": "N/A"
       },
       "tags": [
+        "cultural",
         "digital",
         "bangla",
-        "national",
         "bd"
       ]
     },
@@ -2798,7 +2770,7 @@
       "type": "newspaper",
       "country": "BD",
       "language": "bn",
-      "region": "national",
+      "region": "regional",
       "founded": 2012,
       "headquarters": "Dhaka",
       "founder": "S. M. Nure Alam Siddiquee",
@@ -2835,10 +2807,9 @@
         "parent_company": "Darpon Media Ltd."
       },
       "tags": [
-        "all",
+        "regional",
         "bangla",
         "tabloid",
-        "national",
         "bd"
       ]
     },
@@ -2849,7 +2820,7 @@
       "type": "newspaper",
       "country": "BD",
       "language": "bn",
-      "region": "national",
+      "region": "cultural",
       "founded": 2015,
       "headquarters": "Dhaka",
       "founder": null,
@@ -2884,10 +2855,9 @@
         "parent_company": null
       },
       "tags": [
-        "all",
+        "cultural",
         "bangla",
         "weekend",
-        "national",
         "bd"
       ]
     },
@@ -4715,7 +4685,7 @@
         "linkedin": null
       },
       "media": {
-        "logo": "assets/logos/int-12.png",
+        "logo": "assets/logos/aljazeera.png",
         "logo_small": "assets/logos/int-12.png",
         "logo_medium": "assets/logos/int-12.png"
       },
@@ -4957,9 +4927,9 @@
         "linkedin": null
       },
       "media": {
-        "logo": "assets/logos/int-17.png",
-        "logo_small": "assets/logos/int-17.png",
-        "logo_medium": "assets/logos/int-17.png"
+        "logo": "assets/logos/dawn.png",
+        "logo_small": "assets/logos/dawn.png",
+        "logo_medium": "assets/logos/dawn.png"
       },
       "metadata": {
         "awards": [],
@@ -5150,9 +5120,9 @@
         "linkedin": null
       },
       "media": {
-        "logo": "assets/logos/tech-2.png",
-        "logo_small": "assets/logos/tech-2.png",
-        "logo_medium": "assets/logos/tech-2.png"
+        "logo": "assets/logos/the_verge.png",
+        "logo_small": "assets/logos/the_verge.png",
+        "logo_medium": "assets/logos/the_verge.png"
       },
       "metadata": {
         "awards": [],
@@ -5198,9 +5168,9 @@
         "linkedin": null
       },
       "media": {
-        "logo": "assets/logos/tech-3.png",
-        "logo_small": "assets/logos/tech-3.png",
-        "logo_medium": "assets/logos/tech-3.png"
+        "logo": "assets/logos/wired.png",
+        "logo_small": "assets/logos/wired.png",
+        "logo_medium": "assets/logos/wired.png"
       },
       "metadata": {
         "awards": [],
@@ -5381,9 +5351,9 @@
         "linkedin": null
       },
       "media": {
-        "logo": "assets/logos/tech-7.png",
-        "logo_small": "assets/logos/tech-7.png",
-        "logo_medium": "assets/logos/tech-7.png"
+        "logo": "assets/logos/zdnet.png",
+        "logo_small": "assets/logos/zdnet.png",
+        "logo_medium": "assets/logos/zdnet.png"
       },
       "metadata": {
         "awards": [],
@@ -5929,7 +5899,7 @@
         "sports": 8
       },
       "contact": {
-        "website": "https://www.si.com/in",
+        "website": "https://www.si.com/",
         "email": null,
         "phone": null
       },
@@ -7123,6 +7093,7 @@
         "parent_company": "US Naval Institute"
       },
       "tags": [
+        "international",
         "defense",
         "military",
         "english",
@@ -7183,7 +7154,7 @@
       "type": "blog",
       "country": "BD",
       "language": "bn",
-      "region": "blog",
+      "region": "national",
       "founded": 2005,
       "headquarters": "Dhaka",
       "founder": "Somewherein.net",
@@ -7217,58 +7188,11 @@
         "parent_company": null
       },
       "tags": [
-        "blog",
+        "national",
         "bengali"
       ]
     },
-    {
-      "id": "us-blog-2",
-      "name": "Mashable",
-      "description": "Global multi-platform media and entertainment company.",
-      "type": "blog",
-      "country": "US",
-      "language": "en",
-      "region": "blog",
-      "founded": 2005,
-      "headquarters": "New York City",
-      "founder": "Pete Cashmore",
-      "premium": true,
-      "formats": [
-        "web",
-        "app"
-      ],
-      "coverage": {
-        "international": 10
-      },
-      "contact": {
-        "website": "https://mashable.com/",
-        "email": null,
-        "phone": null
-      },
-      "social": {
-        "facebook": "https://www.facebook.com/mashable",
-        "twitter": "https://twitter.com/mashable",
-        "instagram": "https://instagram.com/mashable",
-        "youtube": "https://www.youtube.com/user/mashable",
-        "linkedin": "https://linkedin.com/company/mashable"
-      },
-      "media": {
-        "logo": "assets/logos/us-blog-2.png",
-        "logo_small": "assets/logos/us-blog-2.png",
-        "logo_medium": "assets/logos/us-blog-2.png"
-      },
-      "metadata": {
-        "awards": [
-          "Webby Awards"
-        ],
-        "circulation": "Global",
-        "parent_company": "Ziff Davis"
-      },
-      "tags": [
-        "blog",
-        "entertainment"
-      ]
-    },
+    
     {
       "id": "global-blog-1",
       "name": "Medium",
@@ -7276,7 +7200,7 @@
       "type": "blog",
       "country": "US",
       "language": "en",
-      "region": "blog",
+      "region": "national",
       "founded": 2012,
       "headquarters": "San Francisco",
       "founder": "Evan Williams",
@@ -7311,7 +7235,7 @@
         "parent_company": "A Medium Corporation"
       },
       "tags": [
-        "blog",
+        "national",
         "writing"
       ]
     },
@@ -7322,7 +7246,7 @@
       "type": "blog",
       "country": "UK",
       "language": "en",
-      "region": "blog",
+      "region": "national",
       "founded": 2012,
       "headquarters": "Bath, UK",
       "founder": "Future plc",
@@ -7356,8 +7280,5737 @@
         "parent_company": "Future plc"
       },
       "tags": [
-        "blog",
+        "national",
         "creative"
+      ]
+    },
+    {
+      "id": "bd-en-1",
+      "name": "Daily Sun",
+      "description": "Leading English daily newspaper published from Dhaka, owned by East West Media Group (Bashundhara Group).",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "en",
+      "region": "national",
+      "founded": 2010,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "print",
+        "web",
+        "epaper"
+      ],
+      "coverage": {
+        "national": 8
+      },
+      "contact": {
+        "website": "https://www.daily-sun.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/daily-sun.png",
+        "logo_small": "assets/logos/daily-sun.png",
+        "logo_medium": "assets/logos/daily-sun.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": "East West Media Group"
+      },
+      "tags": [
+        "english",
+        "national",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-en-2",
+      "name": "Bangladesh Post",
+      "description": "Popular English daily newspaper published from Dhaka, founded in 2017 by Sikder Group.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "en",
+      "region": "national",
+      "founded": 2017,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "print",
+        "web",
+        "epaper"
+      ],
+      "coverage": {
+        "national": 7
+      },
+      "contact": {
+        "website": "https://bangladeshpost.net/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bangladesh-post.png",
+        "logo_small": "assets/logos/bangladesh-post.png",
+        "logo_medium": "assets/logos/bangladesh-post.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": "Sikder Group"
+      },
+      "tags": [
+        "english",
+        "national",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-1",
+      "name": "Somoy News",
+      "description": "24-hour news oriented television channel owned by City Group, with strong online presence.",
+      "type": "tv_channel",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": 2011,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "tv",
+        "web"
+      ],
+      "coverage": {
+        "national": 9
+      },
+      "contact": {
+        "website": "https://www.somoynews.tv/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-1.png",
+        "logo_small": "assets/logos/bd-online-1.png",
+        "logo_medium": "assets/logos/bd-online-1.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": "City Group"
+      },
+      "tags": [
+        "bangla",
+        "tv",
+        "news",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-2",
+      "name": "NTV Online",
+      "description": "Popular Bangladeshi satellite TV channel NTV's online news portal with comprehensive coverage.",
+      "type": "tv_channel",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": 2003,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "tv",
+        "web"
+      ],
+      "coverage": {
+        "national": 8
+      },
+      "contact": {
+        "website": "https://www.ntvbd.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-2.png",
+        "logo_small": "assets/logos/bd-online-2.png",
+        "logo_medium": "assets/logos/bd-online-2.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "tv",
+        "news",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-3",
+      "name": "Barta24",
+      "description": "Real-time multimedia news portal in Bangladesh with extensive video content coverage.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 7
+      },
+      "contact": {
+        "website": "https://barta24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-3.png",
+        "logo_small": "assets/logos/bd-online-3.png",
+        "logo_medium": "assets/logos/bd-online-3.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "multimedia",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-4",
+      "name": "BD24Live",
+      "description": "Trusted online news portal from Bangladesh delivering fast and reliable news updates.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 7
+      },
+      "contact": {
+        "website": "https://www.bd24live.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-4.png",
+        "logo_small": "assets/logos/bd-online-4.png",
+        "logo_medium": "assets/logos/bd-online-4.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-5",
+      "name": "Sara Bangla",
+      "description": "Popular online newspaper from Dhaka covering national and international news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 6
+      },
+      "contact": {
+        "website": "https://sarabangla.net/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/sarabangla.png",
+        "logo_small": "assets/logos/sarabangla.png",
+        "logo_medium": "assets/logos/sarabangla.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-6",
+      "name": "Dhaka Times 24",
+      "description": "Online news portal covering Dhaka and national news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 6
+      },
+      "contact": {
+        "website": "https://www.dhakatimes24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-6.png",
+        "logo_small": "assets/logos/bd-online-6.png",
+        "logo_medium": "assets/logos/bd-online-6.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-7",
+      "name": "Priyo",
+      "description": "Popular lifestyle and news portal in Bangladesh.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "cultural",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 6
+      },
+      "contact": {
+        "website": "https://www.priyo.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-7.png",
+        "logo_small": "assets/logos/bd-online-7.png",
+        "logo_medium": "assets/logos/bd-online-7.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "cultural",
+        "bangla",
+        "online",
+        "lifestyle",
+        "bd"
+      ]
+    },
+  
+    {
+      "id": "bd-online-9",
+      "name": "Bangla Insider",
+      "description": "Online news portal providing breaking news and current affairs.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 6
+      },
+      "contact": {
+        "website": "https://www.banglainsider.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-9.png",
+        "logo_small": "assets/logos/bd-online-9.png",
+        "logo_medium": "assets/logos/bd-online-9.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-10",
+      "name": "Daily Bangladesh",
+      "description": "Online news portal covering national and international news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 6
+      },
+      "contact": {
+        "website": "https://www.daily-bangladesh.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/daily-bangladesh.png",
+        "logo_small": "assets/logos/daily-bangladesh.png",
+        "logo_medium": "assets/logos/daily-bangladesh.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-11",
+      "name": "Breaking News BD",
+      "description": "Online news portal focused on breaking news coverage.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://breakingnewsbd.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-11.png",
+        "logo_small": "assets/logos/bd-online-11.png",
+        "logo_medium": "assets/logos/bd-online-11.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-12",
+      "name": "Current News",
+      "description": "Online news portal providing current affairs coverage.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://currentnewsbd.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-12.png",
+        "logo_small": "assets/logos/bd-online-12.png",
+        "logo_medium": "assets/logos/bd-online-12.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-13",
+      "name": "Somoyer Konthosor",
+      "description": "Online news portal with focus on current affairs.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://somoyerkonthosor.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-13.png",
+        "logo_small": "assets/logos/bd-online-13.png",
+        "logo_medium": "assets/logos/bd-online-13.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-14",
+      "name": "Zoom Bangla",
+      "description": "Online news portal with multimedia content.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://zoombangla.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-14.png",
+        "logo_small": "assets/logos/bd-online-14.png",
+        "logo_medium": "assets/logos/bd-online-14.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-15",
+      "name": "Roar Bangla",
+      "description": "Digital media platform covering news, culture and lifestyle.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "cultural",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 6
+      },
+      "contact": {
+        "website": "https://roar.media/bangla/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-15.png",
+        "logo_small": "assets/logos/bd-online-15.png",
+        "logo_medium": "assets/logos/bd-online-15.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "cultural",
+        "bangla",
+        "online",
+        "culture",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-16",
+      "name": "Youth Carnival",
+      "description": "Youth-focused online news portal.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://youthcarnival.org/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-16.png",
+        "logo_small": "assets/logos/bd-online-16.png",
+        "logo_medium": "assets/logos/bd-online-16.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "youth",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-17",
+      "name": "The Report 24",
+      "description": "Online news portal with investigative journalism focus.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://thereport24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-17.png",
+        "logo_small": "assets/logos/bd-online-17.png",
+        "logo_medium": "assets/logos/bd-online-17.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    
+    {
+      "id": "bd-online-19",
+      "name": "Sonali News",
+      "description": "Online news portal with national coverage.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://sonalinews.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-19.png",
+        "logo_small": "assets/logos/bd-online-19.png",
+        "logo_medium": "assets/logos/bd-online-19.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-20",
+      "name": "MTnews24",
+      "description": "24-hour online news portal.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://mtnews24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-20.png",
+        "logo_small": "assets/logos/bd-online-20.png",
+        "logo_medium": "assets/logos/bd-online-20.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-21",
+      "name": "Bangla Report",
+      "description": "Online news portal with focus on investigative reporting.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://banglareport.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-21.png",
+        "logo_small": "assets/logos/bd-online-21.png",
+        "logo_medium": "assets/logos/bd-online-21.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-22",
+      "name": "Barta Bazar",
+      "description": "Online news portal covering market and business news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "business",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "business": 5
+      },
+      "contact": {
+        "website": "https://bartabazar.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bartabazar.png",
+        "logo_small": "assets/logos/bartabazar.png",
+        "logo_medium": "assets/logos/bartabazar.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "business",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-24",
+      "name": "Insaf 24",
+      "description": "Online news portal with focus on justice and rights.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "legal",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://insaf24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-24.png",
+        "logo_small": "assets/logos/bd-online-24.png",
+        "logo_medium": "assets/logos/bd-online-24.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "legal",
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-25",
+      "name": "Natun Somoy",
+      "description": "Online news portal covering current affairs.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://natunsomoy.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-25.png",
+        "logo_small": "assets/logos/bd-online-25.png",
+        "logo_medium": "assets/logos/bd-online-25.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-26",
+      "name": "Newsg24",
+      "description": "24-hour online news portal.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://newsg24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-26.png",
+        "logo_small": "assets/logos/bd-online-26.png",
+        "logo_medium": "assets/logos/bd-online-26.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-28",
+      "name": "DMP News",
+      "description": "Online news portal covering Dhaka Metropolitan Police news and updates.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "defense",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://dmpnews.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-28.png",
+        "logo_small": "assets/logos/bd-online-28.png",
+        "logo_medium": "assets/logos/bd-online-28.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "defense",
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-29",
+      "name": "Banglar Khobor 24",
+      "description": "24-hour online news portal covering Bangladesh news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://banglarkhobor24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-29.png",
+        "logo_small": "assets/logos/bd-online-29.png",
+        "logo_medium": "assets/logos/bd-online-29.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-30",
+      "name": "The Bengali Times",
+      "description": "Online news portal in Bengali language.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://thebengalitimes.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-30.png",
+        "logo_small": "assets/logos/bd-online-30.png",
+        "logo_medium": "assets/logos/bd-online-30.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-31",
+      "name": "Daily Cricket",
+      "description": "Online sports portal focused on cricket news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "sports",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "sports": 6
+      },
+      "contact": {
+        "website": "https://dailycricket.com.bd/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/sport-1.png",
+        "logo_small": "assets/logos/sport-1.png",
+        "logo_medium": "assets/logos/sport-1.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "cricket",
+        "sports",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-32",
+      "name": "Dhaka Today",
+      "description": "Online news portal covering Dhaka city and national news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://dhakatoday.com.bd/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-32.png",
+        "logo_small": "assets/logos/bd-online-32.png",
+        "logo_medium": "assets/logos/bd-online-32.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-33",
+      "name": "News 71 Online",
+      "description": "Online news portal commemorating Bangladesh's liberation war.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://news71online.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-33.png",
+        "logo_small": "assets/logos/bd-online-33.png",
+        "logo_medium": "assets/logos/bd-online-33.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-34",
+      "name": "Prothom Barta",
+      "description": "Online news portal with national coverage.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://prothombarta.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-34.png",
+        "logo_small": "assets/logos/bd-online-34.png",
+        "logo_medium": "assets/logos/bd-online-34.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-35",
+      "name": "Banglar Chokh",
+      "description": "Online news portal - 'Eye of Bengal'.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://banglarchokh.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-35.png",
+        "logo_small": "assets/logos/bd-online-35.png",
+        "logo_medium": "assets/logos/bd-online-35.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-36",
+      "name": "Prime News BD",
+      "description": "Online news portal with breaking news coverage.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://primenewsbd.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-36.png",
+        "logo_small": "assets/logos/bd-online-36.png",
+        "logo_medium": "assets/logos/bd-online-36.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-37",
+      "name": "Al Ihsan",
+      "description": "Islamic online news portal.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "religious",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://alihsan.com.bd/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-37.png",
+        "logo_small": "assets/logos/bd-online-37.png",
+        "logo_medium": "assets/logos/bd-online-37.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "islamic",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-38",
+      "name": "Nirapad News",
+      "description": "Online news portal focused on safety and security news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "defense",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://nirapadnews.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-38.png",
+        "logo_small": "assets/logos/bd-online-38.png",
+        "logo_medium": "assets/logos/bd-online-38.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "defense",
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-39",
+      "name": "News Bangladesh",
+      "description": "Online news portal with comprehensive coverage.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://newsbangladesh.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-39.png",
+        "logo_small": "assets/logos/bd-online-39.png",
+        "logo_medium": "assets/logos/bd-online-39.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-40",
+      "name": "Natun Barta",
+      "description": "Online news portal with latest news updates.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://natunbarta.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-40.png",
+        "logo_small": "assets/logos/bd-online-40.png",
+        "logo_medium": "assets/logos/bd-online-40.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-41",
+      "name": "Somoyer Dhara",
+      "description": "Online news portal covering current affairs.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://somoyerdhara.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-41.png",
+        "logo_small": "assets/logos/bd-online-41.png",
+        "logo_medium": "assets/logos/bd-online-41.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-42",
+      "name": "One News BD",
+      "description": "Online news portal with comprehensive coverage.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://onenewsbd.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-42.png",
+        "logo_small": "assets/logos/bd-online-42.png",
+        "logo_medium": "assets/logos/bd-online-42.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-43",
+      "name": "BD View 24",
+      "description": "24-hour online news portal.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://bdview24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-43.png",
+        "logo_small": "assets/logos/bd-online-43.png",
+        "logo_medium": "assets/logos/bd-online-43.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-44",
+      "name": "BD 24 Report",
+      "description": "Online news portal with breaking news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://bd24report.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-44.png",
+        "logo_small": "assets/logos/bd-online-44.png",
+        "logo_medium": "assets/logos/bd-online-44.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    
+    {
+      "id": "bd-online-46",
+      "name": "BangladeshOnline24",
+      "description": "24-hour online news portal.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://bangladeshonline24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-46.png",
+        "logo_small": "assets/logos/bd-online-46.png",
+        "logo_medium": "assets/logos/bd-online-46.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-47",
+      "name": "Bangla Telegraph",
+      "description": "Online news portal with comprehensive coverage.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://banglatelegraph.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-47.png",
+        "logo_small": "assets/logos/bd-online-47.png",
+        "logo_medium": "assets/logos/bd-online-47.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-48",
+      "name": "Our News BD",
+      "description": "Online news portal with national coverage.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://ournewsbd.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-48.png",
+        "logo_small": "assets/logos/bd-online-48.png",
+        "logo_medium": "assets/logos/bd-online-48.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-49",
+      "name": "BD Law News",
+      "description": "Online news portal focused on legal news and updates.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "legal",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://bdlawnews.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-49.png",
+        "logo_small": "assets/logos/bd-online-49.png",
+        "logo_medium": "assets/logos/bd-online-49.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "legal",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-50",
+      "name": "Daily ICT News",
+      "description": "Online news portal focused on technology and ICT news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "tech",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "tech": 6
+      },
+      "contact": {
+        "website": "https://dailyictnews.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-50.png",
+        "logo_small": "assets/logos/bd-online-50.png",
+        "logo_medium": "assets/logos/bd-online-50.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "tech",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-51",
+      "name": "Probashir News",
+      "description": "Online news portal for Bangladeshi expatriates.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "international",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "international": 6
+      },
+      "contact": {
+        "website": "https://probashirnews.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-51.png",
+        "logo_small": "assets/logos/bd-online-51.png",
+        "logo_medium": "assets/logos/bd-online-51.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "expatriate",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-52",
+      "name": "Hawker",
+      "description": "Online news portal with national coverage.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://hawker.com.bd/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-52.png",
+        "logo_small": "assets/logos/bd-online-52.png",
+        "logo_medium": "assets/logos/bd-online-52.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-53",
+      "name": "BD Todays",
+      "description": "Online news portal with daily news updates.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://bdtodays.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-53.png",
+        "logo_small": "assets/logos/bd-online-53.png",
+        "logo_medium": "assets/logos/bd-online-53.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-54",
+      "name": "Barta Bangla",
+      "description": "Online news portal with national coverage.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://bartabangla.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-54.png",
+        "logo_small": "assets/logos/bd-online-54.png",
+        "logo_medium": "assets/logos/bd-online-54.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-55",
+      "name": "Sahos 24",
+      "description": "24-hour online news portal.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://sahos24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-55.png",
+        "logo_small": "assets/logos/bd-online-55.png",
+        "logo_medium": "assets/logos/bd-online-55.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-56",
+      "name": "Shamol Bangla 24",
+      "description": "24-hour online news portal.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://shamolbangla24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-56.png",
+        "logo_small": "assets/logos/bd-online-56.png",
+        "logo_medium": "assets/logos/bd-online-56.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-57",
+      "name": "Ctg Times",
+      "description": "Online news portal covering Chittagong region news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": null,
+      "headquarters": "Chittagong",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "regional": 6
+      },
+      "contact": {
+        "website": "https://ctgtimes.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/ctgtimes.png",
+        "logo_small": "assets/logos/ctgtimes.png",
+        "logo_medium": "assets/logos/ctgtimes.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "regional",
+        "chittagong",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-58",
+      "name": "Coxsbazar News",
+      "description": "Online news portal covering Cox's Bazar district news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": null,
+      "headquarters": "Cox's Bazar",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "regional": 5
+      },
+      "contact": {
+        "website": "https://coxsbazarnews.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/cox-news.png",
+        "logo_small": "assets/logos/cox-news.png",
+        "logo_medium": "assets/logos/cox-news.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "regional",
+        "coxsbazar",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-61",
+      "name": "Comillar Kagoj",
+      "description": "Regional newspaper covering Comilla district.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": null,
+      "headquarters": "Comilla",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "print",
+        "web"
+      ],
+      "coverage": {
+        "regional": 5
+      },
+      "contact": {
+        "website": "https://comillarkagoj.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/cumillar-kagoj.png",
+        "logo_small": "assets/logos/cumillar-kagoj.png",
+        "logo_medium": "assets/logos/cumillar-kagoj.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "regional",
+        "comilla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-62",
+      "name": "Dainik Sylhet",
+      "description": "Regional daily newspaper covering Sylhet division.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": null,
+      "headquarters": "Sylhet",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "print",
+        "web"
+      ],
+      "coverage": {
+        "regional": 6
+      },
+      "contact": {
+        "website": "https://dainiksylhet.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/daily-sylhet.png",
+        "logo_small": "assets/logos/daily-sylhet.png",
+        "logo_medium": "assets/logos/daily-sylhet.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "regional",
+        "sylhet",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-63",
+      "name": "Sylheter Dinkal",
+      "description": "Regional daily newspaper covering Sylhet region.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": null,
+      "headquarters": "Sylhet",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "print",
+        "web"
+      ],
+      "coverage": {
+        "regional": 5
+      },
+      "contact": {
+        "website": "https://sylheterdinkal.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/sylheter-dinkal.png",
+        "logo_small": "assets/logos/sylheter-dinkal.png",
+        "logo_medium": "assets/logos/sylheter-dinkal.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "regional",
+        "sylhet",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-64",
+      "name": "Sylhet Mirror",
+      "description": "Online news portal covering Sylhet region.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": null,
+      "headquarters": "Sylhet",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "regional": 5
+      },
+      "contact": {
+        "website": "https://sylhetmirror.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/sylhet-mirror.png",
+        "logo_small": "assets/logos/sylhet-mirror.png",
+        "logo_medium": "assets/logos/sylhet-mirror.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "online",
+        "regional",
+        "sylhet",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-65",
+      "name": "Daily Sylhet",
+      "description": "Regional daily newspaper covering Sylhet.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": null,
+      "headquarters": "Sylhet",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "print",
+        "web"
+      ],
+      "coverage": {
+        "regional": 5
+      },
+      "contact": {
+        "website": "https://dailysylhet.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/daily-sylhet2.png",
+        "logo_small": "assets/logos/daily-sylhet2.png",
+        "logo_medium": "assets/logos/daily-sylhet2.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "regional",
+        "sylhet",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-66",
+      "name": "Sylhet View 24",
+      "description": "24-hour online news portal covering Sylhet region.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": null,
+      "headquarters": "Sylhet",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "regional": 5
+      },
+      "contact": {
+        "website": "https://sylhetview24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/sylhet-view.png",
+        "logo_small": "assets/logos/sylhet-view.png",
+        "logo_medium": "assets/logos/sylhet-view.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "online",
+        "regional",
+        "sylhet",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-68",
+      "name": "Barishal Times",
+      "description": "Regional online news portal covering Barisal region.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": null,
+      "headquarters": "Barisal",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "regional": 5
+      },
+      "contact": {
+        "website": "https://barishaltimes.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/barishal-times.png",
+        "logo_small": "assets/logos/barishal-times.png",
+        "logo_medium": "assets/logos/barishal-times.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "regional",
+        "barisal",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-69",
+      "name": "Meherpur Pratidin",
+      "description": "Regional daily newspaper covering Meherpur district.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": null,
+      "headquarters": "Meherpur",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "print",
+        "web"
+      ],
+      "coverage": {
+        "regional": 4
+      },
+      "contact": {
+        "website": "https://meherpurpratidin.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/meherpur-pratidin.png",
+        "logo_small": "assets/logos/meherpur-pratidin.png",
+        "logo_medium": "assets/logos/meherpur-pratidin.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "regional",
+        "meherpur",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-newsagency-1",
+      "name": "PBA Agency",
+      "description": "Private news agency providing news coverage in Bangladesh.",
+      "type": "news_agency",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web",
+        "wire"
+      ],
+      "coverage": {
+        "national": 6
+      },
+      "contact": {
+        "website": "https://pbaagency.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-newsagency-1.png",
+        "logo_small": "assets/logos/bd-newsagency-1.png",
+        "logo_medium": "assets/logos/bd-newsagency-1.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "news-agency",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-newsagency-2",
+      "name": "Focus Bangla",
+      "description": "News agency providing focused coverage on Bangladesh news.",
+      "type": "news_agency",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web",
+        "wire"
+      ],
+      "coverage": {
+        "national": 6
+      },
+      "contact": {
+        "website": "https://focusbangla.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-newsagency-2.png",
+        "logo_small": "assets/logos/bd-newsagency-2.png",
+        "logo_medium": "assets/logos/bd-newsagency-2.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "news-agency",
+        "bd"
+      ]
+    },
+    {
+      "id": "biz-14",
+      "name": "Business24BD",
+      "description": "Business news portal covering economy, banking, trade, and corporate developments.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "business",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "business": 6
+      },
+      "contact": {
+        "website": "https://business24bd.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/business24.png",
+        "logo_small": "assets/logos/business24.png",
+        "logo_medium": "assets/logos/business24.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "business",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "biz-15",
+      "name": "Bank Bima Shilpa",
+      "description": "Specialized outlet focused on banking, insurance, and financial sector news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "business",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "business": 6
+      },
+      "contact": {
+        "website": "https://bankbimashilpa.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/biz-15.png",
+        "logo_small": "assets/logos/biz-15.png",
+        "logo_medium": "assets/logos/biz-15.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "business",
+        "banking",
+        "insurance",
+        "bd"
+      ]
+    },
+    {
+      "id": "biz-16",
+      "name": "Arthoniteer Kagoj",
+      "description": "Economic news platform reporting on markets, trade, and national economic developments.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "business",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "business": 6
+      },
+      "contact": {
+        "website": "https://arthoniteerkagoj.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/biz-16.png",
+        "logo_small": "assets/logos/biz-16.png",
+        "logo_medium": "assets/logos/biz-16.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "business",
+        "economics",
+        "bd"
+      ]
+    },
+    {
+      "id": "sport-17",
+      "name": "BDCricTime",
+      "description": "Cricket-focused Bangla portal with live scores, fixtures, and Bangladesh team news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "sports",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "sports": 7
+      },
+      "contact": {
+        "website": "https://bdcrictime.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/sport-17.png",
+        "logo_small": "assets/logos/sport-17.png",
+        "logo_medium": "assets/logos/sport-17.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "sports",
+        "cricket",
+        "bd"
+      ]
+    },
+    {
+      "id": "sport-19",
+      "name": "Cricfrenzy",
+      "description": "Bangla cricket news covering international and domestic tournaments.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "sports",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "sports": 6
+      },
+      "contact": {
+        "website": "https://cricfrenzy.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/sport-19.png",
+        "logo_small": "assets/logos/sport-19.png",
+        "logo_medium": "assets/logos/sport-19.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "sports",
+        "cricket",
+        "bd"
+      ]
+    },
+    {
+      "id": "sport-20",
+      "name": "Sportsmail24",
+      "description": "Multi-sport Bangla outlet reporting football, cricket, and more.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "sports",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "sports": 6
+      },
+      "contact": {
+        "website": "https://sportsmail24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/sport-20.png",
+        "logo_small": "assets/logos/sport-20.png",
+        "logo_medium": "assets/logos/sport-20.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "sports",
+        "bd"
+      ]
+    },
+    {
+      "id": "sport-21",
+      "name": "Offside Bangladesh",
+      "description": "Bangla football site focusing on local leagues and global football news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "sports",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "sports": 6
+      },
+      "contact": {
+        "website": "https://offsidebangladesh.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/sport-21.png",
+        "logo_small": "assets/logos/sport-21.png",
+        "logo_medium": "assets/logos/sport-21.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "sports",
+        "football",
+        "bd"
+      ]
+    },
+    {
+      "id": "biz-17",
+      "name": "ShareNews24",
+      "description": "Specialized share-market site with DSE/CSE updates and investor data.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "business",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "business": 6
+      },
+      "contact": {
+        "website": "https://sharenews24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/biz-17.png",
+        "logo_small": "assets/logos/biz-17.png",
+        "logo_medium": "assets/logos/biz-17.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "business",
+        "stock-market",
+        "bd"
+      ]
+    },
+    {
+      "id": "biz-18",
+      "name": "Ajker Bazzar",
+      "description": "Bangla news portal featuring business, economy and market updates.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "business",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "business": 6
+      },
+      "contact": {
+        "website": "https://ajkerbazzar.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/biz-18.png",
+        "logo_small": "assets/logos/biz-18.png",
+        "logo_medium": "assets/logos/biz-18.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "business",
+        "bd"
+      ]
+    },
+    {
+      "id": "biz-19",
+      "name": "Share Bazar News",
+      "description": "Capital-market news portal reporting DSE/CSE moves and investor updates.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "business",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "business": 6
+      },
+      "contact": {
+        "website": "https://sharebazarnews.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/biz-19.png",
+        "logo_small": "assets/logos/biz-19.png",
+        "logo_medium": "assets/logos/biz-19.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "business",
+        "stock-market",
+        "bd"
+      ]
+    },
+    {
+      "id": "biz-20",
+      "name": "ShareBarta24",
+      "description": "Bangla outlet focused on share market news and corporate actions.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "business",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "business": 6
+      },
+      "contact": {
+        "website": "https://sharebarta24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/biz-20.png",
+        "logo_small": "assets/logos/biz-20.png",
+        "logo_medium": "assets/logos/biz-20.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "business",
+        "stock-market",
+        "bd"
+      ]
+    },
+    {
+      "id": "biz-21",
+      "name": "ShareMarketBD",
+      "description": "Share-market portal offering company news, IPOs, and market reviews.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "business",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "business": 6
+      },
+      "contact": {
+        "website": "https://sharemarketbd.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/biz-21.png",
+        "logo_small": "assets/logos/biz-21.png",
+        "logo_medium": "assets/logos/biz-21.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "business",
+        "stock-market",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-55",
+      "name": "Sangbad",
+      "description": "One of Bangladesh's oldest Dhaka-based Bengali dailies, established in 1951.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": 1951,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "print",
+        "web",
+        "epaper"
+      ],
+      "coverage": {
+        "national": 7
+      },
+      "contact": {
+        "website": "https://sangbad.net/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/sangbad.png",
+        "logo_small": "assets/logos/sangbad.png",
+        "logo_medium": "assets/logos/sangbad.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "national",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-56",
+      "name": "Ajkaler Khobor",
+      "description": "Daily newspaper published by Deshbandhu Group with national coverage.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "print",
+        "web",
+        "epaper"
+      ],
+      "coverage": {
+        "national": 6
+      },
+      "contact": {
+        "website": "https://ajkalerkhobor.net/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/ajkaler-khobor.png",
+        "logo_small": "assets/logos/ajkaler-khobor.png",
+        "logo_medium": "assets/logos/ajkaler-khobor.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": "Deshbandhu Group"
+      },
+      "tags": [
+        "bangla",
+        "national",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-57",
+      "name": "Protidiner Sangbad",
+      "description": "Dhaka-based daily publishing print and online editions with national and city news.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "print",
+        "web",
+        "epaper"
+      ],
+      "coverage": {
+        "national": 6
+      },
+      "contact": {
+        "website": "https://protidinersangbad.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/pratidiner-sangbad.png",
+        "logo_small": "assets/logos/pratidiner-sangbad.png",
+        "logo_medium": "assets/logos/pratidiner-sangbad.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "national",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-58",
+      "name": "Bangladesher Khabor",
+      "description": "National daily published from Dhaka with print, e-paper, and online news sections.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "print",
+        "web",
+        "epaper"
+      ],
+      "coverage": {
+        "national": 6
+      },
+      "contact": {
+        "website": "https://bangladesherkhabor.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bangladesher-khobor.png",
+        "logo_small": "assets/logos/bangladesher-khobor.png",
+        "logo_medium": "assets/logos/bangladesher-khobor.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "national",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-59",
+      "name": "Protidiner Bangladesh",
+      "description": "Bangla daily launched in 2023 with print, e-paper, and broad national news agenda.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": 2023,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "print",
+        "web",
+        "epaper"
+      ],
+      "coverage": {
+        "national": 6
+      },
+      "contact": {
+        "website": "https://protidinerbangladesh.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/pratidiner-bangladesh.png",
+        "logo_small": "assets/logos/pratidiner-bangladesh.png",
+        "logo_medium": "assets/logos/pratidiner-bangladesh.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "national",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-61",
+      "name": "Vorer Pata",
+      "description": "Daily newspaper covering national updates alongside lifestyle, commerce, and sports.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "cultural",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "print",
+        "web"
+      ],
+      "coverage": {
+        "national": 6
+      },
+      "contact": {
+        "website": "https://vorerpata.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/vorer-pata.png",
+        "logo_small": "assets/logos/vorer-pata.png",
+        "logo_medium": "assets/logos/vorer-pata.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "cultural",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-62",
+      "name": "Dainik Sokal",
+      "description": "Bengali daily newspaper with national coverage.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "print",
+        "web"
+      ],
+      "coverage": {
+        "national": 6
+      },
+      "contact": {
+        "website": "https://dainiksokal.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/dainik-sokal.png",
+        "logo_small": "assets/logos/dainik-sokal.png",
+        "logo_medium": "assets/logos/dainik-sokal.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "national",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-70",
+      "name": "Jago Bangla",
+      "description": "Online news portal with national coverage.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://jagobangla.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-70.png",
+        "logo_small": "assets/logos/bd-online-70.png",
+        "logo_medium": "assets/logos/bd-online-70.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-71",
+      "name": "Swadesh Barta",
+      "description": "Online news portal with focus on national affairs.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://swadeshbarta.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-71.png",
+        "logo_small": "assets/logos/bd-online-71.png",
+        "logo_medium": "assets/logos/bd-online-71.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-72",
+      "name": "Deshbd24",
+      "description": "24-hour online news portal covering Bangladesh.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://deshbd24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-72.png",
+        "logo_small": "assets/logos/bd-online-72.png",
+        "logo_medium": "assets/logos/bd-online-72.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-73",
+      "name": "Rup Bangla News",
+      "description": "Online news portal with national coverage.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://rupbanglanews.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-73.png",
+        "logo_small": "assets/logos/bd-online-73.png",
+        "logo_medium": "assets/logos/bd-online-73.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-74",
+      "name": "Bangla Songbad 24",
+      "description": "24-hour online news portal.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://banglasongbad24.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-74.png",
+        "logo_small": "assets/logos/bd-online-74.png",
+        "logo_medium": "assets/logos/bd-online-74.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-online-75",
+      "name": "Press Barta",
+      "description": "Online news portal with focus on journalism and media news.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "national": 5
+      },
+      "contact": {
+        "website": "https://pressbarta.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-online-75.png",
+        "logo_small": "assets/logos/bd-online-75.png",
+        "logo_medium": "assets/logos/bd-online-75.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "bangla",
+        "online",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-en-3",
+      "name": "Energy Bangla",
+      "description": "Specialized online outlet focused on energy, power, and environment coverage.",
+      "type": "news_portal",
+      "country": "BD",
+      "language": "en",
+      "region": "business",
+      "founded": null,
+      "headquarters": "Dhaka",
+      "founder": null,
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "coverage": {
+        "business": 6
+      },
+      "contact": {
+        "website": "https://energybangla.com/",
+        "email": null,
+        "phone": null
+      },
+      "social": {
+        "facebook": null,
+        "twitter": null,
+        "instagram": null,
+        "youtube": null,
+        "linkedin": null
+      },
+      "media": {
+        "logo": "assets/logos/bd-en-3.png",
+        "logo_small": "assets/logos/bd-en-3.png",
+        "logo_medium": "assets/logos/bd-en-3.png"
+      },
+      "metadata": {
+        "awards": [],
+        "circulation": "N/A",
+        "parent_company": null
+      },
+      "tags": [
+        "english",
+        "energy",
+        "environment",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-63",
+      "name": "24 Live Newspaper",
+      "description": "An online news aggregator providing headlines and updates from multiple media sources in Bangladesh.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://24livenewspaper.com"
+      },
+      "media": {
+        "logo": "assets/logos/24live.png",
+        "logo_medium": "assets/logos/24live.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-64",
+      "name": "AB NEWS 24 BD",
+      "description": "An online news portal covering national and international events, including politics and general news updates.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://abnews24bd.com"
+      },
+      "media": {
+        "logo": "assets/logos/abnews24.png",
+        "logo_medium": "assets/logos/abnews24.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-65",
+      "name": "Agami News",
+      "description": "Online news portal providing updates on national and international affairs.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://agaminews.com"
+      },
+      "media": {
+        "logo": "assets/logos/agaminews.png",
+        "logo_medium": "assets/logos/agaminews.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-66",
+      "name": "Ajker Dhaka 24",
+      "description": "Localized digital news outlet providing daily updates on news in and around Dhaka and Bangladesh.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://ajkerdhaka24.com"
+      },
+      "media": {
+        "logo": "assets/logos/ajkerdhaka.png",
+        "logo_medium": "assets/logos/ajkerdhaka.png"
+      },
+      "tags": [
+        "regional",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-67",
+      "name": "Ajker Ograbani / আজকের ওগরাবানি",
+      "description": "A Bengali online news portal covering national and international issues, health, and technology.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "tech",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://ajkerograbani.com"
+      },
+      "media": {
+        "logo": "assets/logos/placeholder.png",
+        "logo_medium": "assets/logos/placeholder.png"
+      },
+      "tags": [
+        "tech",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-68",
+      "name": "Aloava News 24",
+      "description": "Independent online news platform covering national politics, world news, business, and sports.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "business",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://aloavanews24.com"
+      },
+      "media": {
+        "logo": "assets/logos/aloava.png",
+        "logo_medium": "assets/logos/aloava.png"
+      },
+      "tags": [
+        "business",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-69",
+      "name": "Amader Protidin / amaderprotidin.com",
+      "description": "Online news newspaper based in Rangpur, covering local, national, and international news.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://amader-protidin.com"
+      },
+      "media": {
+        "logo": "assets/logos/amader-protidin.png",
+        "logo_medium": "assets/logos/amader-protidin.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-70",
+      "name": "Artho Suchak",
+      "description": "Specialized online news portal in Bangladesh focused on the economy, business, and the capital market.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "business",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://arthosuchak.com"
+      },
+      "media": {
+        "logo": "assets/logos/arthosuchak.png",
+        "logo_medium": "assets/logos/arthosuchak.png"
+      },
+      "tags": [
+        "business",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-71",
+      "name": "Asia Bani / The Daily Asia Bani",
+      "description": "Bangladeshi daily news portal covering local and national news, technology, and lifestyle.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "tech",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://dailyasiabani.com"
+      },
+      "media": {
+        "logo": "assets/logos/placeholder.png",
+        "logo_medium": "assets/logos/placeholder.png"
+      },
+      "tags": [
+        "tech",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-72",
+      "name": "Bajro Shakti",
+      "description": "Online news portal in Bangladesh providing general news and updates.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://bajroshakti.com"
+      },
+      "media": {
+        "logo": "assets/logos/bajroshakti.png",
+        "logo_medium": "assets/logos/bajroshakti.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-73",
+      "name": "Bangla Daily 24",
+      "description": "24/7 online news portal covering national, political, and entertainment news.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "cultural",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://bangladaily24.com"
+      },
+      "media": {
+        "logo": "assets/logos/bangladaily24.png",
+        "logo_medium": "assets/logos/bangladaily24.png"
+      },
+      "tags": [
+        "cultural",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-74",
+      "name": "Bangla Kagoj",
+      "description": "Weekly newspaper/portal catering to the Bangladeshi community in Canada and globally.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "international",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://ebanglakagoj.com"
+      },
+      "media": {
+        "logo": "assets/logos/bangla-kagoj.png",
+        "logo_medium": "assets/logos/bangla-kagoj.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-75",
+      "name": "Bangla71News",
+      "description": "Online Bangla news portal providing national, international, political, and economic news.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://bangla71news.com"
+      },
+      "media": {
+        "logo": "assets/logos/bangla71news.png",
+        "logo_medium": "assets/logos/bangla71news.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-76",
+      "name": "Banglarchithi",
+      "description": "Popular online news portal based in Jamalpur, focused on the greater Mymensingh region.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://banglarchithi.com"
+      },
+      "media": {
+        "logo": "assets/logos/banglarchithi.png",
+        "logo_medium": "assets/logos/banglarchithi.png"
+      },
+      "tags": [
+        "regional",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-77",
+      "name": "Bangladesh Info / bangladesh.info.com",
+      "description": "Travel and country profile resource offering information on Bangladesh’s history and culture.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "cultural",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "http://bangladesh.info.com"
+      },
+      "media": {
+        "logo": "assets/logos/placeholder.png",
+        "logo_medium": "assets/logos/placeholder.png"
+      },
+      "tags": [
+        "cultural",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-78",
+      "name": "The Bangladesh Monitor",
+      "description": "Specialized publication focusing on aviation, tourism, hospitality, and shipping.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://bangladeshmonitor.com.bd"
+      },
+      "media": {
+        "logo": "assets/logos/bangladesh-monitor.png",
+        "logo_medium": "assets/logos/bangladesh-monitor.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-79",
+      "name": "Bangladesh Police News",
+      "description": "Official news portal of the Dhaka Metropolitan Police providing safety tips and official updates.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "defense",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://dmp.gov.bd"
+      },
+      "media": {
+        "logo": "assets/logos/placeholder.png",
+        "logo_medium": "assets/logos/placeholder.png"
+      },
+      "tags": [
+        "defense",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-80",
+      "name": "BD Report 24",
+      "description": "Online news platform reporting on development, business, and economic news in Bangladesh.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "business",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://bdreports24.com"
+      },
+      "media": {
+        "logo": "assets/logos/bdreports24.png",
+        "logo_medium": "assets/logos/bdreports24.png"
+      },
+      "tags": [
+        "business",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-81",
+      "name": "Bhorer Darpan / বোর্ডার দরপান",
+      "description": "Bangladeshi news portal providing daily updates on national news, politics, and sports.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "sports",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://bhorerdarpan.com"
+      },
+      "media": {
+        "logo": "assets/logos/bhorer-darpan.png",
+        "logo_medium": "assets/logos/bhorer-darpan.png"
+      },
+      "tags": [
+        "sports",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-82",
+      "name": "BNC 24",
+      "description": "Broadcasting News Corporation (BNC 24) is an online news platform for national and world news.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://bnc24.com"
+      },
+      "media": {
+        "logo": "assets/logos/bnc24.png",
+        "logo_medium": "assets/logos/bnc24.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-83",
+      "name": "Boishakhi News",
+      "description": "Online news portal and private satellite TV channel focusing on news and entertainment.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "cultural",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://boishakhinews24.com"
+      },
+      "media": {
+        "logo": "assets/logos/boishakhinews24.png",
+        "logo_medium": "assets/logos/boishakhinews24.png"
+      },
+      "tags": [
+        "cultural",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-84",
+      "name": "Corporate Sangbad",
+      "description": "Online news portal focused on business, economy, corporate news, and the stock market.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "business",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://corporatesangbad.com"
+      },
+      "media": {
+        "logo": "assets/logos/corporatesangbad.png",
+        "logo_medium": "assets/logos/corporatesangbad.png"
+      },
+      "tags": [
+        "business",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-85",
+      "name": "Dainik Bayanno",
+      "description": "National daily newspaper and multimedia news platform covering politics, crime, and agriculture.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "defense",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://dainikbayanno.com"
+      },
+      "media": {
+        "logo": "assets/logos/placeholder.png",
+        "logo_medium": "assets/logos/placeholder.png"
+      },
+      "tags": [
+        "defense",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-86",
+      "name": "Daily Alokito Sakal",
+      "description": "Bengali-language newspaper and online news portal covering national and local news.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://dailyalokitosakal.net"
+      },
+      "media": {
+        "logo": "assets/logos/alokito-sokal.png",
+        "logo_medium": "assets/logos/alokito-sokal.png"
+      },
+      "tags": [
+        "regional",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-87",
+      "name": "Daily Amar Barta",
+      "description": "National daily newspaper published from Dhaka, offering a wide range of news including politics and education.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "education",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://amarbarta.com"
+      },
+      "media": {
+        "logo": "assets/logos/amar-barta.png",
+        "logo_medium": "assets/logos/amar-barta.png"
+      },
+      "tags": [
+        "education",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-88",
+      "name": "Daily Industry",
+      "description": "Newspaper focused on industrial, business, and corporate affairs in Bangladesh.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "en",
+      "region": "business",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://dailyindustrybd.com"
+      },
+      "media": {
+        "logo": "assets/logos/daily-industry.png",
+        "logo_medium": "assets/logos/daily-industry.png"
+      },
+      "tags": [
+        "business",
+        "bd",
+        "english"
+      ]
+    },
+    {
+      "id": "bd-bn-89",
+      "name": "Daily Jago Janata",
+      "description": "Bengali-language online news portal providing breaking news, politics, and economics.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://dailyjagojanata.com"
+      },
+      "media": {
+        "logo": "assets/logos/jago-janata.png",
+        "logo_medium": "assets/logos/jago-janata.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    
+    {
+      "id": "bd-bn-92",
+      "name": "Desher Sangbad / www.deshersangbad.com",
+      "description": "Online news portal providing updates on national and local news in Bangladesh.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "http://deshersangbad.com"
+      },
+      "media": {
+        "logo": "assets/logos/desher-sangbad.png",
+        "logo_medium": "assets/logos/desher-sangbad.png"
+      },
+      "tags": [
+        "regional",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-93",
+      "name": "Dhaka news 24 / www.dhakanews24.com",
+      "description": "Online news portal covering news in and around Dhaka city.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "http://dhakanews24.com"
+      },
+      "media": {
+        "logo": "assets/logos/dhakanews24.png",
+        "logo_medium": "assets/logos/dhakanews24.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-94",
+      "name": "Dhaka Protidin",
+      "description": "Online news portal covering national politics, sports, and entertainment news.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "sports",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://dhakaprotidin.com"
+      },
+      "media": {
+        "logo": "assets/logos/dhaka-protidin.png",
+        "logo_medium": "assets/logos/dhaka-protidin.png"
+      },
+      "tags": [
+        "sports",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-95",
+      "name": "Doinik Barta",
+      "description": "Online daily newspaper providing national and local news coverage in Bangladesh.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://doinikbarta.com"
+      },
+      "media": {
+        "logo": "assets/logos/doinik-barta.png",
+        "logo_medium": "assets/logos/doinik-barta.png"
+      },
+      "tags": [
+        "regional",
+        "bangla",
+        "bd"
+      ]
+    },
+    
+    {
+      "id": "bd-bn-97",
+      "name": "Ei Bela",
+      "description": "Online news portal covering news, lifestyle, and feature stories in Bangladesh.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "cultural",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://eibelanews.com"
+      },
+      "media": {
+        "logo": "assets/logos/eibela.png",
+        "logo_medium": "assets/logos/eibela.png"
+      },
+      "tags": [
+        "cultural",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-98",
+      "name": "FNS 24",
+      "description": "First News Service (FNS 24) is an online platform for real-time news updates.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://fns24.com"
+      },
+      "media": {
+        "logo": "assets/logos/fns24.png",
+        "logo_medium": "assets/logos/fns24.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-100",
+      "name": "Jobabdihi",
+      "description": "Bangladeshi daily newspaper providing general news coverage and e-paper access.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://jobabdihi.com"
+      },
+      "media": {
+        "logo": "assets/logos/jobabdihi.png",
+        "logo_medium": "assets/logos/jobabdihi.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    
+    {
+      "id": "bd-bn-102",
+      "name": "kaleralo.com / Kalero Alo",
+      "description": "Online Bangla news portal covering national and international news events.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "international",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://kaleralo.com"
+      },
+      "media": {
+        "logo": "assets/logos/kaleralo.png",
+        "logo_medium": "assets/logos/kaleralo.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    
+    {
+      "id": "bd-bn-105",
+      "name": "Last News BD / lastnewsbd.com",
+      "description": "Breaking news portal in Bangladesh providing real-time updates.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://lastnewsbd.com"
+      },
+      "media": {
+        "logo": "assets/logos/lastnewsbd.png",
+        "logo_medium": "assets/logos/lastnewsbd.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-106",
+      "name": "Latest BD News / latestbdnews.com",
+      "description": "Online news platform covering major hits and headlines in Bangladesh.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://latestbdnews.com"
+      },
+      "media": {
+        "logo": "assets/logos/latestbdnews.png",
+        "logo_medium": "assets/logos/latestbdnews.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-107",
+      "name": "Life Tv 24",
+      "description": "Online news and media portal providing general news updates across various categories.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://lifetv24.com"
+      },
+      "media": {
+        "logo": "assets/logos/lifetv24.png",
+        "logo_medium": "assets/logos/lifetv24.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-109",
+      "name": "Medi Voice",
+      "description": "Specialized news portal focusing on health, medical, and education sectors.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "tech",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://medivoice.bd.com"
+      },
+      "media": {
+        "logo": "assets/logos/placeholder.png",
+        "logo_medium": "assets/logos/placeholder.png"
+      },
+      "tags": [
+        "tech",
+        "bangla",
+        "bd"
+      ]
+    },
+    
+    {
+      "id": "bd-bn-112",
+      "name": "Muktijoddhar Kantho",
+      "description": "Online news portal based in Kishoreganj focused on liberation war values and local news.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://muktijoddharkantho.com"
+      },
+      "media": {
+        "logo": "assets/logos/muktijoddharkantho.png",
+        "logo_medium": "assets/logos/muktijoddharkantho.png"
+      },
+      "tags": [
+        "regional",
+        "bangla",
+        "bd"
+      ]
+    },
+    
+    {
+      "id": "bd-bn-115",
+      "name": "Netra News",
+      "description": "Sweden-based independent investigative journalism platform focused on Bangladesh.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://netra.news"
+      },
+      "media": {
+        "logo": "assets/logos/netra.png",
+        "logo_medium": "assets/logos/netra.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-116",
+      "name": "News Bangla 24 / News Bangla24.com",
+      "description": "Comprehensive online news platform offering news, video, and audio reports.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://newsbangla24.com"
+      },
+      "media": {
+        "logo": "assets/logos/newsbangla24.png",
+        "logo_medium": "assets/logos/newsbangla24.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-117",
+      "name": "Odhikarbd",
+      "description": "Human rights news portal documented by the Odhikar organization in Bangladesh.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "legal",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://odhikar.news"
+      },
+      "media": {
+        "logo": "assets/logos/odhikar.png",
+        "logo_medium": "assets/logos/odhikar.png"
+      },
+      "tags": [
+        "legal",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-118",
+      "name": "Our Islam 24",
+      "description": "Online news portal providing news and religious information in Bangladesh.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "religious",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://ourislam24.com"
+      },
+      "media": {
+        "logo": "assets/logos/placeholder.png",
+        "logo_medium": "assets/logos/placeholder.png"
+      },
+      "tags": [
+        "religious",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-119",
+      "name": "Patrika 71",
+      "description": "Online news portal providing national, district, and international news updates.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://patrika71.com"
+      },
+      "media": {
+        "logo": "assets/logos/patrika71.png",
+        "logo_medium": "assets/logos/patrika71.png"
+      },
+      "tags": [
+        "regional",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-120",
+      "name": "Probashir Diganta",
+      "description": "Online newspaper catering to the concerns and demands of the Bangladeshi expatriate community.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "international",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://probashirdiganta.com"
+      },
+      "media": {
+        "logo": "assets/logos/probashirdiganta.png",
+        "logo_medium": "assets/logos/probashirdiganta.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    
+    {
+      "id": "bd-bn-124",
+      "name": "Protikhon",
+      "description": "24h online Bangla news portal providing breaking news, politics, and lifestyle reports.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "cultural",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://protikhon.com"
+      },
+      "media": {
+        "logo": "assets/logos/protikhon.png",
+        "logo_medium": "assets/logos/protikhon.png"
+      },
+      "tags": [
+        "cultural",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-125",
+      "name": "Pujibazar",
+      "description": "Specialized news portal focused on the stock market and capital investment in Bangladesh.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "business",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://pujibazar.com"
+      },
+      "media": {
+        "logo": "assets/logos/pujibazar.png",
+        "logo_medium": "assets/logos/pujibazar.png"
+      },
+      "tags": [
+        "business",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-128",
+      "name": "Saatkahn / সাতকাহনবাংলা",
+      "description": "Online news and feature portal focusing on literature, culture, and news updates.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "cultural",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://saatkahn.com"
+      },
+      "media": {
+        "logo": "assets/logos/placeholder.png",
+        "logo_medium": "assets/logos/placeholder.png"
+      },
+      "tags": [
+        "cultural",
+        "bangla",
+        "bd"
+      ]
+    },
+    
+    {
+      "id": "bd-bn-130",
+      "name": "Sheersho Khobor",
+      "description": "Fast-paced online news portal delivering breaking news across multiple sectors.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://sheershokhobor.com"
+      },
+      "media": {
+        "logo": "assets/logos/sheershokhobor.png",
+        "logo_medium": "assets/logos/sheershokhobor.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-131",
+      "name": "Sorejomin Barta",
+      "description": "Bengali daily online newspaper providing national and international news coverage.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://sorejominbarta.com"
+      },
+      "media": {
+        "logo": "assets/logos/sjbarta.png",
+        "logo_medium": "assets/logos/sjbarta.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-136",
+      "name": "Uttarkon",
+      "description": "Leading regional newspaper focusing on Northern Bangladesh news.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "regional",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://uttarkon.com"
+      },
+      "media": {
+        "logo": "assets/logos/uttarkon.png",
+        "logo_medium": "assets/logos/uttarkon.png"
+      },
+      "tags": [
+        "regional",
+        "bangla",
+        "bd"
+      ]
+    },
+    {
+      "id": "bd-bn-138",
+      "name": "Tribunal",
+      "description": "English-language daily newspaper in Bangladesh providing national and global updates.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "en",
+      "region": "legal",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://dailytribunal.com"
+      },
+      "media": {
+        "logo": "assets/logos/placeholder.png",
+        "logo_medium": "assets/logos/placeholder.png"
+      },
+      "tags": [
+        "legal",
+        "bd",
+        "english"
+      ]
+    },
+    {
+      "id": "bd-bn-139",
+      "name": "UNB / United News of Bangladesh",
+      "description": "Private news agency and wire service providing real-time data to major media outlets.",
+      "type": "newspaper",
+      "country": "BD",
+      "language": "bn",
+      "region": "national",
+      "founded": "N/A",
+      "headquarters": "Dhaka",
+      "premium": false,
+      "formats": [
+        "web"
+      ],
+      "contact": {
+        "website": "https://unb.com.bd"
+      },
+      "media": {
+        "logo": "assets/logos/unb.png",
+        "logo_medium": "assets/logos/unb.png"
+      },
+      "tags": [
+        "national",
+        "bangla",
+        "bd"
       ]
     }
   ],
@@ -7694,6 +13347,8 @@
         "parent_company": "Hearst Communications"
       },
       "tags": [
+        "lifestyle",
+        "luxury",
         "health",
         "fitness",
         "nutrition",
@@ -7743,6 +13398,8 @@
         "parent_company": "Hearst Communications"
       },
       "tags": [
+        "lifestyle",
+        "luxury",
         "health",
         "fitness",
         "nutrition"
@@ -8560,9 +14217,9 @@
         "linkedin": null
       },
       "media": {
-        "logo": "assets/logos/mg-en-34.png",
-        "logo_small": "assets/logos/mg-en-34.png",
-        "logo_medium": "assets/logos/mg-en-34.png"
+        "logo": "assets/logos/wired.png",
+        "logo_small": "assets/logos/wired.png",
+        "logo_medium": "assets/logos/wired.png"
       },
       "metadata": {
         "awards": [],
@@ -8757,9 +14414,9 @@
         "linkedin": null
       },
       "media": {
-        "logo": "assets/logos/mg-en-38.png",
-        "logo_small": "assets/logos/mg-en-38.png",
-        "logo_medium": "assets/logos/mg-en-38.png"
+        "logo": "assets/logos/the_verge.png",
+        "logo_small": "assets/logos/the_verge.png",
+        "logo_medium": "assets/logos/the_verge.png"
       },
       "metadata": {
         "awards": [],
@@ -9714,7 +15371,7 @@
         "web"
       ],
       "coverage": {
-        "Literature": 7
+        "Education": 7
       },
       "contact": {
         "website": "https://kaliokolom.com",
@@ -9740,6 +15397,9 @@
       },
       "tags": [
         "literature",
+        "weekly",
+        "news",
+        "culture",
         "bangladesh",
         "poetry",
         "essays"
@@ -9764,7 +15424,7 @@
         "Literature": 7
       },
       "contact": {
-        "website": "http://www.shabdaguchha.com",
+        "website": "https://www.shabdaguchha.com",
         "email": null,
         "phone": null
       },
@@ -9799,7 +15459,7 @@
       "type": "online magazine",
       "country": "USA",
       "language": "bn",
-      "region": "international",
+      "region": "national",
       "founded": 2000,
       "headquarters": "New York, USA",
       "founder": "Parabaas Inc.",
@@ -9837,7 +15497,7 @@
         "diaspora",
         "poetry",
         "fiction",
-        "international"
+        "national"
       ]
     },
     {

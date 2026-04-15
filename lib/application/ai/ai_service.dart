@@ -1,4 +1,4 @@
-import 'package:bdnewsreader/domain/services/ai_service.dart';
+import '../../domain/services/ai_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 export 'package:bdnewsreader/domain/services/ai_service.dart';

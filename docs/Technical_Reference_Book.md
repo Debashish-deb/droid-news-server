@@ -2,7 +2,7 @@
 
 **Version:** 4.0.0 (Enterprise Gold)
 **Date:** January 27, 2026
-**Author:** DreamSD Group & AI Engineering Team
+**Author:** AppCraftr & AI Engineering Team
 **Confidentiality:** Enterprise Internal / Proprietary
 
 ---
@@ -214,4 +214,4 @@ flutter test
 | `feature.no_ads` | string | Rollout config (e.g. "rollout:50"). |
 
 ---
-*Property of DreamSD Group*
+*Property of AppCraftr*

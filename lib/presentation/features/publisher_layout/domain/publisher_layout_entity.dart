@@ -2,16 +2,11 @@ import 'package:flutter/foundation.dart';
 
 @immutable
 class PublisherLayoutEntity {
-
   const PublisherLayoutEntity({
     required this.publisherId,
     required this.position,
   }) : assert(publisherId.length > 0, 'publisherId cannot be empty'),
        assert(position >= 0, 'position must be >= 0');
-
-  /// ------------------------------------------------------------
-  /// JSON Serialization (Network / API)
-  /// ------------------------------------------------------------
 
   factory PublisherLayoutEntity.fromJson(Map<String, dynamic> json) {
     return PublisherLayoutEntity(
@@ -19,10 +14,6 @@ class PublisherLayoutEntity {
       position: _readInt(json, 'position'),
     );
   }
-
-  /// ------------------------------------------------------------
-  /// DB Serialization (Local Persistence)
-  /// ------------------------------------------------------------
 
   factory PublisherLayoutEntity.fromMap(Map<String, dynamic> map) {
     return PublisherLayoutEntity(
@@ -33,10 +24,7 @@ class PublisherLayoutEntity {
   final String publisherId;
   final int position;
 
-  PublisherLayoutEntity copyWith({
-    String? publisherId,
-    int? position,
-  }) {
+  PublisherLayoutEntity copyWith({String? publisherId, int? position}) {
     return PublisherLayoutEntity(
       publisherId: publisherId ?? this.publisherId,
       position: position ?? this.position,
@@ -44,59 +32,38 @@ class PublisherLayoutEntity {
   }
 
   Map<String, dynamic> toJson() => {
-        'publisherId': publisherId,
-        'position': position,
-      };
+    'publisherId': publisherId,
+    'position': position,
+  };
 
   Map<String, dynamic> toMap() => {
-        'publisher_id': publisherId,
-        'position': position,
-      };
-
-  /// ------------------------------------------------------------
-  /// Domain Helpers
-  /// ------------------------------------------------------------
+    'publisher_id': publisherId,
+    'position': position,
+  };
 
   /// Stable identity key
   String get key => publisherId;
 
   /// Sorting helper
-  static int sortByPosition(
-    PublisherLayoutEntity a,
-    PublisherLayoutEntity b,
-  ) =>
+  static int sortByPosition(PublisherLayoutEntity a, PublisherLayoutEntity b) =>
       a.position.compareTo(b.position);
 
   /// Bulk conversion helpers
-  static List<PublisherLayoutEntity> listFromJson(
-    List<dynamic> data,
-  ) =>
-      data
-          .map((e) => PublisherLayoutEntity.fromJson(
-                Map<String, dynamic>.from(e),
-              ))
-          .toList(growable: false);
+  static List<PublisherLayoutEntity> listFromJson(List<dynamic> data) => data
+      .map((e) => PublisherLayoutEntity.fromJson(Map<String, dynamic>.from(e)))
+      .toList(growable: false);
 
   static List<PublisherLayoutEntity> listFromMap(
     List<Map<String, dynamic>> data,
-  ) =>
-      data
-          .map(PublisherLayoutEntity.fromMap)
-          .toList(growable: false);
+  ) => data.map(PublisherLayoutEntity.fromMap).toList(growable: false);
 
   static List<Map<String, dynamic>> listToJson(
     List<PublisherLayoutEntity> list,
-  ) =>
-      list.map((e) => e.toJson()).toList(growable: false);
+  ) => list.map((e) => e.toJson()).toList(growable: false);
 
   static List<Map<String, dynamic>> listToMap(
     List<PublisherLayoutEntity> list,
-  ) =>
-      list.map((e) => e.toMap()).toList(growable: false);
-
-  /// ------------------------------------------------------------
-  /// Equality
-  /// ------------------------------------------------------------
+  ) => list.map((e) => e.toMap()).toList(growable: false);
 
   @override
   bool operator ==(Object other) =>
@@ -112,10 +79,6 @@ class PublisherLayoutEntity {
   @override
   String toString() =>
       'PublisherLayoutEntity(publisherId: $publisherId, position: $position)';
-
-  /// ------------------------------------------------------------
-  /// Defensive Parsing Helpers
-  /// ------------------------------------------------------------
 
   static String _readString(Map<String, dynamic> map, String key) {
     final value = map[key];

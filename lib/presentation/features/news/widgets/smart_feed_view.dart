@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/theme_skeleton.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/smart_feed_provider.dart';
 import '../../home/widgets/news_card.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../../core/navigation/app_paths.dart' show AppPaths;
+import '../../../../core/navigation/navigation_helper.dart';
 import '../../../../l10n/generated/app_localizations.dart'
     show AppLocalizations;
 import '../../common/news_detail_args.dart';
@@ -34,21 +34,23 @@ class SmartFeedView extends ConsumerWidget {
         return Future.value();
       },
       child: ListView.builder(
-        padding: const EdgeInsets.only(top: 16),
+        padding: ThemeSkeleton.shared.insetsOnly(top: 16),
         itemCount: articles.length,
         cacheExtent: 1500, // Pre-render cards for smoother scrolling
-        addRepaintBoundaries: false, // NewsCard already has a RepaintBoundary
         itemBuilder: (context, index) {
           final article = articles[index];
 
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: ThemeSkeleton.shared.insetsSymmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
             child: NewsCard(
               article: article,
               onTap: () {
-                context.push(
-                  AppPaths.newsDetail,
-                  extra: NewsDetailArgs(
+                NavigationHelper.openNewsDetail<void>(
+                  context,
+                  NewsDetailArgs(
                     article: article,
                     articles: articles,
                     initialIndex: index,

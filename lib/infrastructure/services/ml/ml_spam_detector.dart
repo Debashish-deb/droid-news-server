@@ -104,12 +104,24 @@ class MLSpamDetector {
 
   // ── English spam patterns ──────────────────────────────────────────────────
   static const _englishSpamPhrases = <String, double>{
-    'free money': 0.95, 'act now': 0.85, 'limited time': 0.8,
-    'call now': 0.85, 'click now': 0.9, 'buy now': 0.8,
-    'order now': 0.8, 'earn money': 0.85, 'work from home': 0.6,
-    'make money fast': 0.95, 'guaranteed': 0.65, 'winner': 0.6,
-    'congratulations you': 0.9, 'free gift': 0.8, 'no cost': 0.7,
-    'risk free': 0.65, 'cash prize': 0.9, 'instant money': 0.9,
+    'free money': 0.95,
+    'act now': 0.85,
+    'limited time': 0.8,
+    'call now': 0.85,
+    'click now': 0.9,
+    'buy now': 0.8,
+    'order now': 0.8,
+    'earn money': 0.85,
+    'work from home': 0.6,
+    'make money fast': 0.95,
+    'guaranteed': 0.65,
+    'winner': 0.6,
+    'congratulations you': 0.9,
+    'free gift': 0.8,
+    'no cost': 0.7,
+    'risk free': 0.65,
+    'cash prize': 0.9,
+    'instant money': 0.9,
   };
 
   // ── Reputable Bangladeshi news sources (trust boost) ──────────────────────
@@ -136,8 +148,10 @@ class MLSpamDetector {
   Future<void> initialize() async {
     if (_isInitialized) return;
     _isInitialized = true;
-    debugLog('✅ MLSpamDetector initialised (${_banglaClickbaitPhrases.length} BN + '
-        '${_englishClickbaitPhrases.length} EN clickbait patterns)');
+    debugLog(
+      '✅ MLSpamDetector initialised (${_banglaClickbaitPhrases.length} BN + '
+      '${_englishClickbaitPhrases.length} EN clickbait patterns)',
+    );
   }
 
   /// Full quality analysis — returns comprehensive ArticleQuality report
@@ -175,10 +189,13 @@ class MLSpamDetector {
     breakdown.sourceTrust = sourceTrust * 0.15;
 
     // Composite score
-    final baseScore = 0.5 + breakdown.contentBonus + breakdown.sourceTrust
-        - breakdown.clickbaitPenalty
-        - breakdown.spamPenalty
-        - breakdown.typographyPenalty;
+    final baseScore =
+        0.5 +
+        breakdown.contentBonus +
+        breakdown.sourceTrust -
+        breakdown.clickbaitPenalty -
+        breakdown.spamPenalty -
+        breakdown.typographyPenalty;
 
     final finalScore = baseScore.clamp(0.0, 1.0);
 
@@ -316,15 +333,24 @@ class MLSpamDetector {
     // Length quality (BD news articles typically 150–1000 words)
     if (wordCount > 500) {
       quality += 0.3;
-    } else if (wordCount > 200) quality += 0.2;
-    else if (wordCount > 80) quality += 0.1;
-    else quality -= 0.1; // Very thin content
+    } else if (wordCount > 200) {
+      quality += 0.2;
+    } else if (wordCount > 80) {
+      quality += 0.1;
+    } else {
+      quality -= 0.1; // Very thin content
+    }
 
     // Paragraph structure (longer = richer content)
-    final paragraphCount = content.split('\n').where((p) => p.trim().length > 30).length;
+    final paragraphCount = content
+        .split('\n')
+        .where((p) => p.trim().length > 30)
+        .length;
     if (paragraphCount >= 4) {
       quality += 0.2;
-    } else if (paragraphCount >= 2) quality += 0.1;
+    } else if (paragraphCount >= 2) {
+      quality += 0.1;
+    }
 
     // Presence of quoted speech (journalistic quality signal)
     final quotedEnglish = RegExp(r'"[^"]{10,}"').allMatches(content).length;
@@ -371,55 +397,67 @@ class MLSpamDetector {
     final labels = <QualityLabel>[];
 
     if (clickbaitScore >= 0.7) {
-      labels.add(const QualityLabel(
-        code: 'clickbait_high',
-        labelEn: 'High Clickbait',
-        labelBn: 'উচ্চ ক্লিকবেইট',
-        severity: LabelSeverity.high,
-      ));
+      labels.add(
+        const QualityLabel(
+          code: 'clickbait_high',
+          labelEn: 'High Clickbait',
+          labelBn: 'উচ্চ ক্লিকবেইট',
+          severity: LabelSeverity.high,
+        ),
+      );
     } else if (clickbaitScore >= 0.45) {
-      labels.add(const QualityLabel(
-        code: 'clickbait_low',
-        labelEn: 'Mild Clickbait',
-        labelBn: 'সামান্য ক্লিকবেইট',
-        severity: LabelSeverity.medium,
-      ));
+      labels.add(
+        const QualityLabel(
+          code: 'clickbait_low',
+          labelEn: 'Mild Clickbait',
+          labelBn: 'সামান্য ক্লিকবেইট',
+          severity: LabelSeverity.medium,
+        ),
+      );
     }
 
     if (spamScore >= 0.5) {
-      labels.add(const QualityLabel(
-        code: 'spam',
-        labelEn: 'Spam Detected',
-        labelBn: 'স্প্যাম',
-        severity: LabelSeverity.high,
-      ));
+      labels.add(
+        const QualityLabel(
+          code: 'spam',
+          labelEn: 'Spam Detected',
+          labelBn: 'স্প্যাম',
+          severity: LabelSeverity.high,
+        ),
+      );
     }
 
     if (typoPenalty >= 0.2) {
-      labels.add(const QualityLabel(
-        code: 'poor_typography',
-        labelEn: 'Poor Typography',
-        labelBn: 'অনুপযুক্ত শিরোনাম',
-        severity: LabelSeverity.medium,
-      ));
+      labels.add(
+        const QualityLabel(
+          code: 'poor_typography',
+          labelEn: 'Poor Typography',
+          labelBn: 'অনুপযুক্ত শিরোনাম',
+          severity: LabelSeverity.medium,
+        ),
+      );
     }
 
     if (contentQuality >= 0.6) {
-      labels.add(const QualityLabel(
-        code: 'rich_content',
-        labelEn: 'In-depth Content',
-        labelBn: 'বিস্তারিত তথ্য',
-        severity: LabelSeverity.positive,
-      ));
+      labels.add(
+        const QualityLabel(
+          code: 'rich_content',
+          labelEn: 'In-depth Content',
+          labelBn: 'বিস্তারিত তথ্য',
+          severity: LabelSeverity.positive,
+        ),
+      );
     }
 
     if (sourceTrust >= 0.85) {
-      labels.add(const QualityLabel(
-        code: 'trusted_source',
-        labelEn: 'Trusted Source',
-        labelBn: 'বিশ্বস্ত উৎস',
-        severity: LabelSeverity.positive,
-      ));
+      labels.add(
+        const QualityLabel(
+          code: 'trusted_source',
+          labelEn: 'Trusted Source',
+          labelBn: 'বিশ্বস্ত উৎস',
+          severity: LabelSeverity.positive,
+        ),
+      );
     }
 
     return labels;
@@ -439,6 +477,7 @@ class MLSpamDetector {
 // ── Supporting models ─────────────────────────────────────────────────────────
 
 enum QualityTier { premium, good, average, low, spam }
+
 enum LabelSeverity { positive, low, medium, high }
 
 class _QLBreakdown {
@@ -464,11 +503,11 @@ class ArticleQuality {
     required this.isBangla,
   });
 
-  final double qualityScore;        // 0.0–1.0 composite
-  final double clickbaitScore;      // 0.0–1.0
-  final double spamScore;           // 0.0–1.0
+  final double qualityScore; // 0.0–1.0 composite
+  final double clickbaitScore; // 0.0–1.0
+  final double spamScore; // 0.0–1.0
   final double contentQualityScore; // 0.0–1.0
-  final double sourceTrustScore;    // 0.0–1.0
+  final double sourceTrustScore; // 0.0–1.0
   final bool isSpam;
   final bool isClickbait;
   final bool isLowQuality;
@@ -478,31 +517,46 @@ class ArticleQuality {
 
   String get tierLabelEn {
     switch (qualityTier) {
-      case QualityTier.premium: return 'Premium';
-      case QualityTier.good: return 'Good';
-      case QualityTier.average: return 'Average';
-      case QualityTier.low: return 'Low Quality';
-      case QualityTier.spam: return 'Spam';
+      case QualityTier.premium:
+        return 'Premium';
+      case QualityTier.good:
+        return 'Good';
+      case QualityTier.average:
+        return 'Average';
+      case QualityTier.low:
+        return 'Low Quality';
+      case QualityTier.spam:
+        return 'Spam';
     }
   }
 
   String get tierLabelBn {
     switch (qualityTier) {
-      case QualityTier.premium: return 'উচ্চমানের';
-      case QualityTier.good: return 'ভালো';
-      case QualityTier.average: return 'মাঝারি';
-      case QualityTier.low: return 'নিম্নমানের';
-      case QualityTier.spam: return 'স্প্যাম';
+      case QualityTier.premium:
+        return 'উচ্চমানের';
+      case QualityTier.good:
+        return 'ভালো';
+      case QualityTier.average:
+        return 'মাঝারি';
+      case QualityTier.low:
+        return 'নিম্নমানের';
+      case QualityTier.spam:
+        return 'স্প্যাম';
     }
   }
 
   String get tierIcon {
     switch (qualityTier) {
-      case QualityTier.premium: return '🏆';
-      case QualityTier.good: return '✅';
-      case QualityTier.average: return '⚠️';
-      case QualityTier.low: return '❗';
-      case QualityTier.spam: return '🚫';
+      case QualityTier.premium:
+        return '🏆';
+      case QualityTier.good:
+        return '✅';
+      case QualityTier.average:
+        return '⚠️';
+      case QualityTier.low:
+        return '❗';
+      case QualityTier.spam:
+        return '🚫';
     }
   }
 

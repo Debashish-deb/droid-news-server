@@ -61,7 +61,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get contactSupport => 'Contact Support';
 
   @override
-  String get contactEmail => 'customerservice@dsmobiles.com';
+  String get contactEmail => 'support@appcraftr.store';
 
   @override
   String get mailClientError => 'Could not launch mail client.';
@@ -202,7 +202,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String companyFooter(Object year) {
-    return '© $year DreamSD Group';
+    return '© $year AppCraftr';
   }
 
   @override

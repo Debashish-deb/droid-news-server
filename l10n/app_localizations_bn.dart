@@ -62,7 +62,7 @@ class AppLocalizationsBn extends AppLocalizations {
   String get contactSupport => 'সহযোগিতা';
 
   @override
-  String get contactEmail => 'customerservice@dsmobiles.com';
+  String get contactEmail => 'support@appcraftr.store';
 
   @override
   String get mailClientError => 'মেইল ক্লায়েন্ট চালু করা যায়নি।';
@@ -205,7 +205,7 @@ class AppLocalizationsBn extends AppLocalizations {
 
   @override
   String companyFooter(Object year) {
-    return '© $year ড্রিমএসডি গ্রুপ';
+    return '© $year AppCraftr';
   }
 
   @override

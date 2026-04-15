@@ -3,16 +3,16 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'root_detector.dart';
+import 'secure_prefs.dart';
 
 /// Comprehensive security service providing hashing,
 /// HMAC, secure storage, and device security checks.
 class SecurityService {
   SecurityService();
 
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final _secureStorage = SecurePrefs.sharedStorage;
   final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
   static const _channel = MethodChannel('com.bdnews/security');
 

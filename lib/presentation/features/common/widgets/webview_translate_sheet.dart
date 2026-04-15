@@ -1,5 +1,8 @@
 import 'dart:ui';
+import '../../../../core/theme/theme_skeleton.dart';
 import 'package:flutter/material.dart';
+
+import '../../../widgets/platform_surface_treatment.dart';
 
 enum TranslateEngine { google, bing, deepl }
 
@@ -32,61 +35,67 @@ class WebTranslateSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final base = cs.onSurface;
-    final bg = cs.surface;
-
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          color: bg.withValues(alpha: 0.92),
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    final preferMaterialChrome = preferAndroidMaterialSurfaceChrome(context);
+    final bg = preferMaterialChrome
+        ? materialSurfaceOverlayColor(cs, surfaceAlpha: 0.98, tintAlpha: 0.06)
+        : cs.surface;
+    final content = Container(
+      color: bg.withValues(alpha: preferMaterialChrome ? 1 : 0.92),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              borderRadius: ThemeSkeleton.shared.circular(2),
+              color: base.withValues(alpha: 0.18),
+            ),
+          ),
+          const SizedBox(height: ThemeSkeleton.size20),
+          Row(
             children: [
               Container(
-                width: 40,
-                height: 4,
+                width: 5,
+                height: 5,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(2),
-                  color: base.withValues(alpha: 0.18),
+                  color: cs.primary,
+                  shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: cs.primary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'TRANSLATE TO BENGALI',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: cs.primary,
-                      letterSpacing: 2.0,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              for (final e in _engines)
-                EngineRow(
-                  label: e.label,
-                  sub: e.sub,
-                  onTap: () => Navigator.of(context).pop(e.engine),
+              const SizedBox(width: ThemeSkeleton.size10),
+              Text(
+                'TRANSLATE TO BENGALI',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: cs.primary,
+                  letterSpacing: 2.0,
                 ),
-              const SizedBox(height: 8),
+              ),
             ],
           ),
-        ),
+          const SizedBox(height: ThemeSkeleton.size16),
+          for (final e in _engines)
+            EngineRow(
+              label: e.label,
+              sub: e.sub,
+              onTap: () => Navigator.of(context).pop(e.engine),
+            ),
+          const SizedBox(height: ThemeSkeleton.size8),
+        ],
       ),
+    );
+
+    return ClipRRect(
+      borderRadius: BorderRadius.vertical(top: ThemeSkeleton.shared.radius(28)),
+      child: preferMaterialChrome
+          ? content
+          : BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: content,
+            ),
     );
   }
 }
@@ -122,10 +131,13 @@ class _EngineRowState extends State<EngineRow> {
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        margin: ThemeSkeleton.shared.insetsOnly(bottom: 10),
+        padding: ThemeSkeleton.shared.insetsSymmetric(
+          horizontal: 18,
+          vertical: 14,
+        ),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: ThemeSkeleton.shared.circular(16),
           color: _pressed
               ? cs.surfaceContainerHighest.withValues(alpha: 0.65)
               : cs.surfaceContainerHigh.withValues(alpha: 0.42),
@@ -149,7 +161,7 @@ class _EngineRowState extends State<EngineRow> {
                       letterSpacing: -.1,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: ThemeSkeleton.size2),
                   Text(
                     widget.sub,
                     style: TextStyle(

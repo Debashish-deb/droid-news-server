@@ -1,4 +1,5 @@
 import 'dart:math';
+import '../../core/theme/theme_skeleton.dart';
 import 'particle_background.dart';
 
 import 'package:flutter/material.dart';
@@ -7,13 +8,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/theme_providers.dart' show navIconColorProvider;
 import '../../core/config/constants.dart' show AppPerformance;
 import '../../core/config/performance_config.dart';
+import 'platform_surface_treatment.dart';
 
-/// Premium animated container widget with advanced features:
-/// - Glassmorphism effects
-/// - Gradient transitions
-/// - Particle backgrounds
-/// - Border animations
-/// - Performance optimizations
+// Premium animated container widget with advanced features: Glassmorphism effects, Gradient transitions, Particle backgrounds, Border animations
+
 class AnimatedThemeContainer extends ConsumerStatefulWidget {
   const AnimatedThemeContainer({
     super.key,
@@ -38,7 +36,7 @@ class AnimatedThemeContainer extends ConsumerStatefulWidget {
     this.borderAnimationDuration = const Duration(milliseconds: 700),
     this.enableHoverEffect = false,
     this.hoverElevation = 6.0,
-    this.animationDuration = const Duration(milliseconds: 220),
+    this.animationDuration = const Duration(milliseconds: 200),
     this.animationCurve = Curves.easeInOutCubic,
     this.onTap,
     this.onHover,
@@ -94,6 +92,7 @@ class _AnimatedThemeContainerState extends ConsumerState<AnimatedThemeContainer>
   bool _lowPowerMode = false;
   bool _isLowEndDevice = false;
   DevicePerformanceTier _performanceTier = DevicePerformanceTier.midRange;
+  bool _preferMaterialChrome = false;
 
   @override
   void initState() {
@@ -110,12 +109,14 @@ class _AnimatedThemeContainerState extends ConsumerState<AnimatedThemeContainer>
         perf.reduceMotion != _reduceMotion ||
         perf.lowPowerMode != _lowPowerMode ||
         perf.isLowEndDevice != _isLowEndDevice ||
-        perf.performanceTier != _performanceTier) {
+        perf.performanceTier != _performanceTier ||
+        preferAndroidMaterialSurfaceChrome(context) != _preferMaterialChrome) {
       _reduceEffects = perf.reduceEffects;
       _reduceMotion = perf.reduceMotion;
       _lowPowerMode = perf.lowPowerMode;
       _isLowEndDevice = perf.isLowEndDevice;
       _performanceTier = perf.performanceTier;
+      _preferMaterialChrome = preferAndroidMaterialSurfaceChrome(context);
       _controller.duration = _reduceMotion
           ? AppPerformance.animationDuration
           : widget.borderAnimationDuration;
@@ -205,7 +206,7 @@ class _AnimatedThemeContainerState extends ConsumerState<AnimatedThemeContainer>
     if (sigmaX <= 1.0 && sigmaY <= 1.0) return child;
 
     return ClipRRect(
-      borderRadius: widget.borderRadius ?? BorderRadius.circular(0),
+      borderRadius: widget.borderRadius ?? ThemeSkeleton.shared.circular(0),
       child: RepaintBoundary(
         child: BackdropFilter(
           filter: ui.ImageFilter.blur(sigmaX: sigmaX, sigmaY: sigmaY),
@@ -215,10 +216,7 @@ class _AnimatedThemeContainerState extends ConsumerState<AnimatedThemeContainer>
     );
   }
 
-  Decoration _buildDecoration(BuildContext context) {
-    final selectionColor = ref.watch(navIconColorProvider);
-
-    // Base decoration from widget parameters
+  Decoration _buildDecoration(BuildContext context, {Color? selectionColor}) {
     var baseDecoration =
         widget.decoration ??
         BoxDecoration(
@@ -231,8 +229,10 @@ class _AnimatedThemeContainerState extends ConsumerState<AnimatedThemeContainer>
 
     // Add hover effects
     if (_isHovering && widget.enableHoverEffect) {
+      final resolvedSelectionColor =
+          selectionColor ?? Theme.of(context).colorScheme.primary;
       final hoverShadow = BoxShadow(
-        color: selectionColor.withValues(alpha: 0.3),
+        color: resolvedSelectionColor.withValues(alpha: 0.3),
         blurRadius: widget.hoverElevation,
         spreadRadius: 2,
         offset: const Offset(0, 4),
@@ -245,16 +245,21 @@ class _AnimatedThemeContainerState extends ConsumerState<AnimatedThemeContainer>
             LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [selectionColor.withValues(alpha: 0.1), Colors.transparent],
+              colors: [
+                resolvedSelectionColor.withValues(alpha: 0.1),
+                Colors.transparent,
+              ],
             ),
       );
     }
 
     // Add animated border if enabled
     if (widget.enableBorderAnimation) {
+      final resolvedSelectionColor =
+          selectionColor ?? Theme.of(context).colorScheme.primary;
       final borderColor = Color.lerp(
-        selectionColor.withValues(alpha: 0.3),
-        selectionColor.withValues(alpha: 0.7),
+        resolvedSelectionColor.withValues(alpha: 0.3),
+        resolvedSelectionColor.withValues(alpha: 0.7),
         _borderAnimation.value,
       );
 
@@ -277,6 +282,12 @@ class _AnimatedThemeContainerState extends ConsumerState<AnimatedThemeContainer>
     final Duration animationDuration = _reduceMotion
         ? AppPerformance.animationDuration
         : widget.animationDuration;
+    final bool needsSelectionColor =
+        (widget.enableHoverEffect && _isHovering) ||
+        widget.enableBorderAnimation;
+    final Color? selectionColor = needsSelectionColor
+        ? ref.watch(navIconColorProvider)
+        : null;
 
     return Semantics(
       label: widget.semanticLabel,
@@ -302,7 +313,10 @@ class _AnimatedThemeContainerState extends ConsumerState<AnimatedThemeContainer>
               clipBehavior: widget.clipBehavior,
               transform: widget.transform,
               transformAlignment: widget.transformAlignment,
-              decoration: _buildDecoration(context),
+              decoration: _buildDecoration(
+                context,
+                selectionColor: selectionColor,
+              ),
               child: Stack(
                 children: [
                   // Particle background
@@ -330,7 +344,10 @@ class _AnimatedThemeContainerState extends ConsumerState<AnimatedThemeContainer>
   }
 
   bool get _allowEffects =>
-      !_reduceEffects && !_lowPowerMode && !_isLowEndDevice;
+      !_reduceEffects &&
+      !_lowPowerMode &&
+      !_isLowEndDevice &&
+      !_preferMaterialChrome;
 
   bool get _allowParticles =>
       _allowEffects &&
@@ -343,9 +360,9 @@ class GlassContainer extends ConsumerWidget {
   const GlassContainer({
     required this.child,
     super.key,
-    this.padding = const EdgeInsets.all(20),
+    this.padding = ThemeSkeleton.insetsAll20,
     this.margin,
-    this.borderRadius = const BorderRadius.all(Radius.circular(20)),
+    this.borderRadius = ThemeSkeleton.borderRadius20,
     this.borderColor,
     this.backgroundColor,
     this.blurStrength = 10.0,
@@ -368,34 +385,48 @@ class GlassContainer extends ConsumerWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bool reduceEffects = PerformanceConfig.of(context).reduceEffects;
+    final bool preferMaterialChrome = preferAndroidMaterialSurfaceChrome(
+      context,
+    );
+    final bool cheapComposite = reduceEffects || preferMaterialChrome;
+    final Color resolvedBackground =
+        backgroundColor ??
+        (preferMaterialChrome
+            ? materialSurfaceOverlayColor(
+                theme.colorScheme,
+                tone: MaterialSurfaceTone.highest,
+                surfaceAlpha: isDark ? 0.94 : 0.98,
+                tintAlpha: isDark ? 0.06 : 0.04,
+              )
+            : (isDark
+                  ? Colors.white.withValues(alpha: reduceEffects ? 0.04 : 0.08)
+                  : Colors.white.withValues(
+                      alpha: reduceEffects ? 0.12 : 0.25,
+                    )));
+    final Color resolvedBorder =
+        borderColor ??
+        (preferMaterialChrome
+            ? theme.colorScheme.outlineVariant.withValues(alpha: 0.72)
+            : (isDark ? Colors.white : Colors.black).withValues(
+                alpha: reduceEffects ? 0.42 : 0.55,
+              ));
 
     return AnimatedThemeContainer(
       padding: padding,
       margin: margin,
       borderRadius: borderRadius,
       enableGlassEffect: true,
-      glassBlurSigma: reduceEffects
+      glassBlurSigma: cheapComposite
           ? AppPerformance.glassBlurSigma
           : blurStrength,
-      enableHoverEffect: enableHoverEffect && !reduceEffects,
-      enableBorderAnimation: enableBorderAnimation && !reduceEffects,
+      enableHoverEffect: enableHoverEffect && !cheapComposite,
+      enableBorderAnimation: enableBorderAnimation && !cheapComposite,
       borderAnimationDuration: const Duration(milliseconds: 1500),
       decoration: BoxDecoration(
-        color:
-            backgroundColor ??
-            (isDark
-                ? Colors.white.withValues(alpha: reduceEffects ? 0.04 : 0.08)
-                : Colors.white.withValues(alpha: reduceEffects ? 0.12 : 0.25)),
+        color: resolvedBackground,
         borderRadius: borderRadius,
-        border: Border.all(
-          color:
-              borderColor ??
-              (isDark ? Colors.white : Colors.black).withValues(alpha: 
-                reduceEffects ? 0.42 : 0.55,
-              ),
-          width: 1.5,
-        ),
-        gradient: reduceEffects
+        border: Border.all(color: resolvedBorder, width: 1.5),
+        gradient: cheapComposite
             ? null
             : LinearGradient(
                 begin: Alignment.topLeft,
@@ -405,12 +436,12 @@ class GlassContainer extends ConsumerWidget {
                   Colors.white.withValues(alpha: isDark ? 0.05 : 0.2),
                 ],
               ),
-        boxShadow: reduceEffects
+        boxShadow: cheapComposite
             ? [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withValues(alpha: isDark ? 0.12 : 0.04),
+                  blurRadius: preferMaterialChrome ? 6 : 8,
+                  offset: Offset(0, preferMaterialChrome ? 3 : 4),
                 ),
               ]
             : [
@@ -426,7 +457,7 @@ class GlassContainer extends ConsumerWidget {
   }
 }
 
-/// Gradient container with animated transitions
+// Gradient container with animated transitions
 class GradientContainer extends StatelessWidget {
   const GradientContainer({
     required this.child,
@@ -463,7 +494,7 @@ class GradientContainer extends StatelessWidget {
       borderRadius: borderRadius,
       gradient: gradient ?? defaultGradient,
       animationDuration: enableAnimation
-          ? const Duration(milliseconds: 500)
+          ? const Duration(milliseconds: 200)
           : Duration.zero,
       decoration: BoxDecoration(
         borderRadius: borderRadius,
@@ -480,14 +511,14 @@ class GradientContainer extends StatelessWidget {
   }
 }
 
-/// Card-style container with elevation and hover effects
+// Card-style container with elevation and hover effects
 class PremiumCard extends ConsumerWidget {
   const PremiumCard({
     required this.child,
     super.key,
-    this.padding = const EdgeInsets.all(24),
+    this.padding = ThemeSkeleton.insetsAll24,
     this.margin,
-    this.borderRadius = const BorderRadius.all(Radius.circular(24)),
+    this.borderRadius = ThemeSkeleton.borderRadius24,
     this.elevation = 8.0,
     this.enableHover = true,
   });
@@ -519,7 +550,9 @@ class PremiumCard extends ConsumerWidget {
           offset: Offset(0, elevation / 2),
         ),
       ],
-      border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.1)),
+      border: Border.all(
+        color: theme.colorScheme.outline.withValues(alpha: 0.1),
+      ),
       child: child,
     );
   }

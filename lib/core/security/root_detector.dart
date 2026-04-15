@@ -1,9 +1,10 @@
+// ignore_for_file: avoid_classes_with_only_static_members
+
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 /// Result of root/jailbreak detection
 class RootStatus {
-  
   const RootStatus({
     required this.isRooted,
     required this.confidence,
@@ -14,13 +15,14 @@ class RootStatus {
   final double confidence;
   final int indicators;
   final List<String> detectedIndicators;
-  
+
   @override
-  String toString() => 'RootStatus(rooted: $isRooted, confidence: ${(confidence * 100).toStringAsFixed(1)}%, indicators: $indicators)';
+  String toString() =>
+      'RootStatus(rooted: $isRooted, confidence: ${(confidence * 100).toStringAsFixed(1)}%, indicators: $indicators)';
 }
 
 /// Multi-layered Root/Jailbreak Detector
-/// 
+///
 /// Uses multiple detection methods to reduce false positives:
 /// - SU binary path checking
 /// - Suspicious package detection
@@ -42,7 +44,7 @@ class RootDetector {
     '/system/bin/failsafe/su',
     '/data/local/su',
   ];
-  
+
   static const List<String> _suspiciousPackages = [
     'com.topjohnwu.magisk',
     'com.koushikdutta.superuser',
@@ -55,9 +57,9 @@ class RootDetector {
     'com.chelpus.lackypatch',
     'com.ramdroid.appquarantine',
   ];
-  
+
   /// Perform multi-layered root detection
-  /// 
+  ///
   /// Returns [RootStatus] with confidence score
   /// Requires 2+ indicators to consider device rooted (reduces false positives)
   static Future<RootStatus> detect() async {
@@ -84,18 +86,18 @@ class RootDetector {
         return result;
       }),
     ];
-    
+
     final results = await Future.wait(checks);
     final indicators = results.where((check) => check).length;
     final confidence = indicators / results.length;
-    
+
     final isRooted = indicators >= 2;
-    
+
     if (isRooted && kDebugMode) {
       debugPrint('🚨 ROOT DETECTED: $indicators/${results.length} indicators');
       debugPrint('   Detected: ${detectedIndicators.join(", ")}');
     }
-    
+
     return RootStatus(
       isRooted: isRooted,
       confidence: confidence,
@@ -103,11 +105,11 @@ class RootDetector {
       detectedIndicators: detectedIndicators,
     );
   }
-  
+
   /// Check for SU binary in known locations
   static Future<bool> _checkSuPaths() async {
     if (!Platform.isAndroid) return false;
-    
+
     for (final path in _suspiciousPaths) {
       try {
         if (await File(path).exists()) {
@@ -120,36 +122,38 @@ class RootDetector {
     }
     return false;
   }
-  
+
   /// Check for known rooting apps
   static Future<bool> _checkSuspiciousPackages() async {
     if (!Platform.isAndroid) return false;
-    
+
     try {
       final result = await Process.run('pm', ['list', 'packages']);
       final packages = result.stdout.toString();
-      
+
       for (final suspiciousPackage in _suspiciousPackages) {
         if (packages.contains(suspiciousPackage)) {
-          if (kDebugMode) debugPrint('⚠️ Found suspicious package: $suspiciousPackage');
+          if (kDebugMode) {
+            debugPrint('⚠️ Found suspicious package: $suspiciousPackage');
+          }
           return true;
         }
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Failed to check packages: $e');
     }
-    
+
     return false;
   }
-  
+
   /// Check build tags for "test-keys"
   static Future<bool> _checkBuildTags() async {
     if (!Platform.isAndroid) return false;
-    
+
     try {
       final result = await Process.run('getprop', ['ro.build.tags']);
       final tags = result.stdout.toString().trim();
-      
+
       if (tags.contains('test-keys')) {
         if (kDebugMode) debugPrint('⚠️ Build contains test-keys: $tags');
         return true;
@@ -157,18 +161,18 @@ class RootDetector {
     } catch (e) {
       if (kDebugMode) debugPrint('Failed to check build tags: $e');
     }
-    
+
     return false;
   }
-  
+
   /// Check for engineering/userdebug builds
   static Future<bool> _checkTestKeys() async {
     if (!Platform.isAndroid) return false;
-    
+
     try {
       final result = await Process.run('getprop', ['ro.build.type']);
       final buildType = result.stdout.toString().trim();
-      
+
       if (buildType == 'eng' || buildType == 'userdebug') {
         if (kDebugMode) debugPrint('⚠️ Engineering build detected: $buildType');
         return true;
@@ -176,27 +180,27 @@ class RootDetector {
     } catch (e) {
       if (kDebugMode) debugPrint('Failed to check build type: $e');
     }
-    
+
     return false;
   }
-  
+
   /// Check if system is debuggable
   static Future<bool> _checkDangerousProps() async {
     if (!Platform.isAndroid) return false;
-    
+
     try {
       final result = await Process.run('getprop', ['ro.debuggable']);
       final isDebuggable = result.stdout.toString().trim() == '1';
-      
+
       if (isDebuggable) {
         if (kDebugMode) debugPrint('⚠️ System is debuggable');
       }
-      
+
       return isDebuggable;
     } catch (e) {
       if (kDebugMode) debugPrint('Failed to check debuggable prop: $e');
     }
-    
+
     return false;
   }
 }

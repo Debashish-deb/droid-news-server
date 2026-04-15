@@ -27,6 +27,7 @@ class AppNetworkService extends ChangeNotifier {
 
   bool get isConnected => _debugOverrideConnectivity ?? _isConnected;
   NetworkQuality get currentQuality => _debugOverrideQuality ?? _currentQuality;
+  DevicePerformanceTier get performanceTier => _performanceTier;
 
   bool get isDebugOverrideActive =>
       _debugOverrideQuality != null || _debugOverrideConnectivity != null;
@@ -124,7 +125,21 @@ class AppNetworkService extends ChangeNotifier {
         break;
       case ConnectivityResult.wifi:
       case ConnectivityResult.ethernet:
-        _currentQuality = NetworkQuality.excellent;
+        // Start conservatively at 'good' — congested WiFi in Bangladesh
+        // can still have high RTT. Promote to 'excellent' only after
+        // collecting 2+ RTT samples that confirm fast response.
+        if (_latencySamplesMs.length >= 2) {
+          final sorted = List<int>.from(_latencySamplesMs)..sort();
+          final median = sorted[sorted.length ~/ 2];
+          _currentQuality = median <= 200
+              ? NetworkQuality.excellent
+              : median <= 600
+              ? NetworkQuality.good
+              : NetworkQuality.fair;
+        } else {
+          // Not enough samples yet — assume good until proven otherwise.
+          _currentQuality = NetworkQuality.good;
+        }
         break;
       case ConnectivityResult.mobile:
         _currentQuality = _deriveMobileQualityFromLatency();
@@ -134,6 +149,9 @@ class AppNetworkService extends ChangeNotifier {
       case ConnectivityResult.other:
         _currentQuality = NetworkQuality.fair;
         break;
+      case ConnectivityResult.satellite:
+        // TODO: Handle this case.
+        throw UnimplementedError();
     }
 
     final changed =
@@ -163,6 +181,22 @@ class AppNetworkService extends ChangeNotifier {
       if (next != _currentQuality) {
         _currentQuality = next;
         notifyListeners();
+      }
+    } else if (_lastTransport == ConnectivityResult.wifi ||
+        _lastTransport == ConnectivityResult.ethernet) {
+      // Re-evaluate WiFi quality now that we have more RTT data.
+      if (_latencySamplesMs.length >= 2) {
+        final sorted = List<int>.from(_latencySamplesMs)..sort();
+        final median = sorted[sorted.length ~/ 2];
+        final next = median <= 200
+            ? NetworkQuality.excellent
+            : median <= 600
+            ? NetworkQuality.good
+            : NetworkQuality.fair;
+        if (next != _currentQuality) {
+          _currentQuality = next;
+          notifyListeners();
+        }
       }
     }
   }

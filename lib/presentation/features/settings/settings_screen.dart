@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,17 +17,15 @@ import '../../../infrastructure/services/notifications/push_notification_service
 
 import '../../../core/theme/app_icons.dart' show AppIcons;
 import '../../../core/navigation/app_paths.dart';
+import '../../../core/navigation/navigation_helper.dart';
 import '../../../core/enums/theme_mode.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/theme.dart';
 import '../../../core/utils/number_localization.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../providers/app_settings_providers.dart';
 import '../../providers/language_providers.dart';
-import '../../providers/premium_providers.dart'
-    show
-        entitlementSnapshotProvider,
-        isPremiumStateProvider,
-        shouldShowAdsProvider;
+import '../../providers/premium_providers.dart' show isPremiumStateProvider;
 import '../../providers/saved_articles_provider.dart'
     show savedArticlesProvider;
 import '../../providers/theme_providers.dart'
@@ -36,7 +33,10 @@ import '../../providers/theme_providers.dart'
 import '../../providers/tab_providers.dart';
 import '../../widgets/app_drawer.dart' show AppDrawer;
 import '../../widgets/banner_ad_widget.dart' show BannerAdWidget;
+import '../../widgets/premium_screen_header.dart';
+import 'settings_button_palette.dart';
 import 'package:go_router/go_router.dart';
+import '../../widgets/premium_scaffold.dart';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 
@@ -44,6 +44,24 @@ extension _CtxColors on BuildContext {
   AppColorsExtension get colors =>
       Theme.of(this).extension<AppColorsExtension>()!;
 }
+
+Color _settingsButtonForeground(BuildContext context, {required bool active}) {
+  return resolveSettingsButtonPalette(context, active: active).foreground;
+}
+
+BoxDecoration _settingsButtonDecoration(
+  BuildContext context, {
+  required bool active,
+  double radius = 14,
+}) {
+  return resolveSettingsButtonPalette(
+    context,
+    active: active,
+    radius: radius,
+  ).decoration;
+}
+
+// Removed _SettingsBackdrop as it is now handled by PremiumScaffold
 
 // ─── Screen ─────────────────────────────────────────────────────────────────
 
@@ -54,16 +72,10 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen>
-    with TickerProviderStateMixin {
-  final InAppPurchase _iap = InAppPurchase.instance;
-  ProductDetails? _proLifetimeProduct;
-  ProductDetails? _proYearlyProduct;
-  StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
-  bool _storeAvailable = false;
-
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _version = '';
   bool _clearingCache = false;
+  bool _showDeferredBanner = false;
 
   static const List<String> _newsCategoryCacheKeys = <String>[
     'latest',
@@ -79,99 +91,63 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   final ScrollController _scrollController = ScrollController();
 
-  late final AnimationController _entryCtrl;
-  late final Animation<double> _entryFade;
-  late final Animation<Offset> _entrySlide;
-
   @override
   void initState() {
     super.initState();
-    _loadVersion();
-    _setupStore();
-    _listenToPurchases();
-
-    _entryCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    _entryFade = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
-    _entrySlide = const AlwaysStoppedAnimation(Offset.zero);
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _entryCtrl.forward();
+      unawaited(_warmNonCriticalUi());
     });
 
     ref.listenManual<int>(currentTabIndexProvider, (prev, next) {
-      if (next == 4 && _scrollController.hasClients) {
-        _scrollController.jumpTo(0);
+      if (next == 4) {
+        _scheduleJumpToTopIfNeeded();
       }
     });
   }
 
   @override
   void dispose() {
-    _purchaseSub?.cancel();
     _scrollController.dispose();
-    _entryCtrl.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-  }
-
   Future<void> _loadVersion() async {
-    final info = await PackageInfo.fromPlatform();
-    if (mounted) setState(() => _version = info.version);
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) setState(() => _version = info.version);
+    } catch (e, s) {
+      ErrorHandler.logError(
+        e,
+        s,
+        reason: 'SettingsScreen PackageInfo.fromPlatform failed',
+      );
+    }
   }
 
-  Future<void> _setupStore() async {
-    _storeAvailable = await _iap.isAvailable();
-    if (!_storeAvailable || !mounted) return;
-    final response = await _iap.queryProductDetails(
-      PremiumPlanConfig.primaryProductIds,
-    );
+  Future<void> _warmNonCriticalUi() async {
     if (!mounted) return;
-    final products = response.productDetails;
-    ProductDetails? findById(String id) {
-      for (final product in products) {
-        if (product.id == id) return product;
-      }
-      return null;
-    }
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+    if (!mounted) return;
+    setState(() => _showDeferredBanner = true);
+    await _loadVersion();
+  }
 
-    setState(() {
-      _proLifetimeProduct = findById(PremiumPlanConfig.proLifetimeProductId);
-      _proYearlyProduct = findById(PremiumPlanConfig.proYearlyProductId);
+  void _jumpToTopIfNeeded() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.pixels <= 1) return;
+    _scrollController.jumpTo(0);
+  }
+
+  void _scheduleJumpToTopIfNeeded() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _jumpToTopIfNeeded();
     });
   }
 
-  void _listenToPurchases() {
-    _purchaseSub = _iap.purchaseStream.listen(
-      _handlePurchases,
-      onError: (e) => debugPrint('Purchase stream error: $e'),
-    );
+  void _buyRemoveAds() {
+    NavigationHelper.openSubscriptionManagement<void>(context);
   }
-
-  void _handlePurchases(List<PurchaseDetails> purchases) {
-    for (final p in purchases) {
-      if (p.status == PurchaseStatus.purchased ||
-          p.status == PurchaseStatus.restored) {
-        unawaited(() async {
-          final result = await ref
-              .read(subscriptionRepositoryProvider)
-              .processStorePurchase(p);
-          result.fold(
-            (failure) => _snack(failure.userMessage),
-            (_) => _snack(loc.thankYouPurchase),
-          );
-        }());
-      }
-    }
-  }
-
-  void _buyRemoveAds() => context.push(AppPaths.subscriptionManagement);
 
   Future<void> _launchPaypal() async {
     final id = dotenv.env['PAYPAL_BUTTON_ID'] ?? '';
@@ -343,22 +319,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   void _snack(String msg) {
     if (!mounted) return;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          msg,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: scheme.onInverseSurface,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: scheme.inverseSurface,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
+      SnackBar(content: Text(msg), margin: const EdgeInsets.all(16)),
     );
   }
 
@@ -368,189 +330,155 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final isPremium = ref.watch(isPremiumStateProvider);
-    final shouldShowAds = ref.watch(shouldShowAdsProvider);
     final settings = ref.watch(appSettingsProvider);
     final themeMode = normalizeThemeMode(ref.watch(currentThemeModeProvider));
     final langCode = ref.watch(languageCodeProvider);
-    final topInset = MediaQuery.paddingOf(context).top;
-    final topSpacer = topInset + 72;
 
-    return Scaffold(
-      backgroundColor: context.colors.bg,
-      extendBodyBehindAppBar: true,
+    return PremiumScaffold(
+      useBackground: false, // Hosted in MainNavigationScreen
+      showBackgroundParticles: false,
+      title: loc.settings,
+      headerLeading: PremiumHeaderLeading.menu,
       drawer: const AppDrawer(),
-      appBar: _SettingsAppBar(title: loc.settings),
-      body: FadeTransition(
-        opacity: _entryFade,
-        child: SlideTransition(
-          position: _entrySlide,
-          child: CustomScrollView(
-            controller: _scrollController,
-            physics: const ClampingScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(child: SizedBox(height: topSpacer)),
-
-              // ── Premium Ad-free banner OR Ad ──
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  child: shouldShowAds
-                      ? const _Card(child: BannerAdWidget())
-                      : const SizedBox.shrink(),
-                ),
-              ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 4.0)),
-
-              // ── Theme ──
-              SliverToBoxAdapter(
-                child: _Section(
-                  label: loc.theme,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                  child: _ThemeSelector(
-                    current: themeMode,
-                    onChanged: (m) =>
-                        ref.read(themeProvider.notifier).setTheme(m),
-                    loc: loc,
-                    onGoPremium: _buyRemoveAds,
-                  ),
-                ),
-              ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 4.0)),
-
-              // ── Language ──
-              SliverToBoxAdapter(
-                child: _Section(
-                  label: loc.language,
-                  child: Row(
-                    children: [
-                      Expanded(child: _langBtn('en', 'English')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _langBtn('bn', 'বাংলা')),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 4.0)),
-
-              // ── Premium / Ad-free ──
-              SliverToBoxAdapter(
-                child: _Section(
-                  label: loc.adFree,
-                  child: isPremium
-                      ? _PremiumConfirmedRow(loc: loc)
-                      : _UpgradeRow(
-                          lifetimePrice:
-                              _proLifetimeProduct?.price ??
-                              PremiumPlanConfig.proLifetimeDisplayPrice,
-                          yearlyPrice:
-                              _proYearlyProduct?.price ??
-                              PremiumPlanConfig.proYearlyDisplayPrice,
-                          onUpgrade: _buyRemoveAds,
-                          onDonate: _launchPaypal,
-                          loc: loc,
-                        ),
-                ),
-              ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 4.0)),
-
-              // ── Misc ──
-              SliverToBoxAdapter(
-                child: _Section(
-                  label: loc.misc,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 5,
-                        child: _ToggleTile(
-                          icon: AppIcons.download,
-                          label: loc.dataSaver,
-                          value: settings.dataSaver,
-                          onChanged: (v) => ref
-                              .read(appSettingsProvider.notifier)
-                              .setDataSaver(v),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 6,
-                        child: _ToggleTile(
-                          icon: AppIcons.notification,
-                          label: loc.btnNotifications,
-                          value: settings.pushNotif,
-                          onChanged: (v) {
-                            ref
-                                .read(appSettingsProvider.notifier)
-                                .setPushNotif(v);
-                            if (v) {
-                              unawaited(
-                                PushNotificationService.openNotificationSettings(),
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 4.0)),
-
-              // ── Privacy & Cache ──
-              SliverToBoxAdapter(
-                child: _Section(
-                  label: loc.btnPrivacy,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _ActionTile(
-                          icon: Icons.security_rounded,
-                          label: loc.btnPrivacy,
-                          onTap: () => context.push(AppPaths.privacy),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _ActionTile(
-                          icon: AppIcons.delete,
-                          label: loc.clearCache,
-                          isLoading: _clearingCache,
-                          onTap: _clearingCache ? null : _clearCache,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // ── Version ──
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 24, 0, 12),
-                  child: Column(
-                    children: [
-                      Text(
-                        '${loc.versionPrefix} ${localizeNumber(_version, langCode)}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: context.colors.textHint,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 32)),
-            ],
+      body: ListView(
+        controller: _scrollController,
+        physics: const ClampingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(0, 10, 0, 40),
+        children: [
+          // ── Premium Ad-free banner OR Ad ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 2),
+            child: !isPremium
+                ? (_showDeferredBanner
+                      ? const BannerAdWidget(framed: true)
+                      : const SizedBox(height: 72))
+                : const SizedBox.shrink(),
           ),
-        ),
+
+          const SizedBox(height: 2.0),
+
+          // ── Theme ──
+          _Section(
+            label: loc.theme,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+            child: _ThemeSelector(
+              current: themeMode,
+              onChanged: (m) => ref.read(themeProvider.notifier).setTheme(m),
+              loc: loc,
+            ),
+          ),
+
+          const SizedBox(height: 2.0),
+
+          // ── Language ──
+          _Section(
+            label: loc.language,
+            child: Row(
+              children: [
+                Expanded(child: _langBtn('en', 'English')),
+                const SizedBox(width: 8),
+                Expanded(child: _langBtn('bn', 'বাংলা')),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 2.0),
+
+          // ── Premium / Ad-free ──
+          _Section(
+            label: loc.adFree,
+            child: isPremium
+                ? _PremiumConfirmedRow(loc: loc)
+                : _UpgradeRow(
+                    lifetimePrice: PremiumPlanConfig.proLifetimeDisplayPrice,
+                    yearlyPrice: PremiumPlanConfig.proYearlyDisplayPrice,
+                    onUpgrade: _buyRemoveAds,
+                    onDonate: _launchPaypal,
+                    loc: loc,
+                  ),
+          ),
+
+          const SizedBox(height: 2.0),
+
+          // ── Misc ──
+          _Section(
+            label: loc.misc,
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: _ToggleTile(
+                    icon: AppIcons.download,
+                    label: loc.dataSaver,
+                    value: settings.dataSaver,
+                    onChanged: (v) => ref
+                        .read(appSettingsProvider.notifier)
+                        .setDataSaver(v),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 6,
+                  child: _ToggleTile(
+                    icon: AppIcons.notification,
+                    label: loc.btnNotifications,
+                    value: settings.pushNotif,
+                    onChanged: (v) {
+                      ref.read(appSettingsProvider.notifier).setPushNotif(v);
+                      if (v) {
+                        unawaited(
+                          PushNotificationService.openNotificationSettings(),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 4.0),
+
+          // ── Privacy & Cache ──
+          _Section(
+            label: loc.btnPrivacy,
+            child: Row(
+              children: [
+                Expanded(
+                  child: _ActionTile(
+                    icon: Icons.security_rounded,
+                    label: loc.btnPrivacy,
+                    onTap: () => context.push(AppPaths.privacy),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _ActionTile(
+                    icon: AppIcons.delete,
+                    label: loc.clearCache,
+                    isLoading: _clearingCache,
+                    onTap: _clearingCache ? null : _clearCache,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // ── Version ──
+          Center(
+            child: Text(
+              '${loc.versionPrefix} ${localizeNumber(_version, langCode)}',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: context.colors.textHint, fontSize: 12),
+            ),
+          ),
+
+          const SizedBox(height: 32),
+        ],
       ),
     );
   }
@@ -567,77 +495,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 }
 
-// ─── App Bar ─────────────────────────────────────────────────────────────────
-
-class _SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _SettingsAppBar({required this.title});
-  final String title;
-
-  @override
-  Size get preferredSize => const Size.fromHeight(60);
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final appBarBg = context.colors.bg;
-    return ColoredBox(
-      color: appBarBg,
-      child: SafeArea(
-        bottom: false,
-        child: Container(
-          height: 60,
-          decoration: BoxDecoration(
-            color: appBarBg,
-            border: Border(
-              bottom: BorderSide(color: context.colors.cardBorder),
-            ),
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Positioned(
-                left: 4,
-                child: Builder(
-                  builder: (ctx) => IconButton(
-                    icon: Icon(
-                      Icons.menu_rounded,
-                      size: 22,
-                      color: context.colors.textPrimary,
-                    ),
-                    onPressed: () => Scaffold.of(ctx).openDrawer(),
-                  ),
-                ),
-              ),
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 48),
-                  child: Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: context.colors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Ad-Free Banner (premium users only) ─────────────────────────────────────
-
-// ─── Section Wrapper ──────────────────────────────────────────────────────────
-
-// ─── Section Wrapper ──────────────────────────────────────────────────────────
-
 class _Section extends StatelessWidget {
   const _Section({required this.label, required this.child, this.padding});
   final String label;
@@ -648,14 +505,14 @@ class _Section extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 10),
+            padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               label.toUpperCase(),
+              textAlign: TextAlign.center,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: context.colors.textHint,
                 fontWeight: FontWeight.w600,
@@ -679,12 +536,23 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding ?? const EdgeInsets.all(14),
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final translucentSurface = theme.brightness == Brightness.dark;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: padding ?? const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: context.colors.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: context.colors.cardBorder),
+        color: translucentSurface
+            ? scheme.surface.withValues(alpha: 0.08)
+            : context.colors.card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: translucentSurface
+              ? scheme.outline.withValues(alpha: 0.18)
+              : context.colors.cardBorder,
+        ),
       ),
       child: child,
     );
@@ -701,6 +569,7 @@ class _PremiumConfirmedRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
           width: 36,
@@ -725,10 +594,10 @@ class _PremiumConfirmedRow extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 loc.adsRemoved,
+                textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: context.colors.textPrimary,
                   fontWeight: FontWeight.w600,
@@ -737,6 +606,7 @@ class _PremiumConfirmedRow extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 'Premium plan active',
+                textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: context.colors.textSecondary,
                 ),
@@ -789,7 +659,7 @@ class _UpgradeRow extends StatelessWidget {
       children: [
         Expanded(
           child: _OutlineBtn(
-            label: '$lifetimePrice | $yearlyPrice',
+            label: 'Premium Plans · $lifetimePrice / $yearlyPrice',
             icon: Icons.bolt_rounded,
             accent: context.colors.proBlue,
             onTap: onUpgrade,
@@ -824,41 +694,41 @@ class _OutlineBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final foreground = scheme.onSurface;
-    final borderColor = scheme.outline.withValues(alpha: 0.65);
-    final surface = Color.alphaBlend(
-      accent.withValues(alpha: 0.08),
-      scheme.surface.withValues(alpha: 0.95),
-    );
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 48,
-        decoration: BoxDecoration(
-          color: surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor, width: 1.2),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: foreground, size: 16),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                label,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: foreground,
-                  fontWeight: FontWeight.w600,
-                  fontSize: (theme.textTheme.labelLarge?.fontSize ?? 14) - 1,
-                  letterSpacing: 0.2,
+    final foreground = _settingsButtonForeground(context, active: false);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          height: 48,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: _settingsButtonDecoration(context, active: false),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: accent, size: 16),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: foreground,
+                      fontWeight: FontWeight.w600,
+                      fontSize:
+                          (theme.textTheme.labelLarge?.fontSize ?? 14) - 1,
+                      letterSpacing: 0.2,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -885,53 +755,47 @@ class _ToggleTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final foreground = scheme.onSurface;
-
-    final activeColor = foreground;
-    final activeBg = foreground.withValues(alpha: 0.12);
-    final activeBorder = scheme.outline.withValues(alpha: 0.9);
-
-    final inactiveColor = foreground.withValues(alpha: 0.92);
-    final inactiveBg = scheme.surface;
-    final inactiveBorder = scheme.outline.withValues(alpha: 0.7);
-
-    final color = value ? activeColor : inactiveColor;
-    final bg = value ? activeBg : inactiveBg;
-    final border = value ? activeBorder : inactiveBorder;
+    final foreground = _settingsButtonForeground(context, active: value);
+    final iconColor = _settingsButtonForeground(context, active: value);
     final weight = value ? FontWeight.w700 : FontWeight.w500;
 
-    return InkWell(
-      onTap: () => onChanged(!value),
+    return Material(
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(14),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        constraints: const BoxConstraints(minHeight: 48),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: border, width: value ? 1.5 : 1.0),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                label,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: value ? foreground : inactiveColor,
-                  fontWeight: weight,
-                  fontSize: (theme.textTheme.labelLarge?.fontSize ?? 14) - 1.5,
-                  letterSpacing: 0.1,
+      child: InkWell(
+        onTap: () => onChanged(!value),
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: _settingsButtonDecoration(context, active: value),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: iconColor, size: 18),
+              const SizedBox(width: 6),
+              Flexible(
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 200),
+                  style: theme.textTheme.labelLarge!.copyWith(
+                    color: foreground,
+                    fontWeight: weight,
+                    fontSize:
+                        (theme.textTheme.labelLarge?.fontSize ?? 14) - 1.5,
+                    letterSpacing: 0.1,
+                  ),
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -955,48 +819,50 @@ class _ActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final foreground = scheme.onSurface;
-    final borderColor = scheme.outline.withValues(alpha: 0.7);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 48, // Compact height matching theme tile
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: scheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (isLoading)
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 1.5,
-                  color: foreground.withValues(alpha: 0.92),
+    final foreground = _settingsButtonForeground(context, active: false);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: _settingsButtonDecoration(context, active: false),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isLoading)
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: foreground,
+                  ),
+                )
+              else
+                Icon(icon, size: 18, color: foreground),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: foreground,
+                    fontWeight: FontWeight.w600,
+                    fontSize:
+                        (theme.textTheme.labelLarge?.fontSize ?? 14) - 1.5,
+                    letterSpacing: 0.1,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              )
-            else
-              Icon(icon, size: 18, color: foreground.withValues(alpha: 0.92)),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                label,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: foreground.withValues(alpha: 0.92),
-                  fontWeight: FontWeight.w600,
-                  fontSize: (theme.textTheme.labelLarge?.fontSize ?? 14) - 1.5,
-                  letterSpacing: 0.1,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1020,47 +886,45 @@ class _SelectTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final foreground = scheme.onSurface;
-    final borderColor = scheme.outline.withValues(alpha: 0.75);
-    final selectedBg = foreground.withValues(alpha: 0.12);
+    final foreground = _settingsButtonForeground(context, active: selected);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: selected ? selectedBg : scheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor, width: selected ? 1.5 : 1),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: foreground.withValues(alpha: selected ? 1.0 : 0.92),
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: foreground.withValues(alpha: selected ? 1.0 : 0.92),
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  fontSize: (theme.textTheme.labelLarge?.fontSize ?? 14) - 1.5,
-                  letterSpacing: 0.1,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: _settingsButtonDecoration(context, active: selected),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: foreground),
+              const SizedBox(width: 8),
+              Flexible(
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 200),
+                  style: theme.textTheme.labelLarge!.copyWith(
+                    color: foreground,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    fontSize:
+                        (theme.textTheme.labelLarge?.fontSize ?? 14) - 1.5,
+                    letterSpacing: 0.1,
+                  ),
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1076,25 +940,24 @@ class _ThemeSelector extends StatelessWidget {
     required this.current,
     required this.onChanged,
     required this.loc,
-    this.onGoPremium,
   });
 
   final AppThemeMode current;
   final ValueChanged<AppThemeMode> onChanged;
   final AppLocalizations loc;
-  final VoidCallback? onGoPremium;
 
   static const _modes = [
     (AppThemeMode.system, Icons.settings_system_daydream_rounded, false),
-    (AppThemeMode.amoled, Icons.dark_mode_rounded, false),
-    (AppThemeMode.bangladesh, AppIcons.flag, true),
+    (AppThemeMode.dark, Icons.dark_mode_rounded, false),
+    (AppThemeMode.bangladesh, Icons.flag_rounded, false),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        for (int i = 0; i < _modes.length; i++) ...[
+        for (var i = 0; i < _modes.length; i++) ...[
+          if (i > 0) const SizedBox(width: 6),
           Expanded(
             child: _ThemeTile(
               mode: _modes[i].$1,
@@ -1102,21 +965,9 @@ class _ThemeSelector extends StatelessWidget {
               label: _labelFor(_modes[i].$1),
               locked: _modes[i].$3,
               current: current,
-              onTap: () {
-                if (_modes[i].$3) {
-                  final isPremium = ProviderScope.containerOf(
-                    context,
-                  ).read(isPremiumStateProvider);
-                  if (!isPremium) {
-                    _showLock(context, _labelFor(_modes[i].$1));
-                    return;
-                  }
-                }
-                onChanged(_modes[i].$1);
-              },
+              onTap: () => onChanged(_modes[i].$1),
             ),
           ),
-          if (i < _modes.length - 1) const SizedBox(width: 2),
         ],
       ],
     );
@@ -1124,63 +975,13 @@ class _ThemeSelector extends StatelessWidget {
 
   String _labelFor(AppThemeMode m) {
     switch (m) {
+      case AppThemeMode.dark:
+        return loc.themeDarkLabel;
       case AppThemeMode.bangladesh:
         return loc.themeDeshLabel;
-      case AppThemeMode.amoled:
-        return 'AMOLED';
       case AppThemeMode.system:
-        return 'Auto';
-      case AppThemeMode.light:
-      case AppThemeMode.dark:
-        return 'Auto';
+        return loc.themeAutoLabel;
     }
-  }
-
-  void _showLock(BuildContext context, String name) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: context.colors.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        icon: Icon(
-          Icons.stars_rounded,
-          color: context.colors.goldStart,
-          size: 44,
-        ),
-        title: Text(
-          loc.premiumFeature,
-          style: TextStyle(color: context.colors.textPrimary),
-          textAlign: TextAlign.center,
-        ),
-        content: Text(
-          loc.premiumFeatureDesc(name),
-          style: TextStyle(color: context.colors.textSecondary),
-          textAlign: TextAlign.center,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(
-              loc.close,
-              style: TextStyle(color: context.colors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              onGoPremium?.call();
-            },
-            child: Text(
-              loc.goPremium,
-              style: TextStyle(
-                color: context.colors.goldStart,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -1205,80 +1006,93 @@ class _ThemeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final selected = current == mode;
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final foreground = scheme.onSurface;
-    final accent = foreground.withValues(alpha: selected ? 1.0 : 0.92);
-    final cardColor = selected
-        ? foreground.withValues(alpha: 0.12)
-        : scheme.surface;
-    final borderColor = scheme.outline.withValues(alpha: 0.75);
+    final foreground = _settingsButtonForeground(context, active: selected);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: borderColor, width: selected ? 1.5 : 1),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Center(
+            child: Stack(
+              clipBehavior: Clip.none,
               children: [
-                Icon(icon, size: 14, color: accent),
-                const SizedBox(width: 2),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.visible,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: foreground.withValues(alpha: selected ? 1.0 : 0.92),
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      fontSize: 10,
-                    ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  height: 42,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 3,
+                    vertical: 6,
+                  ),
+                  decoration: _settingsButtonDecoration(
+                    context,
+                    active: selected,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(icon, size: 11, color: foreground),
+                      const SizedBox(width: 2),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            label,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: foreground,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                if (locked)
+                  Positioned(
+                    top: -6,
+                    right: -6,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFFD740), Color(0xFFFF9100)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: context.colors.card.withValues(alpha: 0.9),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(
+                              0xFFFFC107,
+                            ).withValues(alpha: 0.5),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.lock_rounded,
+                        size: 9,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
-          if (locked)
-            Positioned(
-              top: -6,
-              right: -6,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFFD740), Color(0xFFFF9100)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: context.colors.card.withValues(alpha: 0.9),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFFC107).withValues(alpha: 0.5),
-                      blurRadius: 6,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.lock_rounded,
-                  size: 9,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }

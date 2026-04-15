@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webfeed_revised/webfeed_revised.dart';
 import '../../../core/telemetry/performance_metrics.dart'
     show PerformanceMetrics;
@@ -16,15 +17,47 @@ import '../../persistence/models/news_article.dart';
 
 import '../../../core/telemetry/structured_logger.dart';
 
+enum FeedRequestOutcome { successWithData, successNoData, offline, error }
+
+enum _FeedFetchStatus { successWithData, notModified, successNoData, error }
+
+class _FeedFetchResult {
+  const _FeedFetchResult({required this.articles, required this.status});
+
+  final List<NewsArticle> articles;
+  final _FeedFetchStatus status;
+
+  bool get hasData => articles.isNotEmpty;
+
+  bool get wasSuccessful =>
+      status == _FeedFetchStatus.successWithData ||
+      status == _FeedFetchStatus.notModified ||
+      status == _FeedFetchStatus.successNoData;
+}
+
 class RssService {
-  RssService(this._client, this._networkService, this._logger);
+  RssService(
+    this._client,
+    this._networkService,
+    this._logger, {
+    SharedPreferences? prefs,
+  }) : _prefs = prefs;
   final http.Client _client;
   final AppNetworkService _networkService;
   final StructuredLogger _logger;
+  final SharedPreferences? _prefs;
   static const int _maxArticlesPerFeed = 40;
   static final Map<String, int> _feedFailureCounts = <String, int>{};
   static final Map<String, DateTime> _feedDisabledUntil = <String, DateTime>{};
   static final Map<String, int> _feedAvgLatencyMs = <String, int>{};
+  // ETag / Last-Modified conditional-GET support — avoids re-downloading
+  // unchanged feeds on every refresh cycle.
+  static final Map<String, String> _feedEtags = <String, String>{};
+  static final Map<String, String> _feedLastModified = <String, String>{};
+  final Map<String, FeedRequestOutcome> _lastRequestOutcomes =
+      <String, FeedRequestOutcome>{};
+  static const String _rssEtagKeyPrefix = 'rss_feed_etag_';
+  static const String _rssLastModifiedKeyPrefix = 'rss_feed_last_modified_';
 
   static const List<String> categories = <String>[
     'latest',
@@ -35,8 +68,8 @@ class RssService {
     'trending',
   ];
 
-  static const Map<String, Map<String, List<String>>> feeds =
-      <String, Map<String, List<String>>>{
+  static const Map<String, Map<String, List<String>>>
+  feeds = <String, Map<String, List<String>>>{
     'latest': <String, List<String>>{
       'bn': <String>[
         'https://www.prothomalo.com/feed',
@@ -119,19 +152,25 @@ class RssService {
   }) async {
     final String lang = locale.languageCode == 'bn' ? 'bn' : 'en';
     List<String> urls = feeds[category]?[lang] ?? const <String>[];
+    final requestKey = _requestKey(category: category, language: lang);
 
     if (disabledUrls != null && disabledUrls.isNotEmpty) {
       urls = urls.where((url) => !disabledUrls.contains(url)).toList();
     }
 
-    if (urls.isEmpty) return <NewsArticle>[];
+    if (urls.isEmpty) {
+      _lastRequestOutcomes[requestKey] = FeedRequestOutcome.error;
+      return <NewsArticle>[];
+    }
     if (!_networkService.isConnected) {
       _logger.warn('Skipping RSS fetch: offline');
+      _lastRequestOutcomes[requestKey] = FeedRequestOutcome.offline;
       return <NewsArticle>[];
     }
 
     final List<NewsArticle> all = <NewsArticle>[];
     final gateCounters = <String, int>{};
+    var sawSuccessfulFeed = false;
 
     try {
       // Allow overriding with a set of enabled URLs mapping (can be done here or passed via constructor/dependencies)
@@ -139,14 +178,17 @@ class RssService {
       // RssService doesn't have the source repo directly, we'll pass an optional set of disabled source URLs.
       // Easiest is to add an optional `Set<String>? disabledUrls` to fetchNews.
       final List<String> selectedUrls = _selectUrlsForQuality(urls);
-      final List<List<NewsArticle>> results = await _fetchFeeds(
+      final List<_FeedFetchResult> results = await _fetchFeeds(
         urls: selectedUrls,
         category: category,
         language: lang,
         context: context,
       );
 
-      for (final List<NewsArticle> list in results) {
+      sawSuccessfulFeed = results.any((result) => result.wasSuccessful);
+
+      for (final _FeedFetchResult result in results) {
+        final list = result.articles;
         for (final article in list) {
           final gate = ArticleLanguageGate.evaluate(
             article: article,
@@ -165,6 +207,7 @@ class RssService {
       }
     } catch (e) {
       _logger.error('Error fetching bulk news', e);
+      _lastRequestOutcomes[requestKey] = FeedRequestOutcome.error;
     }
 
     if (gateCounters.isNotEmpty) {
@@ -186,13 +229,37 @@ class RssService {
 
     final interleaved = _interleaveArticles(deduped);
 
-    // Gap 1A Fix: Re-sort chronologically after interleaving across sources
-    interleaved.sort(
-      (NewsArticle a, NewsArticle b) => b.publishedAt.compareTo(a.publishedAt),
-    );
-
+    // Keep source-diversified ordering from `_interleaveArticles`.
+    // Re-sorting purely by timestamp here collapses the top slice back to a
+    // single fast-publishing source, which defeats feed management intent.
     final maxArticles = _networkService.getArticleLimit();
-    return interleaved.take(maxArticles).toList(growable: false);
+    final articles = interleaved.take(maxArticles).toList(growable: false);
+    _lastRequestOutcomes[requestKey] = articles.isNotEmpty
+        ? FeedRequestOutcome.successWithData
+        : sawSuccessfulFeed
+        ? FeedRequestOutcome.successNoData
+        : FeedRequestOutcome.error;
+    return articles;
+  }
+
+  FeedRequestOutcome lastRequestOutcome({
+    required String category,
+    required String language,
+  }) {
+    return _lastRequestOutcomes[_requestKey(
+          category: category,
+          language: language,
+        )] ??
+        FeedRequestOutcome.error;
+  }
+
+  bool wasLastFetchSuccessful({
+    required String category,
+    required String language,
+  }) {
+    final outcome = lastRequestOutcome(category: category, language: language);
+    return outcome == FeedRequestOutcome.successWithData ||
+        outcome == FeedRequestOutcome.successNoData;
   }
 
   List<String> _selectUrlsForQuality(List<String> urls) {
@@ -204,8 +271,12 @@ class RssService {
           return now.isAfter(disabledUntil);
         })
         .toList(growable: false);
-    final candidates = healthyUrls.isEmpty ? List<String>.from(urls) : healthyUrls;
-    candidates.sort((a, b) => _feedPriorityScore(a).compareTo(_feedPriorityScore(b)));
+    final candidates = healthyUrls.isEmpty
+        ? List<String>.from(urls)
+        : healthyUrls;
+    candidates.sort(
+      (a, b) => _feedPriorityScore(a).compareTo(_feedPriorityScore(b)),
+    );
 
     final NetworkQuality quality = _networkService.currentQuality;
     final int maxFeeds;
@@ -226,7 +297,22 @@ class RssService {
         break;
     }
 
-    return candidates.take(maxFeeds).toList();
+    final selected = candidates.take(maxFeeds).toList(growable: true);
+
+    // Prevent hard lock to a single source after transient failures.
+    // When possible, keep one extra probe feed so diversification can recover.
+    if (selected.length < 2 && urls.length > 1) {
+      final probePool = List<String>.from(
+        urls,
+      )..sort((a, b) => _feedPriorityScore(a).compareTo(_feedPriorityScore(b)));
+      for (final url in probePool) {
+        if (selected.contains(url)) continue;
+        selected.add(url);
+        if (selected.length >= 2) break;
+      }
+    }
+
+    return selected;
   }
 
   int _feedPriorityScore(String url) {
@@ -235,7 +321,7 @@ class RssService {
     return latency + (failures * 1500);
   }
 
-  Future<List<List<NewsArticle>>> _fetchFeeds({
+  Future<List<_FeedFetchResult>> _fetchFeeds({
     required List<String> urls,
     required String category,
     required String language,
@@ -243,7 +329,7 @@ class RssService {
   }) async {
     final maxConcurrent = _networkService.getFeedConcurrency();
     if (maxConcurrent <= 1) {
-      final List<List<NewsArticle>> results = [];
+      final List<_FeedFetchResult> results = [];
       for (final url in urls) {
         results.add(
           await _fetchSingleFeed(
@@ -257,7 +343,7 @@ class RssService {
       return results;
     }
 
-    final List<List<NewsArticle>> results = [];
+    final List<_FeedFetchResult> results = [];
     for (int i = 0; i < urls.length; i += maxConcurrent) {
       final batch = urls.sublist(i, math.min(i + maxConcurrent, urls.length));
       final batchResults = await Future.wait(
@@ -317,9 +403,17 @@ class RssService {
       }
 
       // If we're stuck (e.g. only one source left and we hit the limit), break or force pick?
-      // Strict rule: "no more than two". So we break.
+      // Soft fallback: allow continuity if strict rule would truncate the feed.
       if (bestSource == null) {
-        break;
+        for (final source in bySource.keys) {
+          final candidate = bySource[source]!.first;
+          if (bestArticle == null ||
+              candidate.publishedAt.isAfter(bestArticle.publishedAt)) {
+            bestArticle = candidate;
+            bestSource = source;
+          }
+        }
+        if (bestSource == null) break;
       }
 
       // Add to result
@@ -343,7 +437,7 @@ class RssService {
     return result;
   }
 
-  Future<List<NewsArticle>> _fetchSingleFeed({
+  Future<_FeedFetchResult> _fetchSingleFeed({
     required String url,
     required String category,
     required String language,
@@ -359,13 +453,24 @@ class RssService {
       PerformanceMetrics().startTimer(metricName);
       final sw = Stopwatch()..start();
 
+      // Build conditional-GET headers to avoid re-downloading unchanged feeds.
+      final conditionalHeaders = <String, String>{};
+      _hydrateConditionalHeadersFromPrefs(url);
+      final cachedEtag = _feedEtags[url];
+      final cachedLastMod = _feedLastModified[url];
+      if (cachedEtag != null) {
+        conditionalHeaders['If-None-Match'] = cachedEtag;
+      }
+      if (cachedLastMod != null) {
+        conditionalHeaders['If-Modified-Since'] = cachedLastMod;
+      }
+
       final http.Response res = await RetryHelper.retry(
         operation: () async {
           final http.Response response = await _client
               .get(
                 Uri.parse(url),
                 headers: <String, String>{
-                  // Use a modern User-Agent to avoid being blocked (403)
                   'User-Agent':
                       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
                   'Accept':
@@ -376,6 +481,7 @@ class RssService {
                   'Accept-Encoding': 'gzip, deflate',
                   'Connection': 'keep-alive',
                   'Cache-Control': 'max-age=0',
+                  ...conditionalHeaders,
                 },
               )
               .timeout(timeout);
@@ -390,10 +496,50 @@ class RssService {
         attributes: {'statusCode': res.statusCode},
       );
 
+      // 304 Not Modified — feed unchanged, return empty so caller uses DB cache.
+      if (res.statusCode == 304) {
+        _recordFeedSuccess(url, sw.elapsed);
+        if (kDebugMode) debugPrint('📡 RSS 304 Not Modified: $url');
+        return const _FeedFetchResult(
+          articles: <NewsArticle>[],
+          status: _FeedFetchStatus.notModified,
+        );
+      }
+
       if (res.statusCode != 200) {
         _recordFeedFailure(url, statusCode: res.statusCode);
         _logger.warn('RSS feed returned ${res.statusCode} for $url');
-        return <NewsArticle>[];
+        return const _FeedFetchResult(
+          articles: <NewsArticle>[],
+          status: _FeedFetchStatus.error,
+        );
+      }
+
+      // Store ETag / Last-Modified for next conditional-GET.
+      final prefs = _prefs;
+      final etag = res.headers['etag'];
+      if (etag != null && etag.isNotEmpty) {
+        _feedEtags[url] = etag;
+        if (prefs != null) {
+          unawaited(prefs.setString(_etagPrefsKey(url), etag));
+        }
+      } else {
+        _feedEtags.remove(url);
+        if (prefs != null) {
+          unawaited(prefs.remove(_etagPrefsKey(url)));
+        }
+      }
+      final lastMod = res.headers['last-modified'];
+      if (lastMod != null && lastMod.isNotEmpty) {
+        _feedLastModified[url] = lastMod;
+        if (prefs != null) {
+          unawaited(prefs.setString(_lastModifiedPrefsKey(url), lastMod));
+        }
+      } else {
+        _feedLastModified.remove(url);
+        if (prefs != null) {
+          unawaited(prefs.remove(_lastModifiedPrefsKey(url)));
+        }
       }
 
       final String? ct = res.headers['content-type'];
@@ -406,23 +552,65 @@ class RssService {
       if (!bodyTrimmed.startsWith('<?xml') &&
           !bodyTrimmed.startsWith('<rss') &&
           !bodyTrimmed.startsWith('<feed')) {
-        return <NewsArticle>[];
+        return const _FeedFetchResult(
+          articles: <NewsArticle>[],
+          status: _FeedFetchStatus.error,
+        );
       }
 
       final parsed = await compute(_parseRssInBackground, body);
       _recordFeedSuccess(url, sw.elapsed);
-      if (parsed.length <= _maxArticlesPerFeed) {
-        return parsed;
-      }
-      return parsed.take(_maxArticlesPerFeed).toList(growable: false);
+      final trimmed = parsed.length <= _maxArticlesPerFeed
+          ? parsed
+          : parsed.take(_maxArticlesPerFeed).toList(growable: false);
+      return _FeedFetchResult(
+        articles: trimmed,
+        status: trimmed.isEmpty
+            ? _FeedFetchStatus.successNoData
+            : _FeedFetchStatus.successWithData,
+      );
     } on TimeoutException catch (e) {
       _recordFeedFailure(url, timeout: true);
       _logger.warning('RSS feed timeout for $url', e);
-      return <NewsArticle>[];
+      return const _FeedFetchResult(
+        articles: <NewsArticle>[],
+        status: _FeedFetchStatus.error,
+      );
     } catch (e) {
       _recordFeedFailure(url);
       _logger.error('Failed to fetch RSS feed after retries: $url', e);
-      return <NewsArticle>[];
+      return const _FeedFetchResult(
+        articles: <NewsArticle>[],
+        status: _FeedFetchStatus.error,
+      );
+    }
+  }
+
+  String _requestKey({required String category, required String language}) =>
+      '${category.toLowerCase()}|${language.toLowerCase()}';
+
+  String _etagPrefsKey(String url) =>
+      '$_rssEtagKeyPrefix${UrlIdentity.idFromUrl(url)}';
+
+  String _lastModifiedPrefsKey(String url) =>
+      '$_rssLastModifiedKeyPrefix${UrlIdentity.idFromUrl(url)}';
+
+  void _hydrateConditionalHeadersFromPrefs(String url) {
+    final prefs = _prefs;
+    if (prefs == null) return;
+
+    if (!_feedEtags.containsKey(url)) {
+      final persistedEtag = prefs.getString(_etagPrefsKey(url));
+      if (persistedEtag != null && persistedEtag.isNotEmpty) {
+        _feedEtags[url] = persistedEtag;
+      }
+    }
+
+    if (!_feedLastModified.containsKey(url)) {
+      final persistedLastModified = prefs.getString(_lastModifiedPrefsKey(url));
+      if (persistedLastModified != null && persistedLastModified.isNotEmpty) {
+        _feedLastModified[url] = persistedLastModified;
+      }
     }
   }
 
@@ -438,11 +626,7 @@ class RssService {
     _feedAvgLatencyMs[url] = ((prev * 3) + sample) ~/ 4;
   }
 
-  void _recordFeedFailure(
-    String url, {
-    int? statusCode,
-    bool timeout = false,
-  }) {
+  void _recordFeedFailure(String url, {int? statusCode, bool timeout = false}) {
     final failureCount = (_feedFailureCounts[url] ?? 0) + 1;
     _feedFailureCounts[url] = failureCount;
 

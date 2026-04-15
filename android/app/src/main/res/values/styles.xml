@@ -9,18 +9,14 @@
     -->
 
     <!-- ═══ LAUNCH / SPLASH THEME ═══════════════════════════════
-         Deep national-flag green fills the window instantly —
-         the exact shade from the Government of Bangladesh spec.  -->
+         Transparent native launch surface; Flutter paints the UI. -->
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
 
-        <!-- Official BD flag green — zero white flash on cold start -->
+        <!-- Keep the native splash surface transparent. -->
         <item name="android:windowBackground">@color/splash_background</item>
 
         <!-- GPU rendering from frame 1 -->
         <item name="android:hardwareAccelerated">true</item>
-
-        <!-- Prevent OS auto-dark from washing out the flag green -->
-        <item name="android:forceDarkAllowed">false</item>
 
         <!-- True edge-to-edge -->
         <item name="android:windowFullscreen">false</item>
@@ -28,12 +24,8 @@
         <item name="android:statusBarColor">@color/status_bar_transparent</item>
         <item name="android:navigationBarColor">@color/nav_bar_transparent</item>
 
-        <!-- White icons on the green status bar -->
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
-
-        <!-- Render behind display notch / punch-hole -->
-        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <!-- Dark icons for the transparent light launch surface -->
+        <item name="android:windowLightStatusBar">true</item>
 
         <!-- No title bar chrome -->
         <item name="android:windowNoTitle">true</item>
@@ -49,7 +41,7 @@
     <!-- ═══ NORMAL / FLUTTER RUNTIME THEME ═══════════════════════ -->
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
 
-        <!-- Soft off-white scaffold — readable after the green splash -->
+        <!-- Soft off-white scaffold after Flutter takes over -->
         <item name="android:windowBackground">@color/window_background</item>
 
         <item name="android:hardwareAccelerated">true</item>
@@ -60,9 +52,6 @@
 
         <!-- Dark icons once Flutter's light scaffold is visible -->
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
-
-        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
 
         <!-- Smooth shared-element & page transitions -->
         <item name="android:windowActivityTransitions">true</item>
@@ -74,7 +63,6 @@
 
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBar">false</item>
-        <item name="android:forceDarkAllowed">false</item>
 
     </style>
 

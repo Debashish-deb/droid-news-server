@@ -94,7 +94,7 @@ class PremiumRepositoryImpl implements PremiumRepository {
   bool get isStatusResolved => _statusResolved;
 
   @override
-  bool get shouldShowAds => _statusResolved && !_lastKnownStatus;
+  bool get shouldShowAds => !_lastKnownStatus;
 
   @override
   Future<void> refreshStatus() async {
@@ -309,13 +309,10 @@ class PremiumRepositoryImpl implements PremiumRepository {
         .toLowerCase()
         .replaceAll('_', '')
         .replaceAll(' ', '');
-
-    if (normalized.contains('proplus') || normalized.contains('yearly')) {
-      return SubscriptionTier.proPlus;
-    }
     if (normalized.contains('pro') ||
         normalized.contains('premium') ||
-        normalized.contains('paid')) {
+        normalized.contains('paid') ||
+        normalized.contains('yearly')) {
       return SubscriptionTier.pro;
     }
     return SubscriptionTier.free;
@@ -338,9 +335,9 @@ class PremiumRepositoryImpl implements PremiumRepository {
     if (!isPremium) return 'free';
 
     final normalized = (tier ?? '').trim().toLowerCase();
-    if (normalized == 'proplus') return 'pro_plus';
-    if (normalized == 'pro_plus' || normalized == 'pro') return normalized;
-    if (normalized == 'premium' || normalized == 'paid') return 'pro';
+    if (_isPremiumTier(normalized)) {
+      return 'pro';
+    }
 
     final existing = _prefs?.getString(_kCurrentTierKey);
     if (_isPremiumTier(existing)) {
@@ -469,12 +466,10 @@ class StubPremiumRepository implements PremiumRepository {
         .toLowerCase()
         .replaceAll('_', '')
         .replaceAll(' ', '');
-    if (normalized.contains('proplus') || normalized.contains('yearly')) {
-      return SubscriptionTier.proPlus;
-    }
     if (normalized.contains('pro') ||
         normalized.contains('premium') ||
-        normalized.contains('paid')) {
+        normalized.contains('paid') ||
+        normalized.contains('yearly')) {
       return SubscriptionTier.pro;
     }
     return SubscriptionTier.free;
@@ -512,7 +507,7 @@ class StubPremiumRepository implements PremiumRepository {
   }
 
   @override
-  bool get shouldShowAds => _isStatusResolved && !_isPremium;
+  bool get shouldShowAds => !_isPremium;
 
   @override
   Future<void> refreshStatus() async {}

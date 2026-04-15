@@ -1,8 +1,9 @@
-import 'dart:ui';
+import '../../core/theme/theme_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/config/constants.dart' show AppPerformance;
 import '../../core/config/performance_config.dart';
+import 'platform_surface_treatment.dart';
 
 class GlassIconButton extends StatefulWidget {
   const GlassIconButton({
@@ -19,6 +20,7 @@ class GlassIconButton extends StatefulWidget {
     this.padding,
     this.innerPadding,
     this.isLoading = false,
+    this.minTouchTargetSize = 48,
   });
   final VoidCallback? onPressed;
   final IconData icon;
@@ -29,6 +31,7 @@ class GlassIconButton extends StatefulWidget {
   final EdgeInsets? padding;
   final EdgeInsets? innerPadding;
   final bool isLoading;
+  final double minTouchTargetSize;
 
   final double? glowIntensity;
   final String? tooltip;
@@ -122,7 +125,17 @@ class _GlassIconButtonState extends State<GlassIconButton>
         (widget.isDark
             ? Colors.white.withValues(alpha: 0.14)
             : Colors.black.withValues(alpha: 0.06));
-    final bool reduceEffects = _reduceEffects;
+    final bool preferMaterialChrome = preferAndroidMaterialSurfaceChrome(
+      context,
+    );
+    final materialSurface =
+        widget.backgroundColor ??
+        materialSurfaceOverlayColor(
+          Theme.of(context).colorScheme,
+          surfaceAlpha: widget.isDark ? 0.92 : 0.98,
+          tintAlpha: widget.isDark ? 0.08 : 0.05,
+        );
+    final bool reduceEffects = _reduceEffects || preferMaterialChrome;
 
     final Widget button = GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -144,16 +157,24 @@ class _GlassIconButtonState extends State<GlassIconButton>
             return Transform.scale(scale: _scale.value, child: child);
           },
           child: Container(
-            padding: widget.padding ?? const EdgeInsets.all(8),
+            constraints: BoxConstraints(
+              minWidth: widget.minTouchTargetSize,
+              minHeight: widget.minTouchTargetSize,
+            ),
+            padding: widget.padding ?? ThemeSkeleton.shared.insetsAll(8),
             color: Colors.transparent,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: ThemeSkeleton.shared.circular(16),
               child: reduceEffects
                   ? Container(
-                      padding: widget.innerPadding ?? const EdgeInsets.all(12),
+                      padding:
+                          widget.innerPadding ??
+                          ThemeSkeleton.shared.insetsAll(12),
                       decoration: BoxDecoration(
-                        color: reducedEffectsColor,
-                        borderRadius: BorderRadius.circular(16),
+                        color: preferMaterialChrome
+                            ? materialSurface
+                            : reducedEffectsColor,
+                        borderRadius: ThemeSkeleton.shared.circular(16),
                         border: Border.all(color: borderColor, width: 1.2),
                       ),
                       child: widget.isLoading
@@ -162,7 +183,9 @@ class _GlassIconButtonState extends State<GlassIconButton>
                               height: widget.size,
                               child: const CircularProgressIndicator.adaptive(
                                 strokeWidth: 2.0,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
                             )
                           : Icon(
@@ -173,80 +196,75 @@ class _GlassIconButtonState extends State<GlassIconButton>
                                   (widget.isDark ? Colors.white : Colors.black),
                             ),
                     )
-                  : BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                      child: Container(
-                        padding:
-                            widget.innerPadding ?? const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: glassColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: borderColor, width: 1.3),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: widget.isDark
-                                ? [
-                                    Colors.white.withValues(alpha: 0.18),
-                                    Colors.white.withValues(alpha: 0.02),
-                                  ]
-                                : [
-                                    Colors.white.withValues(alpha: 0.95),
-                                    Colors.white.withValues(alpha: 0.6),
-                                  ],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 
-                                widget.isDark ? 0.28 : 0.08,
-                              ),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                  : Container(
+                      padding:
+                          widget.innerPadding ??
+                          ThemeSkeleton.shared.insetsAll(12),
+                      decoration: BoxDecoration(
+                        color: glassColor,
+                        borderRadius: ThemeSkeleton.shared.circular(16),
+                        border: Border.all(color: borderColor, width: 1.3),
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: widget.isDark
+                              ? [
+                                  Colors.white.withValues(alpha: 0.18),
+                                  Colors.white.withValues(alpha: 0.02),
+                                ]
+                              : [
+                                  Colors.white.withValues(alpha: 0.95),
+                                  Colors.white.withValues(alpha: 0.6),
+                                ],
                         ),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Positioned(
-                              top: -10,
-                              left: 4,
-                              right: 4,
-                              child: Container(
-                                height: 1,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.white.withValues(alpha: 0.0),
-                                      Colors.white.withValues(alpha: 
-                                        widget.isDark ? 0.3 : 0.8,
-                                      ),
-                                      Colors.white.withValues(alpha: 0.0),
-                                    ],
-                                  ),
+                        boxShadow: const <BoxShadow>[],
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Positioned(
+                            top: -10,
+                            left: 4,
+                            right: 4,
+                            child: Container(
+                              height: 1,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0.0),
+                                    Colors.white.withValues(
+                                      alpha: widget.isDark ? 0.3 : 0.8,
+                                    ),
+                                    Colors.white.withValues(alpha: 0.0),
+                                  ],
                                 ),
                               ),
                             ),
-                            widget.isLoading
-                                ? SizedBox(
-                                    width: widget.size,
-                                    height: widget.size,
-                                    child: CircularProgressIndicator.adaptive(
-                                      strokeWidth: 2.0,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        widget.color ?? (widget.isDark ? Colors.white : Colors.black),
-                                      ),
+                          ),
+                          widget.isLoading
+                              ? SizedBox(
+                                  width: widget.size,
+                                  height: widget.size,
+                                  child: CircularProgressIndicator.adaptive(
+                                    strokeWidth: 2.0,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      widget.color ??
+                                          (widget.isDark
+                                              ? Colors.white
+                                              : Colors.black),
                                     ),
-                                  )
-                                : Icon(
-                                    widget.icon,
-                                    size: widget.size,
-                                    color:
-                                        widget.color ??
-                                        (widget.isDark ? Colors.white : Colors.black),
                                   ),
-                          ],
-                        ),
+                                )
+                              : Icon(
+                                  widget.icon,
+                                  size: widget.size,
+                                  color:
+                                      widget.color ??
+                                      (widget.isDark
+                                          ? Colors.white
+                                          : Colors.black),
+                                ),
+                        ],
                       ),
                     ),
             ),

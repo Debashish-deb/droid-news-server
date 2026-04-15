@@ -1,24 +1,23 @@
-
 import 'package:flutter/foundation.dart';
+import '../../application/identity/entitlement_policy.dart';
 import 'entitlement_model.dart';
 import '../../domain/repositories/premium_repository.dart';
 
 abstract class AccessResolver {
   /// Checks if the current user has access to a specific feature
   Future<bool> hasAccess(String featureId);
-  
+
   /// Returns a list of all active features for the user
   Future<Set<String>> getActiveFeatures();
-  
+
   /// Forces a refresh of entitlements from the source of truth
   Future<void> refreshEntitlements();
 }
 
 class AccessResolverImpl implements AccessResolver {
-  
   // In a real enterprise app, we would have a local db cache of the Entitlement Graph.
   // For Phase 1, we bridge the existing PremiumRepository to this new interface.
-  
+
   AccessResolverImpl(this._premiumRepository);
   final PremiumRepository _premiumRepository;
 
@@ -31,22 +30,26 @@ class AccessResolverImpl implements AccessResolver {
   @override
   Future<Set<String>> getActiveFeatures() async {
     // 1. Fetch source of truth (Subscription Repository / PremiumRepository)
-    final bool isPremium = _premiumRepository.isPremium;
-    
+    final tier = _premiumRepository.tier;
+
     // 2. Resolve 'Product Tier' to 'Feature Set' (The Entitlement Graph)
-    if (isPremium) {
+    if (EntitlementPolicy.isPremiumTier(tier)) {
       return {
         FeatureId.noAds,
+        FeatureId.publisherAdBlocking,
         FeatureId.magazineAccess,
         FeatureId.advancedSearch,
         FeatureId.audioReading,
         FeatureId.offlineDownloads,
       };
     }
-    
+
     // Default / Free Tier features
     return {
-      FeatureId.advancedSearch, // Maybe search is free?
+      FeatureId.publisherAdBlocking,
+      FeatureId.magazineAccess,
+      FeatureId.advancedSearch,
+      FeatureId.audioReading,
     };
   }
 
@@ -57,4 +60,3 @@ class AccessResolverImpl implements AccessResolver {
     debugPrint("🔄 AccessResolver: Refreshing entitlements...");
   }
 }
-

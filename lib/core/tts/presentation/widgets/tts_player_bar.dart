@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/navigation/navigation_helper.dart';
 import '../../domain/entities/tts_state.dart';
 import '../providers/tts_controller.dart';
+import 'reader_tts_settings_sheet.dart';
 import '../../../../l10n/generated/app_localizations.dart';
-import '../../../../presentation/features/tts/ui/tts_settings_sheet.dart';
 
 class TtsPlayerBar extends ConsumerWidget {
   const TtsPlayerBar({
@@ -12,6 +12,7 @@ class TtsPlayerBar extends ConsumerWidget {
     this.onNextArticle,
     this.canGoPreviousArticle = false,
     this.canGoNextArticle = false,
+    this.showAutoPlayControls = true,
     super.key,
   });
 
@@ -19,6 +20,7 @@ class TtsPlayerBar extends ConsumerWidget {
   final VoidCallback? onNextArticle;
   final bool canGoPreviousArticle;
   final bool canGoNextArticle;
+  final bool showAutoPlayControls;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -32,12 +34,8 @@ class TtsPlayerBar extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    final prevAction = (canGoPreviousArticle && onPreviousArticle != null)
-        ? onPreviousArticle
-        : ttsNotifier.previous;
-    final nextAction = (canGoNextArticle && onNextArticle != null)
-        ? onNextArticle
-        : ttsNotifier.next;
+    final prevAction = onPreviousArticle ?? ttsNotifier.previous;
+    final nextAction = onNextArticle ?? ttsNotifier.next;
 
     final gradientColors = <Color>[
       cs.primaryContainer.withValues(alpha: 0.95),
@@ -45,32 +43,25 @@ class TtsPlayerBar extends ConsumerWidget {
     ];
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      constraints: const BoxConstraints(minHeight: 80),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      constraints: const BoxConstraints(minHeight: 72),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: gradientColors,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.7)),
-        boxShadow: [
-          BoxShadow(
-            color: cs.shadow.withValues(alpha: 0.22),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: const <BoxShadow>[],
       ),
       child: Stack(
-        fit: StackFit.expand,
         children: [
           // Soft highlight layer keeps the bar "fuzzy" while preserving contrast.
           IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(8),
                 gradient: RadialGradient(
                   center: const Alignment(-0.9, -1.0),
                   radius: 1.1,
@@ -84,7 +75,7 @@ class TtsPlayerBar extends ConsumerWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final isCompact = constraints.maxWidth < 520;
@@ -104,6 +95,7 @@ class TtsPlayerBar extends ConsumerWidget {
                       Row(
                         children: [
                           _buildSettingsButton(context, cs),
+                          _buildFullPlayerButton(context, cs),
                           const SizedBox(width: 8),
                           Expanded(
                             child: _buildStatusSection(context, ttsState, cs),
@@ -113,10 +105,7 @@ class TtsPlayerBar extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 6),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: controlsRow,
-                      ),
+                      Center(child: controlsRow),
                     ],
                   );
                 }
@@ -124,6 +113,7 @@ class TtsPlayerBar extends ConsumerWidget {
                 return Row(
                   children: [
                     _buildSettingsButton(context, cs),
+                    _buildFullPlayerButton(context, cs),
                     const SizedBox(width: 6),
                     Expanded(
                       flex: 6,
@@ -156,22 +146,38 @@ class TtsPlayerBar extends ConsumerWidget {
         color: cs.onPrimaryContainer.withValues(alpha: 0.85),
         size: 20,
       ),
-      visualDensity: VisualDensity.compact,
+      style: IconButton.styleFrom(minimumSize: const Size.square(44)),
       onPressed: () {
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
-          builder: (context) => const TtsSettingsSheet(),
+          builder: (context) => ReaderTtsSettingsSheet(
+            showAutoPlayControls: showAutoPlayControls,
+          ),
         );
       },
     );
   }
 
+  Widget _buildFullPlayerButton(BuildContext context, ColorScheme cs) {
+    return IconButton(
+      icon: Icon(
+        Icons.open_in_full_rounded,
+        color: cs.onPrimaryContainer.withValues(alpha: 0.85),
+        size: 20,
+      ),
+      style: IconButton.styleFrom(minimumSize: const Size.square(44)),
+      onPressed: () => NavigationHelper.openFullAudioPlayer<void>(context),
+    );
+  }
+
   Widget _buildCloseButton(TtsController ttsNotifier, ColorScheme cs) {
     return IconButton(
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      style: IconButton.styleFrom(
+        minimumSize: const Size.square(44),
+        padding: EdgeInsets.zero,
+      ),
       icon: Icon(
         Icons.close_rounded,
         color: cs.onPrimaryContainer.withValues(alpha: 0.72),
@@ -192,7 +198,7 @@ class TtsPlayerBar extends ConsumerWidget {
       children: [
         Text(
           _getStatusText(context, ttsState.status),
-          style: GoogleFonts.inter(
+          style: TextStyle(
             color: cs.onPrimaryContainer,
             fontSize: 10,
             fontWeight: FontWeight.w600,
@@ -223,79 +229,129 @@ class TtsPlayerBar extends ConsumerWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          iconSize: 24,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-          icon: Icon(Icons.skip_previous_rounded, color: cs.onPrimaryContainer),
+        _buildTransportButton(
+          icon: Icons.skip_previous_rounded,
           onPressed: prevAction,
+          cs: cs,
+          iconSize: 26,
         ),
-        IconButton(
-          iconSize: 24,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-          icon: Icon(
-            Icons.replay_10_rounded,
-            color: cs.onPrimaryContainer.withValues(alpha: 0.9),
-          ),
-          onPressed: ttsNotifier.previous,
+        const SizedBox(width: 6),
+        _buildTransportButton(
+          icon: Icons.replay_10_rounded,
+          onPressed: () =>
+              ttsNotifier.seekRelative(const Duration(seconds: -10)),
+          cs: cs,
+          size: 42,
         ),
-        _buildPlayPauseButton(
-          ttsState,
-          ttsNotifier,
-          iconColor: cs.onPrimaryContainer,
+        const SizedBox(width: 8),
+        _buildPlayPauseButton(ttsState, ttsNotifier, cs: cs),
+        const SizedBox(width: 8),
+        _buildTransportButton(
+          icon: Icons.forward_10_rounded,
+          onPressed: () =>
+              ttsNotifier.seekRelative(const Duration(seconds: 10)),
+          cs: cs,
+          size: 42,
         ),
-        IconButton(
-          iconSize: 24,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-          icon: Icon(
-            Icons.forward_10_rounded,
-            color: cs.onPrimaryContainer.withValues(alpha: 0.9),
-          ),
-          onPressed: ttsNotifier.next,
-        ),
-        IconButton(
-          iconSize: 24,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-          icon: Icon(Icons.skip_next_rounded, color: cs.onPrimaryContainer),
+        const SizedBox(width: 6),
+        _buildTransportButton(
+          icon: Icons.skip_next_rounded,
           onPressed: nextAction,
+          cs: cs,
+          iconSize: 26,
         ),
       ],
+    );
+  }
+
+  Widget _buildTransportButton({
+    required IconData icon,
+    required VoidCallback? onPressed,
+    required ColorScheme cs,
+    double size = 44,
+    double iconSize = 24,
+    bool primary = false,
+  }) {
+    final backgroundColor = primary
+        ? cs.primary
+        : cs.surface.withValues(alpha: 0.28);
+    final foregroundColor = primary ? cs.onPrimary : cs.onPrimaryContainer;
+    final borderColor = primary
+        ? cs.primary.withValues(alpha: 0.9)
+        : cs.outlineVariant.withValues(alpha: 0.75);
+
+    return Material(
+      color: backgroundColor,
+      shape: CircleBorder(
+        side: BorderSide(color: borderColor, width: primary ? 1.8 : 1.4),
+      ),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: SizedBox.square(
+          dimension: size,
+          child: Icon(icon, size: iconSize, color: foregroundColor),
+        ),
+      ),
     );
   }
 
   Widget _buildPlayPauseButton(
     TtsState state,
     TtsController notifier, {
-    required Color iconColor,
+    required ColorScheme cs,
   }) {
     final isPlaying = state.status == TtsStatus.playing;
     final isLoading =
         state.status == TtsStatus.loading ||
         state.status == TtsStatus.buffering;
+    final isError = state.status == TtsStatus.error;
 
     if (isLoading) {
-      return Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(strokeWidth: 2, color: iconColor),
+      return Material(
+        color: cs.primary,
+        shape: CircleBorder(
+          side: BorderSide(
+            color: cs.primary.withValues(alpha: 0.95),
+            width: 1.8,
+          ),
+        ),
+        child: SizedBox.square(
+          dimension: 52,
+          child: Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.4,
+                color: cs.onPrimary,
+              ),
+            ),
+          ),
         ),
       );
     }
 
-    return IconButton(
-      iconSize: 36,
-      icon: Icon(
-        isPlaying
-            ? Icons.pause_circle_filled_rounded
-            : Icons.play_circle_filled_rounded,
-        color: iconColor,
-      ),
+    if (isError) {
+      return _buildTransportButton(
+        icon: Icons.refresh_rounded,
+        onPressed: notifier.retry,
+        cs: cs,
+        size: 52,
+        iconSize: 28,
+        primary: true,
+      );
+    }
+
+    return _buildTransportButton(
+      icon: isPlaying
+          ? Icons.pause_circle_filled_rounded
+          : Icons.play_circle_filled_rounded,
       onPressed: isPlaying ? notifier.pause : notifier.resume,
+      cs: cs,
+      size: 52,
+      iconSize: 32,
+      primary: true,
     );
   }
 

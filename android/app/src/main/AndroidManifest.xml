@@ -39,6 +39,7 @@
         <!-- ─── Firebase ──────────────────────────────────────────────────── -->
         <meta-data android:name="firebase_crashlytics_collection_enabled" android:value="true" />
         <meta-data android:name="com.google.android.gms.wallet.api.enabled" android:value="true" />
+        <meta-data android:name="io.flutter.embedding.android.ImpellerLazyShaderInitialization" android:value="true" />
 
         <!-- ─── AdMob ─────────────────────────────────────────────────────── -->
         <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-5062172284742614~6873520756" />

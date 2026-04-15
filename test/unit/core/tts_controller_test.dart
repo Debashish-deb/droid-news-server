@@ -1,219 +1,385 @@
 import 'dart:async';
-import 'package:bdnewsreader/core/tts/domain/repositories/tts_repository.dart';
+
+import 'package:audio_service/audio_service.dart';
 import 'package:bdnewsreader/core/tts/domain/entities/tts_chunk.dart';
-import 'package:bdnewsreader/core/tts/presentation/providers/tts_controller.dart'
-    show TtsController;
+import 'package:bdnewsreader/core/tts/domain/entities/tts_state.dart'
+    show TtsStatus;
+import 'package:bdnewsreader/core/tts/domain/entities/voice_profile.dart';
+import 'package:bdnewsreader/core/tts/presentation/providers/tts_controller.dart';
+import 'package:bdnewsreader/presentation/features/tts/domain/models/speech_chunk.dart';
+import 'package:bdnewsreader/presentation/features/tts/domain/models/tts_runtime_diagnostics.dart';
+import 'package:bdnewsreader/presentation/features/tts/domain/models/tts_session.dart';
+import 'package:bdnewsreader/presentation/features/tts/services/tts_prosody_builder.dart';
+import 'package:bdnewsreader/presentation/features/tts/services/tts_runtime_port.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
-import 'package:mocktail/mocktail.dart' show registerFallbackValue;
 
-class MockTtsRepository extends Mock implements TtsRepository {
-  @override
-  Stream<int> get currentChunkIndex => Stream.value(-1);
-  @override
-  Stream<double> get progress => Stream.value(0.0);
+class FakeTtsRuntime implements TtsRuntimePort {
+  final StreamController<int> _chunkIndexController =
+      StreamController<int>.broadcast();
+  final StreamController<SpeechChunk?> _chunkController =
+      StreamController<SpeechChunk?>.broadcast();
+  final StreamController<TtsSession?> _sessionController =
+      StreamController<TtsSession?>.broadcast();
+  final StreamController<PlaybackState> _playbackController =
+      StreamController<PlaybackState>.broadcast();
+
+  int playArticleCalls = 0;
+  int playReaderChunkCalls = 0;
+  int pauseCalls = 0;
+  int resumeCalls = 0;
+  int stopCalls = 0;
+  int? lastSeekIndex;
+  Duration? lastSeekOffset;
+  double? lastRate;
+  double? lastPitch;
+  String? lastVoiceName;
+  String? lastVoiceLocale;
+  Object? playArticleError;
+  Object? playReaderChunksError;
+  TtsSession? _session;
 
   @override
-  Future<void> play(List<TtsChunk>? chunks, int? startIndex) =>
-      super.noSuchMethod(
-        Invocation.method(#play, [chunks, startIndex]),
-        returnValue: Future<void>.value(),
-        returnValueForMissingStub: Future<void>.value(),
+  bool get canGoNextFeedArticle => false;
+
+  @override
+  bool get canGoPreviousFeedArticle => false;
+
+  @override
+  Stream<SpeechChunk?> get currentChunk => _chunkController.stream;
+
+  @override
+  Stream<int> get currentChunkIndex => _chunkIndexController.stream;
+
+  @override
+  int get currentChunkNumber => (_session?.currentChunkIndex ?? 0) + 1;
+
+  @override
+  String get currentArticleTitle => _session?.articleTitle ?? '';
+
+  @override
+  String get currentLanguage => _session?.articleLanguage ?? 'en-US';
+
+  @override
+  double get currentPitch => 0.98;
+
+  @override
+  TtsPreset get currentPreset => TtsPreset.natural;
+
+  @override
+  double get currentSpeed => 1.0;
+
+  @override
+  double get currentSynthesisRate => 0.44;
+
+  @override
+  TtsSession? get currentSession => _session;
+
+  @override
+  TtsRuntimeDiagnostics get currentDiagnostics => const TtsRuntimeDiagnostics();
+
+  @override
+  Stream<Duration> get durationStream => const Stream<Duration>.empty();
+
+  @override
+  Duration get estimatedTimeRemaining => Duration.zero;
+
+  @override
+  Stream<MediaItem?> get mediaItem => const Stream<MediaItem?>.empty();
+
+  @override
+  Stream<PlaybackState> get playbackState => _playbackController.stream;
+
+  @override
+  Stream<Duration> get positionStream => const Stream<Duration>.empty();
+
+  @override
+  Stream<TtsSession?> get sessionStream => _sessionController.stream;
+
+  @override
+  Stream<Duration?> get sleepTimerRemaining => const Stream<Duration?>.empty();
+
+  @override
+  Stream<TtsRuntimeDiagnostics> get diagnosticsStream =>
+      const Stream<TtsRuntimeDiagnostics>.empty();
+
+  @override
+  int get totalChunks => _session?.totalChunks ?? 0;
+
+  @override
+  Future<List<Map<String, String>>> getAvailableVoices() async =>
+      const <Map<String, String>>[];
+
+  @override
+  Future<void> next() async {}
+
+  @override
+  Future<void> pause() async {
+    pauseCalls += 1;
+    if (_session != null) {
+      _session = _session!.copyWith(state: TtsSessionState.paused);
+      _sessionController.add(_session);
+    }
+  }
+
+  @override
+  Future<void> playArticle(
+    String articleId,
+    String title,
+    String content, {
+    String language = 'en',
+    String category = 'general',
+    String? author,
+    String? imageSource,
+    String? introAnnouncement,
+  }) async {
+    if (playArticleError != null) {
+      throw playArticleError!;
+    }
+    playArticleCalls += 1;
+    _session = TtsSession.create(
+      articleId: articleId,
+      articleTitle: title,
+      articleCategory: category,
+      articleLanguage: language,
+    ).copyWith(totalChunks: 1, state: TtsSessionState.playing);
+    _sessionController.add(_session);
+  }
+
+  @override
+  Future<void> playReaderChunks(
+    List<TtsChunk> chunks, {
+    required String title,
+    String language = 'en',
+    String category = 'general',
+    String? author,
+    String? imageSource,
+    String? introAnnouncement,
+  }) async {
+    if (playReaderChunksError != null) {
+      throw playReaderChunksError!;
+    }
+    playReaderChunkCalls += 1;
+    _session = TtsSession.create(
+      articleId: 'reader',
+      articleTitle: title,
+      articleCategory: category,
+      articleLanguage: language,
+    ).copyWith(totalChunks: chunks.length, state: TtsSessionState.playing);
+    _sessionController.add(_session);
+  }
+
+  @override
+  Future<void> previous() async {}
+
+  @override
+  Future<void> resume() async {
+    resumeCalls += 1;
+    if (_session != null) {
+      _session = _session!.copyWith(state: TtsSessionState.playing);
+      _sessionController.add(_session);
+    }
+  }
+
+  @override
+  Future<void> retry() async {
+    if (_session != null) {
+      _session = _session!.copyWith(
+        state: TtsSessionState.playing,
+        errorMessage: null,
       );
+      _sessionController.add(_session);
+    }
+  }
 
   @override
-  Future<void> stop() => super.noSuchMethod(
-    Invocation.method(#stop, []),
-    returnValue: Future<void>.value(),
-    returnValueForMissingStub: Future<void>.value(),
-  );
+  Future<void> seekRelative(Duration offset) async {
+    lastSeekOffset = offset;
+  }
 
   @override
-  Future<void> pause() => super.noSuchMethod(
-    Invocation.method(#pause, []),
-    returnValue: Future<void>.value(),
-    returnValueForMissingStub: Future<void>.value(),
-  );
+  Future<void> seekToChunk(int index) async {
+    lastSeekIndex = index;
+    if (_session != null) {
+      _session = _session!.copyWith(currentChunkIndex: index);
+      _sessionController.add(_session);
+    }
+    _chunkIndexController.add(index);
+  }
 
   @override
-  Future<void> resume() => super.noSuchMethod(
-    Invocation.method(#resume, []),
-    returnValue: Future<void>.value(),
-    returnValueForMissingStub: Future<void>.value(),
-  );
-}
+  Future<void> setPitch(double pitch) async {
+    lastPitch = pitch;
+  }
 
-class AudioFocusException implements Exception {
-  final String message;
-  AudioFocusException(this.message);
   @override
-  String toString() => 'AudioFocusException: $message';
+  Future<void> setPreset(TtsPreset preset) async {}
+
+  @override
+  Future<void> setRate(double rate) async {
+    lastRate = rate;
+  }
+
+  @override
+  void setSleepTimer(Duration duration) {}
+
+  @override
+  Future<void> setSpeed(double speed) async {}
+
+  @override
+  Future<void> setVoice(String name, String locale) async {
+    lastVoiceName = name;
+    lastVoiceLocale = locale;
+  }
+
+  @override
+  Future<void> setVolume(double volume) async {}
+
+  @override
+  Future<void> stop() async {
+    stopCalls += 1;
+    if (_session != null) {
+      _session = _session!.copyWith(state: TtsSessionState.stopped);
+      _sessionController.add(_session);
+    }
+  }
+
+  void dispose() {
+    _chunkIndexController.close();
+    _chunkController.close();
+    _sessionController.close();
+    _playbackController.close();
+  }
 }
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(<TtsChunk>[]);
-  });
-
-  group('TTS Controller Tests', () {
-    late MockTtsRepository mockTtsRepository;
-    late TtsController ttsController;
+  group('TTS Controller', () {
+    late FakeTtsRuntime runtime;
+    late TtsController controller;
 
     setUp(() {
-      mockTtsRepository = MockTtsRepository();
-      ttsController = TtsController(mockTtsRepository);
+      runtime = FakeTtsRuntime();
+      controller = TtsController(runtime);
     });
 
     tearDown(() {
-      ttsController.dispose();
+      controller.dispose();
+      runtime.dispose();
     });
 
-    group('TTS speech control', () {
-      test('TTS starts speaking text', () async {
-        // Arrange
-        const testText = 'Hello world';
-        when(mockTtsRepository.play(any, any)).thenAnswer((_) async {});
+    test('playFromText delegates to shared runtime article playback', () async {
+      await controller.playFromText('Hello world');
 
-        // Act
-        await ttsController.playFromText(testText);
-
-        // Assert
-        verify(mockTtsRepository.play(any, 0)).called(1);
-      });
-
-      test('TTS pauses speech', () async {
-        // Arrange
-        when(mockTtsRepository.play(any, any)).thenAnswer((_) async {});
-        await ttsController.playFromText('Test');
-
-        when(mockTtsRepository.pause()).thenAnswer((_) async {});
-
-        // Act
-        await ttsController.pause();
-
-        // Assert
-        verify(mockTtsRepository.pause()).called(1);
-      });
-
-      test('TTS resumes speech', () async {
-        // Arrange
-        when(mockTtsRepository.play(any, any)).thenAnswer((_) async {});
-        await ttsController.playFromText('Test');
-
-        when(mockTtsRepository.pause()).thenAnswer((_) async {});
-        await ttsController.pause();
-
-        when(mockTtsRepository.resume()).thenAnswer((_) async {});
-
-        // Act
-        await ttsController.resume();
-
-        // Assert
-        verify(mockTtsRepository.resume()).called(1);
-      });
-
-      test('TTS stops speech', () async {
-        // Arrange
-        when(mockTtsRepository.stop()).thenAnswer((_) async {});
-
-        // Act
-        await ttsController.stop();
-
-        // Assert
-        verify(mockTtsRepository.stop()).called(1);
-      });
-
-      test('TTS handles long text', () async {
-        // Arrange
-        const longText =
-            'This is a very long text that should be handled properly by the TTS system without causing any issues or crashes during the speech synthesis process.';
-        when(mockTtsRepository.play(any, any)).thenAnswer((_) async {});
-
-        // Act
-        await ttsController.playFromText(longText);
-
-        // Assert
-        verify(mockTtsRepository.play(any, 0)).called(1);
-      });
-
-      test('TTS handles empty text', () async {
-        // Act
-        await ttsController.playFromText('');
-
-        // Assert
-        verifyNever(mockTtsRepository.play(any, any));
-      });
+      expect(runtime.playArticleCalls, 1);
+      expect(controller.state.status, TtsStatus.playing);
     });
 
-    group('TTS state management', () {
-      test('TTS stops on dispose', () async {
-        // Arrange
-        final localController = TtsController(mockTtsRepository);
-        when(mockTtsRepository.stop()).thenAnswer((_) async {});
+    test(
+      'playChunks delegates to shared runtime prepared chunk playback',
+      () async {
+        await controller.playChunks(<TtsChunk>[
+          const TtsChunk(
+            text: 'Chunk 0',
+            index: 0,
+            estimatedDuration: Duration(seconds: 1),
+          ),
+        ]);
 
-        // Act
-        localController.dispose();
+        expect(runtime.playReaderChunkCalls, 1);
+        expect(controller.state.totalChunks, 1);
+      },
+    );
 
-        // Assert
-        verify(mockTtsRepository.stop()).called(1);
-      });
+    test('playChunks surfaces startup failures as error state', () async {
+      runtime.playReaderChunksError = StateError('TTS init failed');
 
-      test('multiple play calls handled correctly', () async {
-        // Arrange
-        when(mockTtsRepository.play(any, any)).thenAnswer((_) async {});
+      await controller.playChunks(<TtsChunk>[
+        const TtsChunk(
+          text: 'Chunk 0',
+          index: 0,
+          estimatedDuration: Duration(seconds: 1),
+        ),
+      ]);
 
-        // Act
-        await ttsController.playFromText('First');
-        await ttsController.playFromText('Second');
-
-        // Assert
-        verify(mockTtsRepository.play(any, 0)).called(2);
-      });
-
-      test('TTS handles rapid play/pause', () async {
-        // Arrange
-        when(mockTtsRepository.play(any, any)).thenAnswer((_) async {});
-        when(mockTtsRepository.pause()).thenAnswer((_) async {});
-        when(mockTtsRepository.resume()).thenAnswer((_) async {});
-
-        // Act
-        await ttsController.playFromText('Test');
-        await ttsController.pause();
-        await ttsController.resume();
-
-        // Assert
-        verify(mockTtsRepository.play(any, 0)).called(1);
-        verify(mockTtsRepository.pause()).called(1);
-        verify(mockTtsRepository.resume()).called(1);
-      });
-
-      test('TTS handles audio focus changes', () async {
-        // Arrange
-        when(
-          mockTtsRepository.play(any, any),
-        ).thenThrow(AudioFocusException('Audio focus lost'));
-
-        // Act
-        await ttsController.playFromText('Test');
-
-        // Assert
-        verify(mockTtsRepository.play(any, 0)).called(1);
-      });
+      expect(controller.state.status, TtsStatus.error);
+      expect(controller.state.error, contains('TTS init failed'));
     });
 
-    group('TTS error handling', () {
-      test('TTS handles engine errors gracefully', () async {
-        // Arrange
-        when(
-          mockTtsRepository.play(any, any),
-        ).thenThrow(Exception('TTS engine error'));
+    test('successful playback clears previous error state', () async {
+      runtime.playReaderChunksError = StateError('TTS init failed');
+      await controller.playChunks(<TtsChunk>[
+        const TtsChunk(
+          text: 'Chunk 0',
+          index: 0,
+          estimatedDuration: Duration(seconds: 1),
+        ),
+      ]);
 
-        // Act
-        await ttsController.playFromText('Test');
+      runtime.playReaderChunksError = null;
+      await controller.playChunks(<TtsChunk>[
+        const TtsChunk(
+          text: 'Chunk 0',
+          index: 0,
+          estimatedDuration: Duration(seconds: 1),
+        ),
+      ]);
 
-        // Assert - Should not crash
-        verify(mockTtsRepository.play(any, 0)).called(1);
-      });
+      expect(controller.state.status, TtsStatus.playing);
+      expect(controller.state.error, isNull);
+    });
+
+    test('pause, resume, stop delegate to shared runtime', () async {
+      await controller.playFromText('Test');
+      await controller.pause();
+      await controller.resume();
+      await controller.stop();
+
+      expect(runtime.pauseCalls, 1);
+      expect(runtime.resumeCalls, 1);
+      expect(runtime.stopCalls, greaterThanOrEqualTo(1));
+    });
+
+    test('setRate and setPitch update config and runtime', () async {
+      await controller.setRate(0.5);
+      await controller.setPitch(1.02);
+
+      expect(runtime.lastRate, closeTo(0.5, 0.0001));
+      expect(runtime.lastPitch, closeTo(1.02, 0.0001));
+      expect(controller.state.config.rate, closeTo(0.5, 0.0001));
+      expect(controller.state.config.pitch, closeTo(1.02, 0.0001));
+    });
+
+    test('setVoice delegates to runtime voice selection', () async {
+      await controller.setVoice(
+        const VoiceProfile(name: 'Natural', locale: 'bn-BD'),
+      );
+
+      expect(runtime.lastVoiceName, 'Natural');
+      expect(runtime.lastVoiceLocale, 'bn-BD');
+    });
+
+    test(
+      'seekRelative delegates relative playback movement to runtime',
+      () async {
+        await controller.seekRelative(const Duration(seconds: 10));
+
+        expect(runtime.lastSeekOffset, const Duration(seconds: 10));
+      },
+    );
+
+    test('empty text does not start playback', () async {
+      await controller.playFromText('');
+
+      expect(runtime.playArticleCalls, 0);
+    });
+
+    test('dispose stops shared runtime', () {
+      final localRuntime = FakeTtsRuntime();
+      final localController = TtsController(localRuntime);
+
+      localController.dispose();
+
+      expect(localRuntime.stopCalls, 1);
+      localRuntime.dispose();
     });
   });
 }

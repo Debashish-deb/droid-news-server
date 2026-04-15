@@ -1,4 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:synchronized/synchronized.dart' as synchronized;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../application/identity/entitlement_policy.dart';
 import '../../core/di/providers.dart';
 import '../../domain/entities/subscription.dart' show SubscriptionTier;
 import '../../domain/repositories/premium_repository.dart'
@@ -42,16 +48,22 @@ final isPremiumStateProvider = Provider<bool>((ref) {
 });
 
 /// Whether ad surfaces are allowed to render.
-/// Fail-safe: while premium status is unresolved/loading, ads stay hidden.
+/// Free users should always be ad-eligible; Pro remains strictly ad-free.
 final shouldShowAdsProvider = Provider<bool>((ref) {
   final snapshot = ref.watch(entitlementSnapshotProvider);
-  return snapshot.resolved && !snapshot.isPremium;
+  return !snapshot.isPremium;
 });
 
-/// Shared counter for free article views, persisted to SharedPreferences
-final freeViewsProvider = StateProvider<int>((ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return prefs?.getInt('free_views_used') ?? 0;
+/// Publisher/webview ad blocking is allowed for every tier.
+///
+/// This is separate from app-owned AdMob surfaces:
+/// free users may still see AdMob placements, while Pro sees none.
+final publisherAdBlockingEnabledProvider = Provider<bool>((ref) {
+  final tier = ref.watch(currentTierProvider);
+  return EntitlementPolicy.hasFeature(
+    tier,
+    EntitlementPolicy.publisherAdBlocking,
+  );
 });
 
 /// Provides the current premium tier enum
@@ -63,36 +75,106 @@ final currentTierProvider = Provider<SubscriptionTier>((ref) {
 /// This prevents "tier leak" where a lower tier user gets higher tier features.
 final hasFeatureProvider = Provider.family<bool, String>((ref, featureId) {
   final tier = ref.watch(currentTierProvider);
-
-  if (tier == SubscriptionTier.free) return false;
-
-  // Basic premium features available to all paid tiers
-  const basicPremium = {'ad_free', 'offline_reading', 'unlimited_articles'};
-
-  if (basicPremium.contains(featureId)) return true;
-
-  // Advanced features (Pro and ProPlus)
-  if (tier == SubscriptionTier.pro || tier == SubscriptionTier.proPlus) {
-    const advancedFeatures = {'unlimited_tts', 'premium_sources'};
-    if (advancedFeatures.contains(featureId)) return true;
-  }
-
-  // Exclusive "Second Tier" (ProPlus) features
-  if (tier == SubscriptionTier.proPlus) {
-    const enterpriseFeatures = {'ai_summaries', 'bulk_export'};
-    if (enterpriseFeatures.contains(featureId)) return true;
-  }
-
-  return false;
+  return EntitlementPolicy.hasFeature(tier, featureId);
 });
 
-/// Extension to conveniently increment and persist free views
-extension FreeViewsController on WidgetRef {
-  void incrementFreeViews() {
-    final prefs = read(sharedPreferencesProvider);
-    final current = read(freeViewsProvider);
+/// Shared counter for free article views, persisted to SharedPreferences and backend
+class FreeViewsNotifier extends AsyncNotifier<int> {
+  static final synchronized.Lock _consumeLock = synchronized.Lock();
+
+  @override
+  Future<int> build() async {
+    final prefs = ref.watch(sharedPreferencesProvider);
+    return _readCurrentFreeViews(prefs);
+  }
+
+  Future<int> _readCurrentFreeViews(SharedPreferences? prefs) async {
+    int localViews = prefs?.getInt('free_views_used') ?? 0;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && !user.isAnonymous) {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('user_usage')
+            .doc(user.uid)
+            .get(const GetOptions());
+
+        if (doc.exists) {
+          final backendViews = doc.data()?['free_views_used'] as int? ?? 0;
+          if (backendViews > localViews) {
+            localViews = backendViews;
+            prefs?.setInt('free_views_used', backendViews);
+          }
+        }
+      } catch (e) {
+        debugPrint('Error fetching backend free views: $e');
+      }
+    }
+    return localViews;
+  }
+
+  Future<void> increment() async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    final current = state.valueOrNull ?? 0;
     final newValue = current + 1;
-    read(freeViewsProvider.notifier).state = newValue;
+
+    state = AsyncData(newValue);
     prefs?.setInt('free_views_used', newValue);
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && !user.isAnonymous) {
+      try {
+        final docRef = FirebaseFirestore.instance
+            .collection('user_usage')
+            .doc(user.uid);
+
+        await docRef.set({
+          'free_views_used': newValue,
+          'last_free_view_date': DateTime.now().toIso8601String(),
+        }, SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('Error syncing free views to backend: $e');
+      }
+    }
+  }
+
+  Future<bool> tryConsumeIfAvailable({required int maxFreeViews}) async {
+    return _consumeLock.synchronized(() async {
+      final prefs = ref.read(sharedPreferencesProvider);
+      final current = state.valueOrNull ?? await _readCurrentFreeViews(prefs);
+
+      state = AsyncData(current);
+      if (current >= maxFreeViews) {
+        return false;
+      }
+
+      final newValue = current + 1;
+      state = AsyncData(newValue);
+      if (prefs != null) {
+        await prefs.setInt('free_views_used', newValue);
+      }
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && !user.isAnonymous) {
+        try {
+          final docRef = FirebaseFirestore.instance
+              .collection('user_usage')
+              .doc(user.uid);
+
+          await docRef.set({
+            'free_views_used': newValue,
+            'last_free_view_date': DateTime.now().toIso8601String(),
+          }, SetOptions(merge: true));
+        } catch (e) {
+          debugPrint('Error syncing free views to backend: $e');
+        }
+      }
+
+      return true;
+    });
   }
 }
+
+final freeViewsProvider = AsyncNotifierProvider<FreeViewsNotifier, int>(() {
+  return FreeViewsNotifier();
+});

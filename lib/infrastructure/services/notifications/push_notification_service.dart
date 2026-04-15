@@ -29,9 +29,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
   try {
     if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      await DefaultFirebaseOptions.initializeApp();
     }
   } catch (_) {
     // Background delivery should never crash the isolate because Firebase
@@ -51,11 +49,16 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 class PushNotificationService implements NotificationPreferenceSync {
   PushNotificationService(this._logger, this._prefs, this._securePrefs)
-      : _dedupStore =
-            _prefs != null ? NotificationDedupStore(_prefs) : null;
+    : _dedupStore = _prefs != null ? NotificationDedupStore(_prefs) : null;
 
   static bool _backgroundHandlerRegistered = false;
   static bool _registerTokenFunctionMissingLogged = false;
+  static bool _registerTokenBackendSyncUnavailable = false;
+  static bool _sessionStoreTokenSyncUnavailable = false;
+  static bool _sessionStoreTokenSyncUnavailableLogged = false;
+  static const bool _enableBackendTokenSyncInNonRelease = bool.fromEnvironment(
+    'ENABLE_PUSH_TOKEN_BACKEND_SYNC_IN_NON_RELEASE',
+  );
   static const MethodChannel _securityChannel = MethodChannel(
     'com.bdnews/security',
   );
@@ -80,31 +83,67 @@ class PushNotificationService implements NotificationPreferenceSync {
   NotificationPreferences _preferences = NotificationPreferences();
   String? _fcmToken;
   bool _initialized = false;
+  bool _remotePipelineInitialized = false;
+  bool _remoteRegistrationCompleted = false;
   bool _handlersRegistered = false;
   StreamSubscription<User?>? _authStateSubscription;
+  Future<Map<String, dynamic>?>? _initialMessageLoadFuture;
+  Future<void>? _pendingRemoteRegistration;
+  bool _initialMessageConsumed = false;
 
   Function(Map<String, dynamic>)? onNotificationTap;
 
-  Future<void> initialize() async {
-    if (_initialized) {
+  Future<void> initialize({bool deferRemoteRegistration = false}) async {
+    if (!_initialized) {
+      await _loadPreferences();
+
+      await _initializeLocalNotifications();
+
+      _initialized = true;
+      _logger.info('Push notification local stage initialized');
+    }
+
+    if (_preferences.enabled) {
+      if (!deferRemoteRegistration) {
+        await completeDeferredRegistration();
+      }
       return;
     }
 
-    await _loadPreferences();
+    _remoteRegistrationCompleted = false;
+  }
 
-    await _initializeLocalNotifications();
-    await _configureForegroundPresentation();
-    _setupMessageHandlers();
-    _listenForAuthChanges();
-
-    if (_preferences.enabled) {
-      await _enableNotificationsInternally(requestSystemPermission: true);
-    } else {
-      await _disableNotificationsInternally(deleteToken: false);
+  Future<void> completeDeferredRegistration({
+    bool requestSystemPermission = true,
+  }) async {
+    if (!_initialized ||
+        !_preferences.enabled ||
+        _remoteRegistrationCompleted) {
+      return;
     }
 
-    _initialized = true;
-    _logger.info('Push notification service initialized');
+    final pending = _pendingRemoteRegistration;
+    if (pending != null) {
+      await pending;
+      return;
+    }
+
+    final future = () async {
+      await _initializeRemotePipelineIfNeeded();
+      final enabled = await _enableNotificationsInternally(
+        requestSystemPermission: requestSystemPermission,
+      );
+      _remoteRegistrationCompleted = enabled;
+    }();
+    _pendingRemoteRegistration = future;
+
+    try {
+      await future;
+    } finally {
+      if (identical(_pendingRemoteRegistration, future)) {
+        _pendingRemoteRegistration = null;
+      }
+    }
   }
 
   Future<void> _initializeLocalNotifications() async {
@@ -166,6 +205,20 @@ class PushNotificationService implements NotificationPreferenceSync {
     await androidPlugin?.createNotificationChannel(generalChannel);
     await androidPlugin?.createNotificationChannel(personalizedChannel);
     await androidPlugin?.createNotificationChannel(promotionalChannel);
+  }
+
+  Future<void> _initializeRemotePipelineIfNeeded() async {
+    if (_remotePipelineInitialized) {
+      return;
+    }
+
+    registerBackgroundHandler();
+    await _configureForegroundPresentation();
+    _setupMessageHandlers();
+    _listenForAuthChanges();
+
+    _remotePipelineInitialized = true;
+    _logger.info('Push notification remote stage initialized');
   }
 
   Future<bool> requestPermission() async {
@@ -298,20 +351,54 @@ class PushNotificationService implements NotificationPreferenceSync {
     onNotificationTap!(data);
   }
 
+  Future<Map<String, dynamic>?> consumeInitialMessagePayload() async {
+    if (_initialMessageConsumed) {
+      return null;
+    }
+
+    final payload = await _loadInitialMessagePayload();
+    if (payload == null) {
+      return null;
+    }
+
+    _initialMessageConsumed = true;
+    return Map<String, dynamic>.from(payload);
+  }
+
   Future<void> checkInitialMessage() async {
-    final initialMessage = await _fcm.getInitialMessage();
-    if (initialMessage == null) {
+    if (!_preferences.enabled) {
       return;
     }
 
-    final payload = _payloadForMessage(initialMessage);
-    _logger.info('App opened from notification', payload);
+    final payload = await consumeInitialMessagePayload();
+    if (payload == null) {
+      return;
+    }
 
-    Future<void>.delayed(const Duration(milliseconds: 600), () {
-      if (onNotificationTap != null) {
-        onNotificationTap!(payload);
+    if (onNotificationTap != null) {
+      onNotificationTap!(payload);
+    }
+  }
+
+  Future<Map<String, dynamic>?> _loadInitialMessagePayload() {
+    final existing = _initialMessageLoadFuture;
+    if (existing != null) {
+      return existing;
+    }
+
+    final future = () async {
+      final initialMessage = await _fcm.getInitialMessage();
+      if (initialMessage == null) {
+        return null;
       }
-    });
+
+      final payload = _payloadForMessage(initialMessage);
+      _logger.info('App opened from notification', payload);
+      return payload;
+    }();
+
+    _initialMessageLoadFuture = future;
+    return future;
   }
 
   Future<void> subscribeToTopic(String topic) async {
@@ -385,7 +472,8 @@ class PushNotificationService implements NotificationPreferenceSync {
     }
 
     if (_preferences.enabled) {
-      await _enableNotificationsInternally(requestSystemPermission: false);
+      _remoteRegistrationCompleted = false;
+      await completeDeferredRegistration(requestSystemPermission: false);
     } else {
       await _disableNotificationsInternally(deleteToken: true);
     }
@@ -401,13 +489,14 @@ class PushNotificationService implements NotificationPreferenceSync {
     }
 
     if (enabled) {
-      await _enableNotificationsInternally(requestSystemPermission: true);
+      _remoteRegistrationCompleted = false;
+      await completeDeferredRegistration();
     } else {
       await _disableNotificationsInternally(deleteToken: true);
     }
   }
 
-  Future<void> _enableNotificationsInternally({
+  Future<bool> _enableNotificationsInternally({
     required bool requestSystemPermission,
   }) async {
     await _fcm.setAutoInitEnabled(true);
@@ -416,12 +505,13 @@ class PushNotificationService implements NotificationPreferenceSync {
       final granted = await requestPermission();
       if (!granted) {
         _logger.warn('Notification permission not granted');
-        return;
+        return false;
       }
     }
 
     await _getFCMToken();
     await _syncTopicSubscriptions();
+    return true;
   }
 
   Future<void> _disableNotificationsInternally({
@@ -440,6 +530,7 @@ class PushNotificationService implements NotificationPreferenceSync {
     }
 
     _fcmToken = null;
+    _remoteRegistrationCompleted = false;
     if (_prefs != null) {
       await _prefs.remove('fcm_token');
     }
@@ -471,6 +562,9 @@ class PushNotificationService implements NotificationPreferenceSync {
   }
 
   Future<void> _persistTokenForCurrentDevice(String token) async {
+    if (_sessionStoreTokenSyncUnavailable) {
+      return;
+    }
     try {
       if (Firebase.apps.isEmpty) {
         return;
@@ -481,9 +575,7 @@ class PushNotificationService implements NotificationPreferenceSync {
         return;
       }
 
-      final deviceId =
-          await _securePrefs.getRegisteredDeviceId() ??
-          await _securePrefs.getDeviceId();
+      final deviceId = await _securePrefs.getRegisteredDeviceId();
       if (deviceId == null || deviceId.isEmpty) {
         return;
       }
@@ -497,6 +589,18 @@ class PushNotificationService implements NotificationPreferenceSync {
             'fcmToken': token,
             'lastActive': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied' || e.code == 'failed-precondition') {
+        _sessionStoreTokenSyncUnavailable = true;
+        if (!_sessionStoreTokenSyncUnavailableLogged) {
+          _sessionStoreTokenSyncUnavailableLogged = true;
+          _logger.warn('FCM token session-store persistence unavailable', {
+            'code': e.code,
+          });
+        }
+        return;
+      }
+      _logger.error('Failed to persist FCM token to session store', e);
     } catch (e, stack) {
       _logger.error('Failed to persist FCM token to session store', e, stack);
     }
@@ -587,6 +691,14 @@ class PushNotificationService implements NotificationPreferenceSync {
   }
 
   Future<void> _sendTokenToBackend(String token) async {
+    if (!kReleaseMode && !_enableBackendTokenSyncInNonRelease) {
+      return;
+    }
+
+    if (_registerTokenBackendSyncUnavailable) {
+      return;
+    }
+
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
@@ -610,19 +722,25 @@ class PushNotificationService implements NotificationPreferenceSync {
       // Avoid flooding startup logs when backend token sync is intentionally
       // not deployed in a given environment.
       if (e.code == 'not-found') {
+        _registerTokenBackendSyncUnavailable = true;
         if (!_registerTokenFunctionMissingLogged) {
           _registerTokenFunctionMissingLogged = true;
-          _logger.warn('FCM token Cloud Function unavailable', {
+          _logger.info('FCM token backend sync unavailable for this session', {
             'code': e.code,
             'message': e.message,
             'details': e.details,
           });
-        } else if (kDebugMode) {
-          debugPrint(
-            'ℹ️ register_fcm_token function not found; skipping sync.',
-          );
         }
-      } else {
+        return;
+      }
+
+      if (e.code == 'permission-denied' || e.code == 'failed-precondition') {
+        _registerTokenBackendSyncUnavailable = true;
+      }
+
+      if (!_registerTokenBackendSyncUnavailable ||
+          !_registerTokenFunctionMissingLogged) {
+        _registerTokenFunctionMissingLogged = true;
         _logger.warn('FCM token Cloud Function unavailable', {
           'code': e.code,
           'message': e.message,

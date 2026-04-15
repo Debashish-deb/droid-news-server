@@ -11,13 +11,10 @@ final _themeDataCache = <String, ThemeData>{};
 @pragma('vm:prefer-inline')
 ThemeMode resolveThemeMode(AppThemeMode mode) {
   switch (normalizeThemeMode(mode)) {
-    case AppThemeMode.amoled:
-      return ThemeMode.dark;
+    case AppThemeMode.dark:
     case AppThemeMode.bangladesh:
       return ThemeMode.dark;
     case AppThemeMode.system:
-    case AppThemeMode.light:
-    case AppThemeMode.dark:
       return ThemeMode.system;
   }
 }
@@ -31,13 +28,11 @@ ThemeData resolveDarkTheme(AppThemeMode mode) {
   final normalized = normalizeThemeMode(mode);
   return _darkThemeCache.putIfAbsent(normalized, () {
     switch (normalized) {
+      case AppThemeMode.system:
+      case AppThemeMode.dark:
+        return AppTheme.darkTheme;
       case AppThemeMode.bangladesh:
         return AppTheme.bangladeshTheme;
-      case AppThemeMode.system:
-      case AppThemeMode.light:
-      case AppThemeMode.dark:
-      case AppThemeMode.amoled:
-        return AppTheme.amoledTheme;
     }
   });
 }
@@ -56,15 +51,13 @@ ThemeData resolveThemeData(AppThemeMode mode, Brightness systemBrightness) {
 
   return _themeDataCache.putIfAbsent(key, () {
     switch (normalized) {
-      case AppThemeMode.amoled:
-        return AppTheme.amoledTheme;
+      case AppThemeMode.dark:
+        return AppTheme.darkTheme;
       case AppThemeMode.bangladesh:
         return AppTheme.bangladeshTheme;
       case AppThemeMode.system:
-      case AppThemeMode.light:
-      case AppThemeMode.dark:
         return systemBrightness == Brightness.dark
-            ? AppTheme.amoledTheme
+            ? AppTheme.darkTheme
             : AppTheme.lightTheme;
     }
   });
@@ -73,18 +66,16 @@ ThemeData resolveThemeData(AppThemeMode mode, Brightness systemBrightness) {
 /// Short string label for [mode], useful for analytics, asset-path segments,
 /// and debug logging without exposing the internal enum name.
 ///
-/// Returns one of: `'light'` | `'dark'` | `'amoled'` | `'desh'` | `'system'`
+/// Returns one of: `'dark'` | `'desh'` | `'system'`
 @pragma('vm:prefer-inline')
 String themeModeLabel(AppThemeMode mode) {
   switch (normalizeThemeMode(mode)) {
-    case AppThemeMode.amoled:
-      return 'amoled';
+    case AppThemeMode.system:
+      return 'system';
+    case AppThemeMode.dark:
+      return 'dark';
     case AppThemeMode.bangladesh:
       return 'desh';
-    case AppThemeMode.system:
-    case AppThemeMode.light:
-    case AppThemeMode.dark:
-      return 'system';
   }
 }
 
@@ -95,4 +86,16 @@ String themeModeLabel(AppThemeMode mode) {
 void clearThemeCache() {
   _darkThemeCache.clear();
   _themeDataCache.clear();
+}
+
+/// Preloads theme cache entries used during runtime theme switching.
+///
+/// This front-loads one-time ThemeData construction cost so the first user
+/// theme toggle does not hitch on lower-end devices.
+void prewarmThemeCaches() {
+  resolveDarkTheme(AppThemeMode.system);
+  resolveDarkTheme(AppThemeMode.dark);
+  resolveDarkTheme(AppThemeMode.bangladesh);
+  resolveThemeData(AppThemeMode.system, Brightness.light);
+  resolveThemeData(AppThemeMode.system, Brightness.dark);
 }

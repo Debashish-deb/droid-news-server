@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_classes_with_only_static_members
+
 import '../../../domain/entities/news_article.dart';
 import '../../../core/utils/url_identity.dart';
 import '../../services/ml/categorization_helper.dart';
@@ -59,8 +61,27 @@ class NewsRepositorySyncHelper {
     'mixed': 1,
   };
 
-  static String articleIdentityKey(String rawUrl) => UrlIdentity.canonicalize(rawUrl);
-  static String articleIdFromUrl(String rawUrl) => UrlIdentity.idFromUrl(rawUrl);
+  static const Set<String> _hiddenTagPrefixes = <String>{'format'};
+
+  static const Set<String> _hiddenSemanticTags = <String>{'tax'};
+
+  static const Map<String, String> _semanticAliases = <String, String>{
+    'bangla': 'bangladesh',
+    'bd': 'bangladesh',
+    'world': 'international',
+    'global': 'international',
+    'world affairs': 'international',
+    'sport': 'sports',
+    'showbiz': 'entertainment',
+    'taxes': 'tax',
+    'income tax': 'tax',
+    'vat': 'tax',
+  };
+
+  static String articleIdentityKey(String rawUrl) =>
+      UrlIdentity.canonicalize(rawUrl);
+  static String articleIdFromUrl(String rawUrl) =>
+      UrlIdentity.idFromUrl(rawUrl);
 
   static String resolveSyncCategory(String? category) {
     if (category == null || category == 'all') return 'latest';
@@ -85,47 +106,112 @@ class NewsRepositorySyncHelper {
   }) {
     final normalizedCategory = classifiedCategory.trim().toLowerCase();
     final normalizedSourceCategory = sourceCategory.trim().toLowerCase();
-    final normalizedTags = matchedTags.map((tag) => tag.trim().toLowerCase()).where((tag) => tag.isNotEmpty).toSet();
+    final normalizedTags = matchedTags
+        .map((tag) => tag.trim().toLowerCase())
+        .where((tag) => tag.isNotEmpty)
+        .toSet();
 
     final hasSportsTag = normalizedTags.any((tag) => tag.startsWith('sports:'));
-    final hasEntertainmentTag = normalizedTags.any((tag) => tag.startsWith('entertainment:'));
-    final hasBangladeshTag = normalizedTags.any((tag) =>
-      tag == 'country:bangladesh' ||
-      tag.startsWith('division:') ||
-      tag.startsWith('district:') ||
-      tag.startsWith('organization:'));
+    final hasEntertainmentTag = normalizedTags.any(
+      (tag) => tag.startsWith('entertainment:'),
+    );
+    final hasBangladeshTag = normalizedTags.any(
+      (tag) =>
+          tag == 'country:bangladesh' ||
+          tag.startsWith('division:') ||
+          tag.startsWith('district:') ||
+          tag.startsWith('organization:'),
+    );
 
-    final hasSportsSignal = hasSportsTag || CategorizationHelper.hasStrongSportsEvidence(title: article.title, description: article.description, content: article.fullContent);
-    final hasEntertainmentSignal = hasEntertainmentTag || CategorizationHelper.hasEntertainmentKeywords(title: article.title, description: article.description, content: article.fullContent);
+    final hasSportsSignal =
+        hasSportsTag ||
+        CategorizationHelper.hasStrongSportsEvidence(
+          title: article.title,
+          description: article.description,
+          content: article.fullContent,
+        );
+    final hasEntertainmentSignal =
+        hasEntertainmentTag ||
+        CategorizationHelper.hasHardEntertainmentEvidence(
+          title: article.title,
+          description: article.description,
+          content: article.fullContent,
+        );
 
-    final hasBangladeshSignal = hasBangladeshTag ||
-      CategorizationHelper.isBangladeshCentric(title: article.title, description: article.description, content: article.fullContent) ||
-      CategorizationHelper.hasNationalSoftKeywords(title: article.title, description: article.description, content: article.fullContent);
-    
-    final hasInternationalSignal = normalizedTags.any((tag) => tag.startsWith('international:')) ||
-      CategorizationHelper.hasInternationalKeywords(title: article.title, description: article.description, content: article.fullContent) ||
-      CategorizationHelper.hasInternationalSoftKeywords(title: article.title, description: article.description, content: article.fullContent);
+    final hasBangladeshSignal =
+        hasBangladeshTag ||
+        CategorizationHelper.isBangladeshCentric(
+          title: article.title,
+          description: article.description,
+          content: article.fullContent,
+        ) ||
+        CategorizationHelper.hasNationalSoftKeywords(
+          title: article.title,
+          description: article.description,
+          content: article.fullContent,
+        );
 
-    if (hasSportsTag && !hasEntertainmentTag && !hasInternationalSignal && !hasBangladeshSignal) return 'sports';
-    if (hasEntertainmentTag && !hasSportsTag) return 'entertainment';
+    final hasInternationalSignal =
+        normalizedTags.any((tag) => tag.startsWith('international:')) ||
+        CategorizationHelper.hasInternationalKeywords(
+          title: article.title,
+          description: article.description,
+          content: article.fullContent,
+        ) ||
+        CategorizationHelper.hasInternationalSoftKeywords(
+          title: article.title,
+          description: article.description,
+          content: article.fullContent,
+        );
+    final hasInternationalDominance =
+        CategorizationHelper.hasInternationalDominance(
+          title: article.title,
+          description: article.description,
+          content: article.fullContent,
+        );
 
-    if (hasSportsSignal && normalizedCategory == 'sports' && !hasInternationalSignal) return 'sports';
-    if (hasEntertainmentSignal && normalizedCategory == 'entertainment') return 'entertainment';
-    if (hasBangladeshSignal && (normalizedCategory == 'national' || normalizedCategory == 'international')) {
-      return normalizedCategory == 'international' ? 'international' : 'national';
+    if (hasSportsSignal &&
+        !hasEntertainmentSignal &&
+        !hasInternationalSignal &&
+        !hasBangladeshSignal) {
+      return 'sports';
+    }
+    if (hasEntertainmentSignal &&
+        !hasSportsSignal &&
+        (!hasBangladeshSignal ||
+            normalizedCategory == 'entertainment' ||
+            normalizedSourceCategory == 'entertainment')) {
+      return 'entertainment';
     }
 
-    if (hasSportsSignal && !hasEntertainmentSignal && !hasBangladeshSignal && !hasInternationalSignal) return 'sports';
-    if (hasEntertainmentSignal && !hasSportsSignal && !hasBangladeshSignal) return 'entertainment';
-    if (hasBangladeshSignal) return 'national';
+    if (hasBangladeshSignal) {
+      if (hasInternationalSignal && hasInternationalDominance) {
+        return 'international';
+      }
+      return 'national';
+    }
+    if (hasInternationalSignal) return 'international';
 
     if (normalizedSourceCategory == 'national') return 'national';
-    if (normalizedSourceCategory == 'international') return 'international';
+    if (normalizedSourceCategory == 'international') {
+      return hasBangladeshSignal && !hasInternationalDominance
+          ? 'national'
+          : 'international';
+    }
     if (normalizedSourceCategory == 'sports') return 'sports';
-    if (normalizedSourceCategory == 'entertainment') return 'entertainment';
+    if (normalizedSourceCategory == 'entertainment' && hasEntertainmentSignal) {
+      return 'entertainment';
+    }
 
     if (normalizedCategory != 'latest' && normalizedCategory.isNotEmpty) {
-      return CategorizationHelper.validateAndFixCategory(detectedCategory: normalizedCategory, title: article.title, description: article.description);
+      if (normalizedCategory == 'entertainment' && !hasEntertainmentSignal) {
+        return 'national';
+      }
+      return CategorizationHelper.validateAndFixCategory(
+        detectedCategory: normalizedCategory,
+        title: article.title,
+        description: article.description,
+      );
     }
 
     if (article.language == 'bn') return 'national';
@@ -136,6 +222,7 @@ class NewsRepositorySyncHelper {
     required NewsArticle article,
     required List<String> matchedTags,
     required String sourceCategory,
+    required String primaryCategory,
   }) {
     final tags = matchedTags.toSet();
     final text = '${article.title} ${article.description}'.toLowerCase();
@@ -159,7 +246,85 @@ class NewsRepositorySyncHelper {
       tags.add('trending');
     }
 
-    return tags.toList();
+    return _sanitizeCanonicalTags(
+      tags.toList(),
+      primaryCategory: primaryCategory,
+    );
+  }
+
+  static List<String> _sanitizeCanonicalTags(
+    List<String> rawTags, {
+    required String primaryCategory,
+  }) {
+    final output = <String>[];
+    final seenSemantic = <String>{};
+    final normalizedPrimary = primaryCategory.trim().toLowerCase();
+
+    for (final raw in rawTags) {
+      final normalized = raw.trim().toLowerCase();
+      if (normalized.isEmpty || normalized == 'premium') continue;
+
+      final (prefix, value) = _splitTag(normalized);
+      if (_hiddenTagPrefixes.contains(prefix)) continue;
+      if (value.isEmpty) continue;
+
+      final semantic = _canonicalSemantic(value);
+      if (semantic.isEmpty) continue;
+      if (_hiddenSemanticTags.contains(semantic) && prefix != 'topic') continue;
+      if (_isCategoryEquivalentSemantic(semantic, normalizedPrimary)) continue;
+      if (!seenSemantic.add(semantic)) continue;
+
+      if (prefix.isEmpty) {
+        output.add(semantic);
+      } else {
+        output.add('$prefix:$semantic');
+      }
+      if (output.length >= 10) break;
+    }
+
+    return output;
+  }
+
+  static (String prefix, String value) _splitTag(String normalizedTag) {
+    if (!normalizedTag.contains(':')) return ('', normalizedTag);
+    final parts = normalizedTag.split(':');
+    final prefix = parts.first.trim();
+    final value = parts.sublist(1).join(':').trim();
+    return (prefix, value);
+  }
+
+  static String _canonicalSemantic(String value) {
+    final normalized = value
+        .trim()
+        .toLowerCase()
+        .replaceAll('-', ' ')
+        .replaceAll('_', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ');
+    if (normalized.isEmpty) return '';
+    return _semanticAliases[normalized] ?? normalized;
+  }
+
+  static bool _isCategoryEquivalentSemantic(
+    String semantic,
+    String primaryCategory,
+  ) {
+    switch (primaryCategory) {
+      case 'national':
+        return semantic == 'national' ||
+            semantic == 'bangladesh' ||
+            semantic == 'country bangladesh';
+      case 'international':
+        return semantic == 'international' ||
+            semantic == 'world' ||
+            semantic == 'world affairs' ||
+            semantic == 'global';
+      case 'sports':
+        return semantic == 'sports' || semantic == 'sport';
+      case 'entertainment':
+        return semantic == 'entertainment' || semantic == 'showbiz';
+      default:
+        return false;
+    }
   }
 
   static bool matchesStrictCategory(NewsArticle article, String category) {
@@ -187,7 +352,7 @@ class NewsRepositorySyncHelper {
     }
 
     if (normalizedCategory == 'entertainment') {
-      return CategorizationHelper.hasEntertainmentKeywords(
+      return CategorizationHelper.hasHardEntertainmentEvidence(
             title: article.title,
             description: article.description,
             content: article.fullContent,

@@ -6,14 +6,16 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../../core/enums/theme_mode.dart';
+import '../../../core/config/performance_config.dart';
 import '../../../core/theme/theme.dart';
 import '../../providers/theme_providers.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../widgets/glass_icon_button.dart' show GlassIconButton;
 import '../settings/widgets/settings_3d_widgets.dart';
 import '../../widgets/glass_pill_button.dart';
-import '../../widgets/glass_icon_button.dart';
+import '../../widgets/premium_screen_header.dart';
+import '../../widgets/platform_surface_treatment.dart';
 
 class HistoryWidget extends ConsumerStatefulWidget {
   const HistoryWidget({super.key});
@@ -78,42 +80,37 @@ class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
   Widget build(BuildContext context) {
     final AppLocalizations loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final perf = PerformanceConfig.of(context);
     final themeMode = ref.watch(currentThemeModeProvider);
     final isDark = theme.brightness == Brightness.dark;
     final todayLabel = DateFormat('MMMM d').format(currentDate);
     final events = (data?['events'] as List<dynamic>? ?? []).toList();
+    final preferMaterialChrome = preferAndroidMaterialSurfaceChrome(context);
+    final cheapComposite =
+        perf.reduceEffects ||
+        perf.lowPowerMode ||
+        perf.isLowEndDevice ||
+        perf.performanceTier != DevicePerformanceTier.flagship ||
+        preferMaterialChrome;
 
     final gradientColors = AppGradients.getBackgroundGradient(themeMode);
-    final glassColor = ref.watch(glassColorProvider);
-    final borderColor = ref.watch(borderColorProvider);
+    final glassColor = preferMaterialChrome
+        ? materialSurfaceOverlayColor(
+            theme.colorScheme,
+            tone: MaterialSurfaceTone.highest,
+            surfaceAlpha: isDark ? 0.94 : 0.98,
+            tintAlpha: isDark ? 0.06 : 0.04,
+          )
+        : ref.watch(glassColorProvider);
+    final borderColor = preferMaterialChrome
+        ? theme.colorScheme.outlineVariant.withValues(alpha: 0.72)
+        : ref.watch(borderColorProvider);
     final navIconColor = ref.watch(navIconColorProvider);
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text(
-          '${loc.historicalHistory} • $todayLabel'.toUpperCase(),
-          style: TextStyle(
-            fontFamily: AppTypography.fontFamily,
-            fontWeight: FontWeight.w900,
-            fontSize: 18,
-            letterSpacing: 1.5,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        leading: Center(
-          child: GlassIconButton(
-            icon: Icons.arrow_back,
-            onPressed: () => Navigator.pop(context),
-            isDark: isDark,
-          ),
-        ),
-        leadingWidth: 64,
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
+      appBar: PremiumScreenHeader(
+        title: '${loc.historicalHistory} • $todayLabel'.toUpperCase(),
       ),
       body: Stack(
         fit: StackFit.expand,
@@ -144,10 +141,10 @@ class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.error_outline,
                                   size: 64,
-                                  color: Colors.redAccent,
+                                  color: theme.colorScheme.primary,
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
@@ -226,7 +223,9 @@ class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
                                     color: navIconColor.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(
-                                      color: navIconColor.withValues(alpha: 0.3),
+                                      color: navIconColor.withValues(
+                                        alpha: 0.3,
+                                      ),
                                     ),
                                   ),
                                   child: Text(
@@ -277,10 +276,10 @@ class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
                                         return _buildEventCard(
                                           context,
                                           event: event,
-                                          themeMode: themeMode,
                                           glassColor: glassColor,
                                           borderColor: borderColor,
                                           navIconColor: navIconColor,
+                                          cheapComposite: cheapComposite,
                                         );
                                       }, childCount: events.length),
                                     ),
@@ -292,10 +291,10 @@ class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
       ),
       bottomNavigationBar: _buildBottomBar(
         context,
-        themeMode,
         glassColor,
         borderColor,
         navIconColor,
+        cheapComposite,
       ),
     );
   }
@@ -303,191 +302,189 @@ class _HistoryWidgetState extends ConsumerState<HistoryWidget> {
   Widget _buildEventCard(
     BuildContext context, {
     required Map<String, dynamic> event,
-    required AppThemeMode themeMode,
     required Color glassColor,
     required Color borderColor,
     required Color navIconColor,
+    required bool cheapComposite,
   }) {
     final year = event['year']?.toString() ?? '????';
     final description =
         event['description']?.toString() ?? loc.noDescriptionAvailable;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: ClipRRect(
+    final card = Container(
+      decoration: BoxDecoration(
+        color: glassColor,
         borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            decoration: BoxDecoration(
-              color: glassColor,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: borderColor),
-              boxShadow: [
+        border: Border.all(color: borderColor),
+        boxShadow: cheapComposite
+            ? const <BoxShadow>[]
+            : [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 10,
                   offset: const Offset(0, 5),
                 ),
               ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: navIconColor.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: navIconColor.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: navIconColor.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: navIconColor.withValues(alpha: 0.4),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.calendar_today_rounded,
-                                size: 14,
-                                color: navIconColor,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                year,
-                                style: TextStyle(
-                                  color: navIconColor,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w900,
-                                  fontFamily: AppTypography.fontFamily,
-                                ),
-                              ),
-                            ],
-                          ),
+                        Icon(
+                          Icons.calendar_today_rounded,
+                          size: 14,
+                          color: navIconColor,
                         ),
-
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Settings3DButton(
-                              icon: Icons.share_rounded,
-                              onTap: () => Share.share(
-                                loc.onThisDayIn(year, description),
-                              ),
-                              width: 56,
-                            ),
-                            const SizedBox(width: 8),
-                            Settings3DButton(
-                              icon: Icons.copy_rounded,
-                              onTap: () {
-                                Clipboard.setData(
-                                  ClipboardData(
-                                    text: loc.onThisDayIn(year, description),
-                                  ),
-                                );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(loc.copiedToClipboardFlat),
-                                    behavior: SnackBarBehavior.floating,
-                                    backgroundColor: navIconColor,
-                                  ),
-                                );
-                              },
-                              width: 56,
-                            ),
-                          ],
+                        const SizedBox(width: 8),
+                        Text(
+                          year,
+                          style: TextStyle(
+                            color: navIconColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            fontFamily: AppTypography.fontFamily,
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        color: isDark ? Colors.white : Colors.black87,
-                        fontSize: 16,
-                        height: 1.5,
-                        fontFamily: '.SF Pro Text',
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.1,
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Settings3DButton(
+                        icon: Icons.share_rounded,
+                        onTap: () =>
+                            Share.share(loc.onThisDayIn(year, description)),
+                        width: 56,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Settings3DButton(
+                        icon: Icons.copy_rounded,
+                        onTap: () {
+                          Clipboard.setData(
+                            ClipboardData(
+                              text: loc.onThisDayIn(year, description),
+                            ),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(loc.copiedToClipboardFlat)),
+                          );
+                        },
+                        width: 56,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                description,
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                  fontSize: 16,
+                  height: 1.5,
+                  fontFamily: '.SF Pro Text',
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.1,
                 ),
               ),
-            ),
+            ],
           ),
         ),
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: cheapComposite
+            ? card
+            : BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: card,
+              ),
       ),
     );
   }
 
   Widget _buildBottomBar(
     BuildContext context,
-    AppThemeMode mode,
     Color glassColor,
     Color borderColor,
     Color navIconColor,
+    bool cheapComposite,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-          decoration: BoxDecoration(
-            color: glassColor,
-            border: Border(top: BorderSide(color: borderColor)),
-          ),
-          child: Row(
-            children: [
-              // Prev Button
-              Expanded(
-                child: GlassPillButton(
-                  onPressed: _goToPreviousDay,
-                  label: loc.prev,
-                  icon: Icons.navigate_before_rounded,
-                  isDark: isDark,
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Refresh Button
-              GlassIconButton(
-                onPressed: fetchHistory,
-                icon: Icons.refresh_rounded,
-                isDark: isDark,
-              ),
-              const SizedBox(width: 8),
-              // Next Button
-              Expanded(
-                child: GlassPillButton(
-                  onPressed: _goToNextDay,
-                  label: loc.nextCaps,
-                  icon: Icons.navigate_next_rounded,
-                  isDark: isDark,
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Close Button
-              GlassIconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: Icons.close_rounded,
-                isDark: isDark,
-                color: Colors.redAccent,
-              ),
-            ],
-          ),
-        ),
+    final content = Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      decoration: BoxDecoration(
+        color: glassColor,
+        border: Border(top: BorderSide(color: borderColor)),
       ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GlassPillButton(
+              onPressed: _goToPreviousDay,
+              label: loc.prev,
+              icon: Icons.navigate_before_rounded,
+              isDark: isDark,
+            ),
+          ),
+          const SizedBox(width: 8),
+          GlassIconButton(
+            onPressed: fetchHistory,
+            icon: Icons.refresh_rounded,
+            isDark: isDark,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: GlassPillButton(
+              onPressed: _goToNextDay,
+              label: loc.nextCaps,
+              icon: Icons.navigate_next_rounded,
+              isDark: isDark,
+            ),
+          ),
+          const SizedBox(width: 8),
+          GlassIconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: Icons.close_rounded,
+            isDark: isDark,
+          ),
+        ],
+      ),
+    );
+
+    return ClipRect(
+      child: cheapComposite
+          ? content
+          : BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+              child: content,
+            ),
     );
   }
 }

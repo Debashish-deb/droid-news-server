@@ -25,7 +25,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:html/dom.dart' as dom;
+import 'package:html/parser.dart' as html_parser;
 
 import '../../../../l10n/generated/app_localizations.dart';
 import '../models/reader_article.dart';
@@ -35,6 +36,8 @@ import 'widgets/explanation_sheet.dart';
 import 'widgets/reader_appearance_sheet.dart';
 import '../models/reader_settings.dart';
 import '../../../../application/ai/ai_service.dart';
+import '../../../../core/tts/domain/entities/tts_chunk.dart';
+import '../../../../core/tts/presentation/providers/tts_controller.dart';
 import '../../../../core/tts/presentation/widgets/tts_player_bar.dart';
 
 // ─────────────────────────────────────────────
@@ -87,6 +90,157 @@ class _StyleBundle {
   final String linkColorHex;
 }
 
+@immutable
+class _ReaderRenderSignal {
+  const _ReaderRenderSignal({
+    required this.processedContent,
+    required this.totalChunks,
+  });
+
+  final String processedContent;
+  final int totalChunks;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _ReaderRenderSignal &&
+      other.processedContent == processedContent &&
+      other.totalChunks == totalChunks;
+
+  @override
+  int get hashCode => Object.hash(processedContent, totalChunks);
+}
+
+String _compactReaderStageWhitespace(String value) {
+  return value.replaceAll(RegExp(r'\s+'), ' ').trim();
+}
+
+final RegExp _readerHighlightWordPattern = RegExp(r'[A-Za-z0-9\u0980-\u09FF]+');
+
+int _readerHighlightWordCount(String text) {
+  return _readerHighlightWordPattern.allMatches(text).length;
+}
+
+int _estimateReaderWordIndex({
+  required List<TtsChunk> chunks,
+  required int currentChunkIndex,
+  required Duration estimatedPosition,
+}) {
+  if (currentChunkIndex < 0 || currentChunkIndex >= chunks.length) return -1;
+  final chunk = chunks[currentChunkIndex];
+  final wordCount = _readerHighlightWordCount(chunk.text);
+  if (wordCount <= 0) return -1;
+
+  var elapsedBeforeChunkMs = 0;
+  for (var i = 0; i < currentChunkIndex; i++) {
+    elapsedBeforeChunkMs += chunks[i].estimatedDuration.inMilliseconds;
+  }
+
+  final chunkDurationMs = chunk.estimatedDuration.inMilliseconds <= 0
+      ? wordCount * 260
+      : chunk.estimatedDuration.inMilliseconds;
+  final elapsedInChunkMs =
+      (estimatedPosition.inMilliseconds - elapsedBeforeChunkMs)
+          .clamp(0, chunkDurationMs)
+          .toInt();
+  final index = ((elapsedInChunkMs / chunkDurationMs) * wordCount).floor();
+  return index.clamp(0, wordCount - 1).toInt();
+}
+
+bool _nodeHasMeaningfulReaderContent(dom.Node node) {
+  if (node is dom.Text) {
+    return _compactReaderStageWhitespace(node.text).isNotEmpty;
+  }
+  if (node is! dom.Element) return false;
+
+  final tag = node.localName?.toLowerCase();
+  if (tag == 'img' ||
+      tag == 'video' ||
+      tag == 'audio' ||
+      tag == 'iframe' ||
+      tag == 'source' ||
+      tag == 'table' ||
+      tag == 'hr') {
+    return true;
+  }
+
+  for (final child in node.nodes) {
+    if (_nodeHasMeaningfulReaderContent(child)) return true;
+  }
+  return false;
+}
+
+void _pruneReaderHtmlAfterChunkLimit(
+  dom.Node node,
+  int maxVisibleChunkExclusive,
+) {
+  if (node is dom.Text) {
+    if (_compactReaderStageWhitespace(node.text).isEmpty) {
+      node.remove();
+    }
+    return;
+  }
+  if (node is! dom.Element) return;
+
+  final classes = node.classes;
+  final isSentenceAnchor =
+      classes.contains('reader-sentence-anchor') ||
+      classes.contains('reader-sentence');
+  if (isSentenceAnchor) {
+    final index = int.tryParse(node.attributes['data-index'] ?? '') ?? -1;
+    if (index >= maxVisibleChunkExclusive) {
+      node.remove();
+      return;
+    }
+  }
+
+  for (final child in List<dom.Node>.from(node.nodes)) {
+    _pruneReaderHtmlAfterChunkLimit(child, maxVisibleChunkExclusive);
+  }
+
+  final tag = node.localName?.toLowerCase();
+  if (tag == null ||
+      tag == 'img' ||
+      tag == 'video' ||
+      tag == 'audio' ||
+      tag == 'iframe' ||
+      tag == 'source' ||
+      tag == 'table' ||
+      tag == 'hr') {
+    return;
+  }
+
+  if (!_nodeHasMeaningfulReaderContent(node)) {
+    node.remove();
+  }
+}
+
+String _truncateReaderHtmlToChunkLimit(
+  String html,
+  int maxVisibleChunkExclusive,
+) {
+  final trimmed = html.trim();
+  if (trimmed.isEmpty || maxVisibleChunkExclusive <= 0) {
+    return trimmed;
+  }
+
+  try {
+    final fragment = html_parser.parseFragment(trimmed);
+    for (final node in List<dom.Node>.from(fragment.nodes)) {
+      _pruneReaderHtmlAfterChunkLimit(node, maxVisibleChunkExclusive);
+    }
+    final result = fragment.outerHtml.trim();
+    return result.isEmpty ? trimmed : result;
+  } catch (_) {
+    return trimmed;
+  }
+}
+
+int _phaseChunkBoundary(int totalChunks, double fraction) {
+  if (totalChunks <= 0) return 0;
+  final raw = (totalChunks * fraction).ceil();
+  return raw.clamp(1, totalChunks);
+}
+
 // LRU-style cache bounded to 8 entries (covers all theme × font combos).
 final _styleCache = <_StyleKey, _StyleBundle>{};
 
@@ -109,21 +263,21 @@ _StyleBundle _buildStyles(_StyleKey key, ThemeData theme) {
       sub = const Color(0xFF8B735B);
       break;
     case ReaderTheme.night:
-      bg = const Color(0xFF1A1A1A);
-      text = const Color(0xFFCCCCCC);
-      sub = const Color(0xFF888888);
+      bg = const Color(0xFF1A1D1F); // Charcoal Background
+      text = const Color(0xFFE0E0E0);
+      sub = const Color(0xFF9E9E9E);
       break;
     case ReaderTheme.system:
       bg = theme.scaffoldBackgroundColor;
       break;
   }
 
-  final baseFont = key.fontFamily == ReaderFontFamily.serif
-      ? GoogleFonts.merriweather
-      : GoogleFonts.inter;
-  final titleFont = key.fontFamily == ReaderFontFamily.serif
-      ? GoogleFonts.libreBaskerville
-      : GoogleFonts.inter;
+  final String? baseFontFamily = key.fontFamily == ReaderFontFamily.serif
+      ? 'serif'
+      : null;
+  final String? titleFontFamily = key.fontFamily == ReaderFontFamily.serif
+      ? 'serif'
+      : null;
 
   // Convert color to CSS hex for HtmlWidget.
   final r = ((text.red)).toRadixString(16).padLeft(2, '0');
@@ -135,18 +289,16 @@ _StyleBundle _buildStyles(_StyleKey key, ThemeData theme) {
     textColor: text,
     subColor: sub,
     linkColorHex: key.theme == ReaderTheme.system ? '#2196F3' : '#$r$g$b',
-    title: titleFont(
+    title: TextStyle(
+      fontFamily: titleFontFamily,
       fontSize: key.fontSize + 8,
       fontWeight: FontWeight.bold,
       color: text,
       height: 1.3,
     ),
-    byline: GoogleFonts.inter(
-      fontSize: 13,
-      fontWeight: FontWeight.w500,
-      color: sub,
-    ),
-    body: baseFont(
+    byline: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: sub),
+    body: TextStyle(
+      fontFamily: baseFontFamily,
       fontSize: key.fontSize,
       height: 1.8,
       color: text.withValues(alpha: 0.9),
@@ -169,16 +321,20 @@ class NativeReaderView extends ConsumerStatefulWidget {
     required this.article,
     this.onPreviousArticle,
     this.onNextArticle,
+    this.onTtsPressed,
     this.canGoPreviousArticle = false,
     this.canGoNextArticle = false,
+    this.showAutoTtsControls = true,
     super.key,
   });
 
   final ReaderArticle article;
   final VoidCallback? onPreviousArticle;
   final VoidCallback? onNextArticle;
+  final VoidCallback? onTtsPressed;
   final bool canGoPreviousArticle;
   final bool canGoNextArticle;
+  final bool showAutoTtsControls;
 
   @override
   ConsumerState<NativeReaderView> createState() => _NativeReaderViewState();
@@ -190,12 +346,172 @@ class _NativeReaderViewState extends ConsumerState<NativeReaderView>
   bool get wantKeepAlive => true;
 
   final ScrollController _scrollController = ScrollController();
+  ProviderSubscription<_ReaderRenderSignal>? _readerRenderSubscription;
+  final List<Timer> _stagedRenderTimers = <Timer>[];
   int _lastAutoFollowChunk = -1;
+  String _renderedHtml = '';
+  String _activeRenderKey = '';
+  double _renderProgress = 1.0;
+  bool _isProgressiveRendering = false;
+
+  static const Duration _secondPhaseDelay = Duration(milliseconds: 90);
+  static const Duration _finalPhaseDelay = Duration(milliseconds: 190);
+
+  @override
+  void initState() {
+    super.initState();
+
+    final readerState = ref.read(readerControllerProvider);
+    final initialHtml = (readerState.processedContent ?? '').isNotEmpty
+        ? readerState.processedContent!
+        : widget.article.content;
+    _applyProgressiveRenderPlan(
+      html: initialHtml,
+      totalChunks: readerState.chunks.length,
+      force: true,
+    );
+
+    _readerRenderSubscription ??= ref.listenManual<_ReaderRenderSignal>(
+      readerControllerProvider.select(
+        (s) => _ReaderRenderSignal(
+          processedContent: s.processedContent ?? '',
+          totalChunks: s.chunks.length,
+        ),
+      ),
+      (previous, next) {
+        final html = next.processedContent.isNotEmpty
+            ? next.processedContent
+            : widget.article.content;
+        _applyProgressiveRenderPlan(html: html, totalChunks: next.totalChunks);
+      },
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant NativeReaderView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.article.content == widget.article.content &&
+        oldWidget.article.title == widget.article.title &&
+        oldWidget.article.length == widget.article.length) {
+      return;
+    }
+
+    final readerState = ref.read(readerControllerProvider);
+    final html = (readerState.processedContent ?? '').isNotEmpty
+        ? readerState.processedContent!
+        : widget.article.content;
+    _applyProgressiveRenderPlan(
+      html: html,
+      totalChunks: readerState.chunks.length,
+      force: true,
+    );
+  }
 
   @override
   void dispose() {
+    _readerRenderSubscription?.close();
+    for (final timer in _stagedRenderTimers) {
+      timer.cancel();
+    }
+    _stagedRenderTimers.clear();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  bool _shouldUseProgressiveRender(String html, int totalChunks) {
+    if (totalChunks < 18) return false;
+    if (html.length < 2800) return false;
+    return html.contains('reader-sentence-anchor');
+  }
+
+  void _cancelProgressiveRenderTimers() {
+    for (final timer in _stagedRenderTimers) {
+      timer.cancel();
+    }
+    _stagedRenderTimers.clear();
+  }
+
+  void _applyProgressiveRenderPlan({
+    required String html,
+    required int totalChunks,
+    bool force = false,
+  }) {
+    final trimmed = html.trim();
+    final key = Object.hash(
+      trimmed,
+      totalChunks,
+      widget.article.title,
+    ).toString();
+    if (!force && _activeRenderKey == key) return;
+
+    _cancelProgressiveRenderTimers();
+
+    if (trimmed.isEmpty || !_shouldUseProgressiveRender(trimmed, totalChunks)) {
+      if (!mounted) {
+        _activeRenderKey = key;
+        _renderedHtml = trimmed;
+        _renderProgress = 1.0;
+        _isProgressiveRendering = false;
+        return;
+      }
+      setState(() {
+        _activeRenderKey = key;
+        _renderedHtml = trimmed;
+        _renderProgress = 1.0;
+        _isProgressiveRendering = false;
+      });
+      return;
+    }
+
+    final firstBoundary = _phaseChunkBoundary(totalChunks, 0.30);
+    final secondBoundary = _phaseChunkBoundary(totalChunks, 0.60);
+    final firstHtml = _truncateReaderHtmlToChunkLimit(trimmed, firstBoundary);
+
+    if (!mounted) {
+      _activeRenderKey = key;
+      _renderedHtml = firstHtml;
+      _renderProgress = 0.30;
+      _isProgressiveRendering = true;
+      return;
+    }
+
+    setState(() {
+      _activeRenderKey = key;
+      _renderedHtml = firstHtml;
+      _renderProgress = 0.30;
+      _isProgressiveRendering = true;
+    });
+
+    void enqueuePhase(
+      Duration delay, {
+      required double progress,
+      required String nextHtml,
+      required bool finalPhase,
+    }) {
+      _stagedRenderTimers.add(
+        Timer(delay, () {
+          if (!mounted || _activeRenderKey != key) return;
+          setState(() {
+            _renderedHtml = nextHtml;
+            _renderProgress = progress;
+            _isProgressiveRendering = !finalPhase;
+          });
+        }),
+      );
+    }
+
+    enqueuePhase(
+      _secondPhaseDelay,
+      progress: 0.60,
+      nextHtml: _truncateReaderHtmlToChunkLimit(trimmed, secondBoundary),
+      finalPhase: false,
+    );
+    enqueuePhase(
+      _finalPhaseDelay,
+      progress: 1.0,
+      nextHtml: trimmed,
+      finalPhase: true,
+    );
   }
 
   // ──── Bottom sheets ──────────────────────────
@@ -296,8 +612,17 @@ class _NativeReaderViewState extends ConsumerState<NativeReaderView>
     final currentChunkIndex = ref.watch(
       readerControllerProvider.select((s) => s.currentChunkIndex),
     );
-    final totalChunks = ref.watch(
-      readerControllerProvider.select((s) => s.chunks.length),
+    final chunks = ref.watch(readerControllerProvider.select((s) => s.chunks));
+    final totalChunks = chunks.length;
+    final ttsPositionBucket = ref.watch(
+      ttsControllerProvider.select(
+        (s) => s.estimatedPosition.inMilliseconds ~/ 200,
+      ),
+    );
+    final currentWordIndex = _estimateReaderWordIndex(
+      chunks: chunks,
+      currentChunkIndex: currentChunkIndex,
+      estimatedPosition: Duration(milliseconds: ttsPositionBucket * 200),
     );
     final contentToRender = ref.watch(
       readerControllerProvider.select((s) => s.processedContent ?? ''),
@@ -316,6 +641,12 @@ class _NativeReaderViewState extends ConsumerState<NativeReaderView>
     final html = contentToRender.isNotEmpty
         ? contentToRender
         : widget.article.content;
+    if (_renderedHtml.isEmpty && html.isNotEmpty) {
+      _renderedHtml = html;
+      _renderProgress = 1.0;
+    }
+    final renderHtml = _renderedHtml.isNotEmpty ? _renderedHtml : html;
+    final allowInlineMedia = !_isProgressiveRendering && _renderProgress >= 1.0;
     _syncScrollWithTts(
       currentChunkIndex: currentChunkIndex,
       totalChunks: totalChunks,
@@ -360,6 +691,21 @@ class _NativeReaderViewState extends ConsumerState<NativeReaderView>
                       Divider(color: styles.subColor.withValues(alpha: 0.3)),
                       const SizedBox(height: 24),
 
+                      if (_isProgressiveRendering) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            value: _renderProgress,
+                            minHeight: 3,
+                            backgroundColor: styles.subColor.withValues(
+                              alpha: 0.12,
+                            ),
+                            color: styles.textColor.withValues(alpha: 0.72),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+
                       // ── Selectable article body ───────────────
                       SelectionArea(
                         contextMenuBuilder: (ctx, state) {
@@ -402,15 +748,17 @@ class _NativeReaderViewState extends ConsumerState<NativeReaderView>
                           );
                         },
                         child: HtmlWidget(
-                          html,
+                          renderHtml,
                           textStyle: styles.body,
                           enableCaching: true,
                           onTapUrl: _handleReaderUrlTap,
                           customStylesBuilder: (element) => _htmlStyles(
                             element,
                             currentChunkIndex: currentChunkIndex,
+                            currentWordIndex: currentWordIndex,
                             styles: styles,
                             readerTheme: readerTheme,
+                            allowInlineMedia: allowInlineMedia,
                           ),
                           onLoadingBuilder: (context, element, progress) =>
                               const Center(
@@ -439,21 +787,26 @@ class _NativeReaderViewState extends ConsumerState<NativeReaderView>
                     onNextArticle: widget.onNextArticle,
                     canGoPreviousArticle: widget.canGoPreviousArticle,
                     canGoNextArticle: widget.canGoNextArticle,
+                    showAutoPlayControls: widget.showAutoTtsControls,
                   ),
                   ReaderSmartBar(
                     // Hide the TTS button when TtsPlayerBar is already
                     // visible to avoid duplicate play/stop controls.
                     isTtsPlaying: isTtsActive,
                     hideTtsButton: isTtsActive,
-                    onTtsPressed: () {
-                      if (isTtsActive) {
-                        ref.read(readerControllerProvider.notifier).stopTts();
-                      } else {
-                        ref
-                            .read(readerControllerProvider.notifier)
-                            .playFullArticle();
-                      }
-                    },
+                    onTtsPressed:
+                        widget.onTtsPressed ??
+                        () {
+                          if (isTtsActive) {
+                            ref
+                                .read(readerControllerProvider.notifier)
+                                .stopTts();
+                          } else {
+                            ref
+                                .read(readerControllerProvider.notifier)
+                                .playFullArticle();
+                          }
+                        },
                     onAppearancePressed: _showAppearance,
                   ),
                 ],
@@ -469,22 +822,44 @@ class _NativeReaderViewState extends ConsumerState<NativeReaderView>
   static Map<String, String>? _htmlStyles(
     dynamic element, {
     required int currentChunkIndex,
+    required int currentWordIndex,
     required _StyleBundle styles,
     required ReaderTheme readerTheme,
+    required bool allowInlineMedia,
   }) {
     final tag = element.localName as String?;
     final classes = element.classes as Iterable?;
     final hasReaderSentenceClass =
         classes != null &&
-        (classes as dynamic).contains('reader-sentence-anchor');
+        ((classes as dynamic).contains('reader-sentence-anchor') ||
+            (classes as dynamic).contains('reader-sentence'));
+    final hasReaderWordClass =
+        classes != null && (classes as dynamic).contains('reader-word');
+    final attributes = element.attributes as Map?;
+    final sentenceIndex = int.tryParse(
+      attributes?['data-index']?.toString() ??
+          attributes?['data-sentence-index']?.toString() ??
+          '',
+    );
+    final wordIndex = int.tryParse(
+      attributes?['data-word-index']?.toString() ?? '',
+    );
 
     if (tag == 'a') {
       if (hasReaderSentenceClass) {
-        return {'text-decoration': 'none', 'color': 'inherit'};
+        return {
+          'text-decoration': 'none',
+          'color': 'inherit',
+          if (sentenceIndex == currentChunkIndex)
+            ..._sentenceHighlightStyle(readerTheme),
+        };
       }
       return {'text-decoration': 'none', 'color': styles.linkColorHex};
     }
     if (tag == 'img') {
+      if (!allowInlineMedia) {
+        return {'display': 'none'};
+      }
       return {
         'margin': '16px 0',
         'border-radius': '8px',
@@ -492,6 +867,10 @@ class _NativeReaderViewState extends ConsumerState<NativeReaderView>
         'height': 'auto',
         'display': 'block',
       };
+    }
+    if ((tag == 'iframe' || tag == 'video' || tag == 'audio') &&
+        !allowInlineMedia) {
+      return {'display': 'none'};
     }
     if (tag == 'p' || tag == 'li') {
       return {
@@ -514,26 +893,37 @@ class _NativeReaderViewState extends ConsumerState<NativeReaderView>
       };
     }
 
+    if (hasReaderWordClass &&
+        sentenceIndex == currentChunkIndex &&
+        wordIndex == currentWordIndex) {
+      return {
+        'background-color': readerTheme == ReaderTheme.night
+            ? 'rgba(255,255,255,0.32)'
+            : 'rgba(255,213,79,0.78)',
+        'border-radius': '4px',
+        'padding': '0 2px',
+        'box-decoration-break': 'clone',
+        '-webkit-box-decoration-break': 'clone',
+      };
+    }
+
     // TTS sentence highlight.
-    if (classes != null && (classes as dynamic).contains('reader-sentence')) {
-      final indexStr = (element.attributes as Map?)?.entries
-          .where((e) => e.key == 'data-index')
-          .map((e) => e.value as String)
-          .firstOrNull;
-      if (indexStr != null) {
-        final index = int.tryParse(indexStr);
-        if (index == currentChunkIndex) {
-          return {
-            'background-color': readerTheme == ReaderTheme.night
-                ? 'rgba(255,255,255,0.15)'
-                : 'rgba(255,235,59,0.4)',
-            'border-radius': '3px',
-            'transition': 'background-color 0.3s ease',
-          };
-        }
-      }
+    if (hasReaderSentenceClass && sentenceIndex == currentChunkIndex) {
+      return _sentenceHighlightStyle(readerTheme);
     }
     return null;
+  }
+
+  static Map<String, String> _sentenceHighlightStyle(ReaderTheme readerTheme) {
+    return {
+      'background-color': readerTheme == ReaderTheme.night
+          ? 'rgba(255,255,255,0.10)'
+          : 'rgba(255,235,59,0.22)',
+      'border-radius': '3px',
+      'box-decoration-break': 'clone',
+      '-webkit-box-decoration-break': 'clone',
+      'transition': 'background-color 0.3s ease',
+    };
   }
 }
 
@@ -569,7 +959,7 @@ class _MetadataRow extends StatelessWidget {
             ),
             child: Text(
               article.siteName!,
-              style: GoogleFonts.inter(
+              style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: readerTheme == ReaderTheme.system

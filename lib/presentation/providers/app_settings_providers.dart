@@ -40,7 +40,7 @@ class AppSettingsState {
 class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   AppSettingsNotifier(
     this._prefs,
-    this._syncService,
+    this._readSyncService,
     this._syncOrchestrator,
     this._notificationPreferences,
   ) : super(const AppSettingsState()) {
@@ -50,7 +50,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
     _syncOrchestrator.registerAppSettingsNotifier(this);
   }
   final SharedPreferences? _prefs;
-  final SyncService _syncService;
+  final SyncService Function() _readSyncService;
   final SyncOrchestrator _syncOrchestrator;
   final NotificationPreferenceSync _notificationPreferences;
 
@@ -66,7 +66,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
 
   /// Sync settings from cloud
   Future<void> syncFromCloud() async {
-    final cloudData = await _syncService.pullSettings();
+    final cloudData = await _readSyncService().pullSettings();
     if (cloudData == null) return;
 
     bool changed = false;
@@ -135,14 +135,13 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
 final appSettingsProvider =
     StateNotifierProvider<AppSettingsNotifier, AppSettingsState>((ref) {
       final prefs = ref.watch(sharedPreferencesProvider);
-      final syncService = ref.watch(syncServiceProvider);
-      final syncOrchestrator = ref.watch(syncOrchestratorProvider);
+      final syncOrchestrator = ref.read(syncOrchestratorProvider);
       final notificationPreferences = ref.watch(
         pushNotificationServiceProvider,
       );
       return AppSettingsNotifier(
         prefs,
-        syncService,
+        () => ref.read(syncServiceProvider),
         syncOrchestrator,
         notificationPreferences,
       );

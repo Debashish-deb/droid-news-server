@@ -48,5 +48,27 @@ void main() {
       expect(output, contains('twenty three percent'));
       expect(output, contains('\n\n'));
     });
+
+    test('Should preserve complex dollar amounts for downstream prosody', () {
+      const input = 'Losses reached \$1,234 while projected damage hit \$1.2B.';
+      final output = TextCleaner.clean(input);
+
+      expect(output, contains(r'$1,234'));
+      expect(output, contains(r'$1.2B'));
+      expect(output.toLowerCase(), isNot(contains('one dollars')));
+    });
+
+    test('Should normalize Bangla pronunciation, numbers, and punctuation', () {
+      const input = 'ডা. রহমান বলেন, GDP 5% বেড়েছে। মার্কিন সহায়তা ১২৩৪ টাকা।';
+      final output = TextCleaner.clean(input);
+
+      expect(output, contains('ডাক্তার রহমান'));
+      expect(output, contains('জি ডি পি'));
+      expect(output, contains('পাঁচ শতাংশ'));
+      expect(output, contains('এক হাজার দুই শত চৌত্রিশ টাকা'));
+      expect(output, contains('মারকিন'));
+      expect(output, contains('।'));
+      expect(output, isNot(contains('5%')));
+    });
   });
 }

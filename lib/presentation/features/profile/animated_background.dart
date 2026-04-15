@@ -1,10 +1,8 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Provider;
 import '../../providers/theme_providers.dart';
-import '../../../core/enums/theme_mode.dart'; 
-import '../../../core/theme/theme.dart'; 
+import '../../../core/enums/theme_mode.dart';
+import '../../../core/theme/theme.dart';
 
 class AnimatedBackground extends ConsumerWidget {
   const AnimatedBackground({super.key});
@@ -41,10 +39,9 @@ class AnimatedBackground extends ConsumerWidget {
   }
 
   Widget _buildGlossOverlay(AppThemeMode mode) {
-    final Alignment center =
-        mode == AppThemeMode.dark
-            ? const Alignment(-0.5, -0.5)
-            : const Alignment(0.6, -0.6);
+    final Alignment center = mode == AppThemeMode.dark
+        ? const Alignment(-0.5, -0.5)
+        : const Alignment(0.6, -0.6);
     final double radius = mode == AppThemeMode.dark ? 1.5 : 1.4;
     final double opacity = mode == AppThemeMode.dark ? 0.05 : 0.15;
 
@@ -68,12 +65,10 @@ class AnimatedBackground extends ConsumerWidget {
     switch (mode) {
       case AppThemeMode.dark:
         return const Color(0xFF1C1F26).withValues(alpha: 0.1);
-      case AppThemeMode.light:
-        return Colors.white.withValues(alpha: 0.1);
       case AppThemeMode.bangladesh:
-      default:
+        return const Color(0xFF23463B).withValues(alpha: 0.14);
+      case AppThemeMode.system:
         return const Color(0xFF6E7B75).withValues(alpha: 0.15);
     }
   }
 }
-

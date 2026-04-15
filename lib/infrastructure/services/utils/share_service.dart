@@ -1,8 +1,12 @@
+// ignore_for_file: avoid_classes_with_only_static_members
+
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import '../../../core/utils/analytics_service.dart';
-import '../../../core/utils/analytics_service.dart' as AnalyticsService show logEvent;
+import '../../../core/utils/analytics_service.dart'
+    as analytics_service
+    show logEvent;
 import '../../../l10n/generated/app_localizations.dart';
 
 /// Social media sharing service
@@ -76,8 +80,7 @@ class ShareService {
   }) async {
     await Clipboard.setData(ClipboardData(text: url));
 
-
-    await AnalyticsService.logEvent(
+    await analytics_service.logEvent(
       name: 'link_copied',
       parameters: {'url': url},
     );
@@ -107,17 +110,14 @@ class ShareService {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder:
-          (context) => _ShareSheet(
-            title: title,
-            url: url,
-            description: description,
-            imageUrl: imageUrl,
-          ),
+      builder: (context) => _ShareSheet(
+        title: title,
+        url: url,
+        description: description,
+        imageUrl: imageUrl,
+      ),
     );
   }
-
-
 
   static String _buildShareText(String title, String? description, String url) {
     final buffer = StringBuffer();
@@ -137,10 +137,9 @@ class ShareService {
 
   static Future<void> _launchUrl(String url, String platform) async {
     try {
-
       await Share.share(url);
 
-      await AnalyticsService.logEvent(
+      await analytics_service.logEvent(
         name: 'shared_to_platform',
         parameters: {'platform': platform},
       );
@@ -148,7 +147,6 @@ class ShareService {
       debugPrint('Error launching $platform: $e');
     }
   }
-
 }
 
 /// Share sheet bottom modal
@@ -171,7 +169,6 @@ class _ShareSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-        
           Container(
             width: 40,
             height: 4,
@@ -182,7 +179,6 @@ class _ShareSheet extends StatelessWidget {
             ),
           ),
 
-   
           Text(
             AppLocalizations.of(context).share,
             style: Theme.of(
@@ -192,7 +188,6 @@ class _ShareSheet extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-    
           GridView.count(
             shrinkWrap: true,
             crossAxisCount: 4,
@@ -313,4 +308,3 @@ class _ShareOption extends StatelessWidget {
     );
   }
 }
-

@@ -1116,6 +1116,67 @@ class CategorizationHelper {
     'interview',
   };
 
+  /// Hard entertainment evidence used to avoid false positives from generic
+  /// words like "media", "interview", or "release".
+  static const List<String> _entertainmentHardKeywords = [
+    'showbiz',
+    'শোবিজ',
+    'celebrity',
+    'celebrities',
+    'সেলিব্রিটি',
+    'অভিনেতা',
+    'অভিনেত্রী',
+    'actor',
+    'actress',
+    'movie',
+    'film',
+    'cinema',
+    'সিনেমা',
+    'চলচ্চিত্র',
+    'নাটক',
+    'drama',
+    'web series',
+    'ওয়েব সিরিজ',
+    'trailer',
+    'ট্রেলার',
+    'teaser',
+    'টিজার',
+    'album',
+    'song',
+    'concert',
+    'ott',
+    'netflix',
+    'chorki',
+    'hollywood',
+    'bollywood',
+    'dhallywood',
+  ];
+
+  static const List<String> _governanceContextKeywords = [
+    'government',
+    'সরকার',
+    'ministry',
+    'মন্ত্রণালয়',
+    'parliament',
+    'সংসদ',
+    'budget',
+    'বাজেট',
+    'election',
+    'নির্বাচন',
+    'policy',
+    'নীতি',
+    'cabinet',
+    'মন্ত্রিসভা',
+    'court',
+    'আদালত',
+    'district administration',
+    'জেলা প্রশাসন',
+    'upazila',
+    'উপজেলা',
+    'local administration',
+    'স্থানীয় প্রশাসন',
+  ];
+
   /// West Bengal → always international
   static const List<String> _westBengalKeywords = [
     'west bengal', 'পশ্চিমবঙ্গ', 'paschim banga',
@@ -1263,6 +1324,14 @@ class CategorizationHelper {
       _strongKeywords['entertainment']!,
       _entertainmentAmbiguousKeywords,
     );
+    final hasEntertainmentHardEvidence = hasHardEntertainmentEvidence(
+      title: title,
+      description: description,
+      content: content,
+    );
+    final hasGovernanceContext = _hasKeywords(text, _governanceContextKeywords);
+    final bdSignalScore = _bangladeshSignalScoreText(text);
+    final intlSignalScore = _internationalSignalScoreText(text);
 
     // Pure sports (no entertainment contamination)
     if (hasSports &&
@@ -1283,6 +1352,7 @@ class CategorizationHelper {
     // Pure entertainment
     if (hasEntertainment &&
         !hasSports &&
+        hasEntertainmentHardEvidence &&
         (entertainmentCount >= 2 || entertainmentSpecificCount > 0)) {
       return const CategorizationResult(
         category: 'entertainment',
@@ -1295,7 +1365,9 @@ class CategorizationHelper {
     // Overlap: sports AND entertainment → resolve by count
     if (hasSports && hasEntertainment) {
       if (_hasKeywords(text, _entertainmentCelebrities) &&
-          !_isSportsEventReporting(text)) {
+          !_isSportsEventReporting(text) &&
+          hasEntertainmentHardEvidence &&
+          !hasGovernanceContext) {
         return const CategorizationResult(
           category: 'entertainment',
           confidence: 0.78,
@@ -1322,7 +1394,8 @@ class CategorizationHelper {
         );
       }
 
-      if (entertainmentSpecificCount > sportsSpecificCount) {
+      if (entertainmentSpecificCount > sportsSpecificCount &&
+          hasEntertainmentHardEvidence) {
         return const CategorizationResult(
           category: 'entertainment',
           confidence: 0.73,
@@ -1340,12 +1413,20 @@ class CategorizationHelper {
         );
       }
 
-      return const CategorizationResult(
-        category: 'entertainment',
-        confidence: 0.70,
-        source: 'context',
-        reason: 'Entertainment count dominates over sports',
-      );
+      return hasEntertainmentHardEvidence
+          ? const CategorizationResult(
+              category: 'entertainment',
+              confidence: 0.70,
+              source: 'context',
+              reason: 'Entertainment count dominates over sports',
+            )
+          : const CategorizationResult(
+              category: 'sports',
+              confidence: 0.69,
+              source: 'context',
+              reason:
+                  'Entertainment overlap lacked hard evidence; sports retained.',
+            );
     }
 
     // ── STEP 3: Bangladesh-centric rules ──────────────────────
@@ -1353,7 +1434,9 @@ class CategorizationHelper {
     final isBD = _hasKeywords(text, _bdBangladeshKeywords);
     if (isBD) {
       // BD + strong international signal
-      if (hasInternational && (hasStrongIntl || intlCount >= nationalCount)) {
+      if (hasInternational &&
+          (hasStrongIntl || intlCount >= nationalCount) &&
+          intlSignalScore >= (bdSignalScore + 2)) {
         return const CategorizationResult(
           category: 'international',
           confidence: 0.84,
@@ -1379,12 +1462,14 @@ class CategorizationHelper {
         );
       }
 
-      if (hasEntertainment) {
+      if (hasEntertainment &&
+          hasEntertainmentHardEvidence &&
+          !hasGovernanceContext) {
         return const CategorizationResult(
           category: 'entertainment',
           confidence: 0.78,
           source: 'context',
-          reason: 'Bangladesh entertainment news',
+          reason: 'Bangladesh entertainment news with hard evidence',
         );
       }
 
@@ -1403,11 +1488,16 @@ class CategorizationHelper {
       _strongKeywords['sports']!,
       _sportsSoftKeywords,
     );
-    final entertainScore = _weightedScore(
+    final entertainScoreRaw = _weightedScore(
       text,
       _strongKeywords['entertainment']!,
       _entertainmentSoftKeywords,
+      softWeight: 0.18,
+      hardBonus: hasEntertainmentHardEvidence ? 1.6 : 0.0,
     );
+    final entertainScore = hasEntertainmentHardEvidence
+        ? entertainScoreRaw
+        : (entertainScoreRaw * 0.55);
     final intlScore = _weightedScore(
       text,
       _strongKeywords['international']!,
@@ -1448,6 +1538,29 @@ class CategorizationHelper {
     final totalScore = sportsScore + entertainScore + intlScore + nationalScore;
     final confidence = (maxScore / (totalScore + 1.0)).clamp(0.0, 0.9);
 
+    if (winner == 'international' && bdSignalScore > 0) {
+      if (intlSignalScore < (bdSignalScore + 2)) {
+        return const CategorizationResult(
+          category: 'national',
+          confidence: 0.72,
+          source: 'context',
+          reason:
+              'Bangladesh governance/local context dominated weak international markers.',
+        );
+      }
+    }
+
+    if (winner == 'entertainment' &&
+        (!hasEntertainmentHardEvidence || hasGovernanceContext)) {
+      return const CategorizationResult(
+        category: 'national',
+        confidence: 0.7,
+        source: 'context',
+        reason:
+            'Entertainment soft markers lacked hard evidence in a national/governance context.',
+      );
+    }
+
     return CategorizationResult(
       category: winner,
       confidence: confidence,
@@ -1463,6 +1576,7 @@ class CategorizationHelper {
     String text,
     List<String> strong,
     List<String> soft, {
+    double softWeight = 0.4,
     double hardBonus = 0.0,
   }) {
     final strongCount = _countKeywords(text, strong);
@@ -1479,7 +1593,7 @@ class CategorizationHelper {
         .toList(growable: false);
     final softCount = _countKeywords(text, softOnly);
     final base = strongCount > 2 ? strongCount * 1.2 : strongCount * 0.9;
-    return base + (softCount * 0.4) + hardBonus;
+    return base + (softCount * softWeight) + hardBonus;
   }
 
   /// Detect sports event reporting (match results / fixtures)
@@ -1719,6 +1833,64 @@ class CategorizationHelper {
     return _hasKeywords(text, _bdBangladeshKeywords);
   }
 
+  static int _bangladeshSignalScoreText(String text) {
+    final regionCount = _countKeywords(
+      text,
+      _bdSubnationalKeywords,
+    ).clamp(0, 4);
+    final nationalSoft = _countKeywords(
+      text,
+      _nationalSoftKeywords,
+    ).clamp(0, 3);
+    final nationalStrong = _countKeywords(
+      text,
+      _strongKeywords['national']!,
+    ).clamp(0, 3);
+    final hasBd = _hasKeywords(text, _bdBangladeshKeywords) ? 3 : 0;
+    return hasBd + regionCount + nationalSoft + nationalStrong;
+  }
+
+  static int _internationalSignalScoreText(String text) {
+    final hard = _countKeywords(text, _internationalHardKeywords);
+    final strong = _countKeywords(text, _strongKeywords['international']!);
+    final soft = _countKeywords(text, _internationalSoftKeywords).clamp(0, 3);
+    return (hard * 3) + (strong * 2) + soft;
+  }
+
+  static int bangladeshSignalScore({
+    required String title,
+    required String description,
+    String? content,
+  }) {
+    final text = '$title $description ${content ?? ''}'.toLowerCase();
+    return _bangladeshSignalScoreText(text);
+  }
+
+  static int internationalSignalScore({
+    required String title,
+    required String description,
+    String? content,
+  }) {
+    final text = '$title $description ${content ?? ''}'.toLowerCase();
+    return _internationalSignalScoreText(text);
+  }
+
+  static bool hasInternationalDominance({
+    required String title,
+    required String description,
+    String? content,
+    int minimumDeltaWhenBangladesh = 2,
+  }) {
+    final text = '$title $description ${content ?? ''}'.toLowerCase();
+    final bdScore = _bangladeshSignalScoreText(text);
+    final intlScore = _internationalSignalScoreText(text);
+
+    if (bdScore > 0) {
+      return intlScore >= (bdScore + minimumDeltaWhenBangladesh);
+    }
+    return intlScore >= 4;
+  }
+
   static bool hasSportsKeywords({
     required String title,
     required String description,
@@ -1794,6 +1966,21 @@ class CategorizationHelper {
     return _hasKeywords(text, _strongKeywords['entertainment']!);
   }
 
+  static bool hasHardEntertainmentEvidence({
+    required String title,
+    required String description,
+    String? content,
+  }) {
+    final text = '$title $description ${content ?? ''}'.toLowerCase();
+    final hardCount = _countKeywords(text, _entertainmentHardKeywords);
+    final nonAmbiguousStrong = _countNonAmbiguousKeywords(
+      text,
+      _strongKeywords['entertainment']!,
+      _entertainmentAmbiguousKeywords,
+    );
+    return hardCount >= 1 || nonAmbiguousStrong >= 2;
+  }
+
   static bool hasEntertainmentSoftKeywords({
     required String title,
     required String description,
@@ -1847,6 +2034,15 @@ class CategorizationHelper {
     final hasIntlContext =
         _hasKeywords(text, _internationalHardKeywords) ||
         _hasKeywords(text, _strongKeywords['international']!);
+    final hasIntlDominance = hasInternationalDominance(
+      title: title,
+      description: description,
+    );
+    final hasHardEntertainment = hasHardEntertainmentEvidence(
+      title: title,
+      description: description,
+    );
+    final hasGovernanceContext = _hasKeywords(text, _governanceContextKeywords);
 
     // Rule 1: Sports keywords override entertainment label
     if (detectedCategory == 'entertainment' &&
@@ -1860,8 +2056,8 @@ class CategorizationHelper {
       return 'international';
     }
 
-    // Rule 3: Ambiguous national with global context
-    if (detectedCategory == 'national' && hasIntlContext) {
+    // Rule 3: National only flips to international with clear dominance.
+    if (detectedCategory == 'national' && hasIntlContext && hasIntlDominance) {
       return 'international';
     }
 
@@ -1877,6 +2073,12 @@ class CategorizationHelper {
         !hasIntlContext &&
         detectedCategory != 'sports' &&
         detectedCategory != 'entertainment') {
+      return 'national';
+    }
+
+    // Rule 5: Reject entertainment when hard proof is absent in governance news.
+    if (detectedCategory == 'entertainment' &&
+        (!hasHardEntertainment || hasGovernanceContext)) {
       return 'national';
     }
 

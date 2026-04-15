@@ -1,16 +1,18 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_icons.dart' show AppIcons;
 import '../../../../core/enums/theme_mode.dart';
+import '../../../../core/config/performance_config.dart';
 import '../../../../core/utils/source_logos.dart';
 import '../publisher_layout_provider.dart';
 import '../../../providers/theme_providers.dart';
+import '../../../widgets/publisher_brand_palette.dart';
 
 class PublisherTile extends ConsumerStatefulWidget {
   const PublisherTile({
+    required this.layoutKey,
     required this.publisher,
     required this.onTap,
     required this.isFavorite,
@@ -20,6 +22,7 @@ class PublisherTile extends ConsumerStatefulWidget {
     super.key,
   });
 
+  final String layoutKey;
   final Map<String, dynamic> publisher;
   final VoidCallback onTap;
   final bool isFavorite;
@@ -33,6 +36,9 @@ class PublisherTile extends ConsumerStatefulWidget {
 
 class _PublisherTileState extends ConsumerState<PublisherTile>
     with TickerProviderStateMixin {
+  static final Map<String, BoxDecoration> _tileDecorationCache =
+      <String, BoxDecoration>{};
+
   AnimationController? _jiggle;
   AnimationController? _floatController;
   Animation<double>? _floatAnimation;
@@ -40,15 +46,17 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
   Offset _tiltOffset = Offset.zero;
   bool _isPressed = false;
   bool _lastEditMode = false;
+  bool _allowFullMotion = false;
 
   @override
   void initState() {
     super.initState();
-    _ensureControllersIfNeeded();
   }
 
   void _ensureControllersIfNeeded() {
-    if (widget.disableMotion) return;
+    if (!_allowFullMotion || widget.disableMotion || widget.lightweightMode) {
+      return;
+    }
     if (_jiggle != null &&
         _floatController != null &&
         _floatAnimation != null) {
@@ -70,8 +78,6 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
     _floatAnimation = Tween<double>(begin: 0, end: 6).animate(
       CurvedAnimation(parent: _floatController!, curve: Curves.easeInOut),
     );
-
-    _floatController!.repeat(reverse: true);
   }
 
   void _disposeControllers() {
@@ -83,13 +89,43 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
   }
 
   @override
-  void didUpdateWidget(covariant PublisherTile oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.disableMotion == widget.disableMotion) {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final perf = PerformanceConfig.of(context);
+    final nextAllowFullMotion =
+        !widget.disableMotion &&
+        !widget.lightweightMode &&
+        !perf.reduceMotion &&
+        !perf.reduceEffects &&
+        !perf.lowPowerMode &&
+        !perf.isLowEndDevice &&
+        perf.performanceTier == DevicePerformanceTier.flagship;
+    if (nextAllowFullMotion == _allowFullMotion) return;
+    _allowFullMotion = nextAllowFullMotion;
+    if (_allowFullMotion) {
+      _ensureControllersIfNeeded();
+      _updateAnimationState(ref.read(editModeProvider(widget.layoutKey)));
       return;
     }
 
-    if (widget.disableMotion) {
+    _disposeControllers();
+    if (_tiltOffset != Offset.zero || _isPressed) {
+      setState(() {
+        _tiltOffset = Offset.zero;
+        _isPressed = false;
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant PublisherTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.disableMotion == widget.disableMotion &&
+        oldWidget.lightweightMode == widget.lightweightMode) {
+      return;
+    }
+
+    if (widget.disableMotion || widget.lightweightMode || !_allowFullMotion) {
       _disposeControllers();
       if (_tiltOffset != Offset.zero || _isPressed) {
         setState(() {
@@ -101,7 +137,7 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
     }
 
     _ensureControllersIfNeeded();
-    _updateAnimationState(ref.read(editModeProvider));
+    _updateAnimationState(ref.read(editModeProvider(widget.layoutKey)));
   }
 
   @override
@@ -111,7 +147,7 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
   }
 
   void _updateAnimationState(bool isEditMode) {
-    if (widget.disableMotion) {
+    if (!_allowFullMotion || widget.disableMotion || widget.lightweightMode) {
       _floatController?.stop();
       return;
     }
@@ -129,7 +165,10 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
     } else {
       jiggle.stop();
       jiggle.reset();
-      floatController.repeat(reverse: true);
+      // Keep idle tiles static; only interactive gestures should animate.
+      floatController
+        ..stop()
+        ..value = 0;
     }
   }
 
@@ -148,9 +187,10 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
     }
   }
 
-  Widget _buildTile(BuildContext context) {
+  Widget _buildTile(BuildContext context, AppThemeMode themeMode) {
     final publisher = widget.publisher;
     final name = publisher['name'] ?? 'Unknown';
+    final isEditMode = ref.read(editModeProvider(widget.layoutKey));
 
     String? logoPath;
     final media = publisher['media'];
@@ -162,256 +202,358 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
       logoPath = 'assets/logos/${publisher['id']}.png';
     }
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final themeMode = ref.watch(currentThemeModeProvider);
-    final isBangladesh = themeMode == AppThemeMode.bangladesh;
+    final theme = Theme.of(context);
+    final publisherPalette = theme.extension<PublisherBrandPalette>()!;
+    final isDark = theme.brightness == Brightness.dark;
+    final isBangladesh = themeMode.name == 'bangladesh';
+    const isAmoled = false;
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final logoCacheWidth = (220 * devicePixelRatio).round();
+    final logoCacheHeight = (96 * devicePixelRatio).round();
+    const logoFilterQuality = FilterQuality.low;
+    final perf = PerformanceConfig.of(context);
+    final bool lowEffects =
+        perf.reduceEffects || perf.lowPowerMode || perf.isLowEndDevice;
+    if (isEditMode) {
+      return _buildEditModeTile(
+        context,
+        name: name.toString(),
+        logoPath: logoPath,
+        themeMode: themeMode,
+        isDark: isDark,
+        logoFilterQuality: logoFilterQuality,
+        logoCacheSize: (176 * devicePixelRatio).round(),
+      );
+    }
+
     if (widget.lightweightMode) {
       return _buildLightweightTile(
         context,
         name: name.toString(),
         logoPath: logoPath,
+        themeMode: themeMode,
         isDark: isDark,
+        logoFilterQuality: logoFilterQuality,
+        logoCacheSize: (152 * devicePixelRatio).round(),
       );
     }
 
-    // Luminous OLED Dark Ash or Desh Green Background
+    // Premium Luminous Glass Backgrounds
     final Color baseColor;
     if (isBangladesh) {
-      baseColor = const Color(
-        0xFF006A4E,
-      ).withValues(alpha: 0.2); // Glassy Green base
+      baseColor = publisherPalette.surfaceBottom.withValues(
+        alpha: 0.95,
+      ); // Teal-leaning publisher tint
     } else if (isDark) {
-      baseColor = const Color(
-        0xFF2D3035,
-      ).withValues(alpha: 0.85); // Luminous Dark Ash
+      baseColor = publisherPalette.surfaceTop.withValues(
+        alpha: 0.85,
+      ); // Dashboard-aligned charcoal secondary glass
     } else {
-      baseColor = Colors.black.withValues(alpha: 0.04);
+      baseColor = Colors.white.withValues(alpha: 0.65);
     }
 
-    final bool isLuminous = isDark || isBangladesh;
-    // Keep 3D visuals intact; lightweight mode is the only style-reduction path.
-    final bool fastSurface = widget.lightweightMode;
+    final bool isLuminous = isDark || isBangladesh || isAmoled;
+    // Keep full 3D visuals only when effects budget allows.
+    final bool fastSurface =
+        widget.lightweightMode || lowEffects || !_allowFullMotion;
     final Color contentColor = isLuminous
         ? Colors.white.withValues(alpha: 0.95)
         : Colors.black.withValues(alpha: 0.9);
+    final decoration = _resolveTileDecoration(
+      fastSurface: fastSurface,
+      baseColor: baseColor,
+      isBangladesh: isBangladesh,
+      isLuminous: isLuminous,
+      isDark: isDark,
+      isAmoled: isAmoled,
+      publisherPalette: publisherPalette,
+    );
+    final content = _buildTileVisualContent(
+      context,
+      name: name.toString(),
+      logoPath: logoPath,
+      isBangladesh: isBangladesh,
+      isDark: isDark,
+      isAmoled: isAmoled,
+      isLuminous: isLuminous,
+      fastSurface: fastSurface,
+      contentColor: contentColor,
+      publisherPalette: publisherPalette,
+      logoFilterQuality: logoFilterQuality,
+      logoCacheWidth: logoCacheWidth,
+      logoCacheHeight: logoCacheHeight,
+    );
 
     return Container(
       height: 120,
-      decoration: BoxDecoration(
-        color: baseColor,
+      decoration: decoration,
+      child: ClipRRect(borderRadius: BorderRadius.circular(50), child: content),
+    );
+  }
+
+  BoxDecoration _resolveTileDecoration({
+    required bool fastSurface,
+    required Color baseColor,
+    required bool isBangladesh,
+    required bool isLuminous,
+    required bool isDark,
+    required bool isAmoled,
+    required PublisherBrandPalette publisherPalette,
+  }) {
+    final key = [
+      'fast=$fastSurface',
+      'base=${baseColor.value}',
+      'desh=$isBangladesh',
+      'lum=$isLuminous',
+      'dark=$isDark',
+      'amoled=$isAmoled',
+      'top=${publisherPalette.surfaceTop.value}',
+      'bottom=${publisherPalette.surfaceBottom.value}',
+      'accent=${publisherPalette.accent.value}',
+    ].join('|');
+
+    return _tileDecorationCache.putIfAbsent(key, () {
+      final deshShadowColor = publisherPalette.shadow.withValues(alpha: 0.46);
+      return BoxDecoration(
         borderRadius: BorderRadius.circular(50),
         boxShadow: fastSurface
             ? const <BoxShadow>[]
             : [
                 BoxShadow(
                   color: isBangladesh
-                      ? const Color(0xFF006A4E).withValues(alpha: 0.3)
+                      ? deshShadowColor
                       : (isLuminous
                             ? Colors.black.withValues(alpha: 0.6)
                             : Colors.black.withValues(alpha: 0.1)),
-                  offset: const Offset(4, 4),
-                  blurRadius: 12,
+                  offset: const Offset(3, 5),
+                  blurRadius: isBangladesh ? 10 : 12,
                 ),
-                if (isLuminous)
+                if (isLuminous && !isBangladesh)
                   BoxShadow(
-                    color: isBangladesh
-                        ? const Color(0xFFF42A41).withValues(alpha: 0.1)
-                        : Colors.white.withValues(alpha: 0.08),
+                    color: Colors.white.withValues(alpha: 0.08),
                     spreadRadius: -1,
                     blurRadius: 12,
                   ),
               ],
         border: Border.all(
           color: isBangladesh
-              ? const Color(0xFFF42A41).withValues(
-                  alpha: 0.3,
-                ) // Red border for Desh
-              : (isLuminous
-                    ? Colors.white.withValues(alpha: 0.28)
-                    : Colors.black.withValues(alpha: 0.08)),
+              ? publisherPalette.surfaceBorder.withValues(alpha: 0.34)
+              : isDark
+              ? publisherPalette.surfaceBorder.withValues(alpha: 0.58)
+              : Colors.black.withValues(alpha: 0.08),
           width: 1.5,
         ),
         gradient: fastSurface
             ? null
             : LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: isBangladesh
                     ? [
-                        const Color(0xFF006A4E).withValues(alpha: 0.3),
-                        const Color(0xFF004d38).withValues(alpha: 0.5),
+                        publisherPalette.surfaceTop.withValues(alpha: 0.92),
+                        publisherPalette.surfaceBottom.withValues(alpha: 0.97),
+                      ]
+                    : isAmoled
+                    ? [
+                        publisherPalette.surfaceTop.withValues(alpha: 0.75),
+                        publisherPalette.surfaceBottom.withValues(alpha: 0.90),
                       ]
                     : (isLuminous
                           ? [
-                              Colors.white.withValues(alpha: 0.32),
-                              Colors.white.withValues(alpha: 0.06),
+                              publisherPalette.surfaceTop.withValues(
+                                alpha: 0.96,
+                              ),
+                              publisherPalette.surfaceBottom.withValues(
+                                alpha: 0.98,
+                              ),
                             ]
                           : [
                               Colors.white.withValues(alpha: 0.98),
                               Colors.white.withValues(alpha: 0.7),
                             ]),
               ),
-      ),
-      child: Stack(
-        children: [
-          // Panoramic Lens Flare (Top-edge shine)
-          if (!fastSurface)
-            Positioned(
-              top: 6,
-              left: 40,
-              right: 40,
-              child: Container(
-                height: 18,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(25),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.white.withValues(alpha: isLuminous ? 0.28 : 0.6),
-                      Colors.white.withValues(alpha: 0.0),
-                    ],
-                  ),
+        color: fastSurface ? baseColor : null,
+      );
+    });
+  }
+
+  Widget _buildTileVisualContent(
+    BuildContext context, {
+    required String name,
+    required String? logoPath,
+    required bool isBangladesh,
+    required bool isDark,
+    required bool isAmoled,
+    required bool isLuminous,
+    required bool fastSurface,
+    required Color contentColor,
+    required PublisherBrandPalette publisherPalette,
+    required FilterQuality logoFilterQuality,
+    required int logoCacheWidth,
+    required int logoCacheHeight,
+  }) {
+    return Stack(
+      children: [
+        if (isBangladesh)
+          Center(
+            child: Container(
+              width: 140,
+              height: 90,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    publisherPalette.ambientGlow.withValues(alpha: 0.16),
+                    publisherPalette.surfaceTop.withValues(alpha: 0.10),
+                    publisherPalette.ambientGlow.withValues(alpha: 0.0),
+                  ],
                 ),
               ),
             ),
-
-          // Row Content
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                // Tactile Dots (Left Side)
-                SizedBox(
-                  width: 12,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      4,
-                      (i) => Container(
-                        width: 4,
-                        height: 4,
-                        margin: const EdgeInsets.symmetric(vertical: 3),
-                        decoration: BoxDecoration(
-                          color: contentColor.withValues(alpha: 0.35),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
+          ),
+        if (isDark)
+          Center(
+            child: Container(
+              width: 140,
+              height: 90,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    publisherPalette.accent.withValues(
+                      alpha: isAmoled ? 0.06 : 0.08,
                     ),
-                  ),
+                    publisherPalette.accent.withValues(alpha: 0.0),
+                  ],
                 ),
-
-                // Centered Hero Logo (Restored with Luminous Context)
-                Expanded(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: logoPath != null
-                          ? Image.asset(
-                              logoPath,
-                              height: 75,
-                              fit: BoxFit.contain,
-                              filterQuality: FilterQuality.low,
-                              cacheWidth: 220,
-                              cacheHeight: 120,
-                              errorBuilder: (context, error, stackTrace) {
-                                if (SourceLogos.logos[name] != null) {
-                                  return Image.asset(
-                                    SourceLogos.logos[name]!,
-                                    height: 75,
-                                    fit: BoxFit.contain,
-                                    filterQuality: FilterQuality.low,
-                                    cacheWidth: 220,
-                                    cacheHeight: 120,
-                                    errorBuilder: (_, _, _) =>
-                                        _buildDefaultIcon(context),
-                                  );
-                                }
-                                return _buildDefaultIcon(context);
-                              },
-                            )
-                          : SourceLogos.logos[name] != null
-                          ? Image.asset(
-                              SourceLogos.logos[name]!,
-                              height: 75,
-                              fit: BoxFit.contain,
-                              filterQuality: FilterQuality.low,
-                              cacheWidth: 220,
-                              cacheHeight: 120,
-                              errorBuilder: (_, _, _) =>
-                                  _buildDefaultIcon(context),
-                            )
-                          : _buildDefaultIcon(context),
-                    ),
-                  ),
-                ),
-
-                // Action Suite (Share, Fav, Menu - High-Precision Fit)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // More Menu
-                      GestureDetector(
-                        onTap: () => _showCardMenu(context),
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          alignment: Alignment.center,
-                          child: Icon(
-                            AppIcons.more,
-                            size: 18,
-                            color: contentColor.withValues(alpha: 0.4),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      // Favorite Toggle
-                      GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          widget.onFavoriteToggle();
-                        },
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          alignment: Alignment.center,
-                          child: Icon(
-                            widget.isFavorite
-                                ? AppIcons.favorite
-                                : AppIcons.favoriteBorder,
-                            size: 22,
-                            color: widget.isFavorite
-                                ? Colors.redAccent
-                                : contentColor.withValues(alpha: 0.3),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      // Quick Share
-                      GestureDetector(
-                        onTap: () {
-                          HapticFeedback.mediumImpact();
-                        },
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          alignment: Alignment.center,
-                          child: Icon(
-                            CupertinoIcons.share,
-                            size: 18,
-                            color: contentColor.withValues(alpha: 0.4),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ],
+        if (!fastSurface)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 40,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(
+                      alpha: isBangladesh ? 0.08 : (isLuminous ? 0.15 : 0.4),
+                    ),
+                    Colors.white.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        if (isLuminous && !fastSurface)
+          Center(
+            child: Container(
+              width: 200,
+              height: 90,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    Colors.white.withValues(alpha: isAmoled ? 0.12 : 0.10),
+                    Colors.white.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+            child: _buildCenterLogo(
+              context,
+              name: name,
+              logoPath: logoPath,
+              logoFilterQuality: logoFilterQuality,
+              logoCacheWidth: logoCacheWidth,
+              logoCacheHeight: logoCacheHeight,
+            ),
+          ),
+        ),
+        Positioned(
+          top: 12,
+          right: 14,
+          child: _buildActionButton(
+            color: contentColor,
+            onTap: () => _showCardMenu(context),
+            child: Icon(
+              AppIcons.more,
+              size: 18,
+              color: contentColor.withValues(alpha: 0.45),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCenterLogo(
+    BuildContext context, {
+    required String name,
+    required String? logoPath,
+    required FilterQuality logoFilterQuality,
+    required int logoCacheWidth,
+    required int logoCacheHeight,
+  }) {
+    final fallbackPath = SourceLogos.logos[name];
+    final candidatePath = logoPath ?? fallbackPath;
+
+    if (candidatePath == null) {
+      return _buildDefaultIcon(context);
+    }
+
+    return Image.asset(
+      candidatePath,
+      height: 104,
+      fit: BoxFit.contain,
+      gaplessPlayback: true,
+      filterQuality: logoFilterQuality,
+      cacheWidth: logoCacheWidth,
+      cacheHeight: logoCacheHeight,
+      errorBuilder: (_, _, _) {
+        if (fallbackPath != null && fallbackPath != candidatePath) {
+          return Image.asset(
+            fallbackPath,
+            height: 104,
+            fit: BoxFit.contain,
+            gaplessPlayback: true,
+            filterQuality: logoFilterQuality,
+            cacheWidth: logoCacheWidth,
+            cacheHeight: logoCacheHeight,
+            errorBuilder: (_, _, _) => _buildDefaultIcon(context),
+          );
+        }
+        return _buildDefaultIcon(context);
+      },
+    );
+  }
+
+  Widget _buildActionButton({
+    required Color color,
+    required VoidCallback onTap,
+    required Widget child,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withValues(alpha: 0.05),
+        ),
+        child: child,
       ),
     );
   }
@@ -420,15 +562,29 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
     BuildContext context, {
     required String name,
     required String? logoPath,
+    required AppThemeMode themeMode,
     required bool isDark,
+    required FilterQuality logoFilterQuality,
+    required int logoCacheSize,
   }) {
+    final isBangladesh = themeMode.name == 'bangladesh';
+    final publisherPalette = Theme.of(
+      context,
+    ).extension<PublisherBrandPalette>()!;
+
+    final bgColor = isBangladesh
+        ? publisherPalette.surfaceBottom.withValues(alpha: 0.95)
+        : isDark
+        ? publisherPalette.surfaceTop.withValues(alpha: 0.90)
+        : Colors.black.withValues(alpha: 0.04);
+
+    final borderColor = isBangladesh
+        ? publisherPalette.surfaceBorder.withValues(alpha: 0.28)
+        : isDark
+        ? publisherPalette.surfaceBorder.withValues(alpha: 0.58)
+        : Colors.black.withValues(alpha: 0.08);
+
     final textColor = isDark ? Colors.white : Colors.black87;
-    final bgColor = isDark
-        ? Colors.white.withValues(alpha: 0.06)
-        : Colors.black.withValues(alpha: 0.03);
-    final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.18)
-        : Colors.black.withValues(alpha: 0.10);
 
     return Container(
       height: 96,
@@ -444,22 +600,36 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
             child: Row(
               children: [
                 SizedBox(
-                  width: 54,
-                  height: 54,
-                  child: logoPath != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.asset(
-                            logoPath,
-                            fit: BoxFit.contain,
-                            filterQuality: FilterQuality.low,
-                            cacheWidth: 160,
-                            cacheHeight: 160,
-                            errorBuilder: (_, _, _) =>
-                                _buildDefaultIcon(context),
-                          ),
-                        )
-                      : _buildDefaultIcon(context),
+                  width: 68, // Increased from 54
+                  height: 68,
+                  child: Center(
+                    child: logoPath != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.asset(
+                              logoPath,
+                              fit: BoxFit.contain,
+                              gaplessPlayback: true,
+                              filterQuality: logoFilterQuality,
+                              cacheWidth: logoCacheSize,
+                              cacheHeight: logoCacheSize,
+                              errorBuilder: (_, _, _) =>
+                                  _buildDefaultIcon(context),
+                            ),
+                          )
+                        : (SourceLogos.logos[name] != null
+                              ? Image.asset(
+                                  SourceLogos.logos[name]!,
+                                  fit: BoxFit.contain,
+                                  gaplessPlayback: true,
+                                  filterQuality: logoFilterQuality,
+                                  cacheWidth: logoCacheSize,
+                                  cacheHeight: logoCacheSize,
+                                  errorBuilder: (_, _, _) =>
+                                      _buildDefaultIcon(context),
+                                )
+                              : _buildDefaultIcon(context)),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -478,22 +648,77 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
             ),
           ),
           IconButton(
-            onPressed: widget.onFavoriteToggle,
-            icon: Icon(
-              widget.isFavorite ? AppIcons.favorite : AppIcons.favoriteBorder,
-              color: widget.isFavorite
-                  ? Colors.redAccent
-                  : textColor.withValues(alpha: 0.7),
-            ),
-            visualDensity: VisualDensity.compact,
-          ),
-          IconButton(
             onPressed: _enterEditMode,
             icon: Icon(AppIcons.more, color: textColor.withValues(alpha: 0.65)),
-            visualDensity: VisualDensity.compact,
+            style: IconButton.styleFrom(minimumSize: const Size.square(48)),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildEditModeTile(
+    BuildContext context, {
+    required String name,
+    required String? logoPath,
+    required AppThemeMode themeMode,
+    required bool isDark,
+    required FilterQuality logoFilterQuality,
+    required int logoCacheSize,
+  }) {
+    final isBangladesh = themeMode.name == 'bangladesh';
+    final publisherPalette = Theme.of(
+      context,
+    ).extension<PublisherBrandPalette>()!;
+
+    final bgColor = isBangladesh
+        ? publisherPalette.surfaceBottom.withValues(alpha: 0.95)
+        : isDark
+        ? publisherPalette.surfaceTop.withValues(alpha: 0.90)
+        : Colors.black.withValues(alpha: 0.04);
+
+    final borderColor = isBangladesh
+        ? publisherPalette.surfaceBorder.withValues(alpha: 0.28)
+        : isDark
+        ? publisherPalette.surfaceBorder.withValues(alpha: 0.58)
+        : Colors.black.withValues(alpha: 0.08);
+
+    final fallbackPath = SourceLogos.logos[name];
+    final candidatePath = logoPath ?? fallbackPath;
+
+    return Container(
+      height: 96,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(36),
+        border: Border.all(color: borderColor),
+      ),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      child: candidatePath != null
+          ? Image.asset(
+              candidatePath,
+              fit: BoxFit.contain,
+              gaplessPlayback: true,
+              filterQuality: logoFilterQuality,
+              cacheWidth: logoCacheSize,
+              cacheHeight: logoCacheSize,
+              errorBuilder: (_, _, _) {
+                if (fallbackPath != null && fallbackPath != candidatePath) {
+                  return Image.asset(
+                    fallbackPath,
+                    fit: BoxFit.contain,
+                    gaplessPlayback: true,
+                    filterQuality: logoFilterQuality,
+                    cacheWidth: logoCacheSize,
+                    cacheHeight: logoCacheSize,
+                    errorBuilder: (_, _, _) => _buildDefaultIcon(context),
+                  );
+                }
+                return _buildDefaultIcon(context);
+              },
+            )
+          : _buildDefaultIcon(context),
     );
   }
 
@@ -506,8 +731,12 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
           children: [
             ListTile(
               leading: Icon(
-                widget.isFavorite ? AppIcons.favorite : CupertinoIcons.heart,
-                color: widget.isFavorite ? Colors.red : null,
+                widget.isFavorite
+                    ? AppIcons.favorite
+                    : Icons.favorite_border_rounded,
+                color: widget.isFavorite
+                    ? Theme.of(context).colorScheme.primary
+                    : null,
               ),
               title: Text(
                 widget.isFavorite
@@ -527,20 +756,22 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
 
   @override
   Widget build(BuildContext context) {
-    final isEditMode = ref.watch(editModeProvider);
-    final disableMotion = widget.disableMotion || widget.lightweightMode;
+    final themeMode = ref.watch(currentThemeModeProvider);
+    final isEditMode = ref.watch(editModeProvider(widget.layoutKey));
+    final disableMotion =
+        widget.disableMotion || widget.lightweightMode || !_allowFullMotion;
 
     _updateAnimationState(isEditMode);
 
     if (disableMotion) {
       if (isEditMode) {
-        return _buildTile(context);
+        return _buildTile(context, themeMode);
       }
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
         onLongPress: _enterEditMode,
-        child: _buildTile(context),
+        child: _buildTile(context, themeMode),
       );
     }
 
@@ -550,7 +781,7 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
         final jiggle = _jiggle;
         final floatAnimation = _floatAnimation;
         if (jiggle == null || floatAnimation == null) {
-          return _buildTile(context);
+          return _buildTile(context, themeMode);
         }
 
         final size = constraints.biggest;
@@ -573,7 +804,10 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
             );
           },
           child: isEditMode
-              ? RotationTransition(turns: jiggle, child: _buildTile(context))
+              ? RotationTransition(
+                  turns: jiggle,
+                  child: _buildTile(context, themeMode),
+                )
               : GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onPanUpdate: (d) => _onPanUpdate(d, size),
@@ -588,7 +822,7 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
                     scale: _isPressed ? 0.95 : 1.0,
                     duration: const Duration(milliseconds: 140),
                     curve: Curves.easeOut,
-                    child: _buildTile(context),
+                    child: _buildTile(context, themeMode),
                   ),
                 ),
         );
@@ -597,8 +831,12 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
   }
 
   void _enterEditMode() {
-    ref.read(editModeProvider.notifier).state = true;
-    HapticFeedback.lightImpact();
+    final notifier = ref.read(editModeProvider(widget.layoutKey).notifier);
+    if (notifier.state) {
+      return;
+    }
+    notifier.state = true;
+    HapticFeedback.selectionClick();
   }
 
   void _setPressed(bool value) {
@@ -608,7 +846,7 @@ class _PublisherTileState extends ConsumerState<PublisherTile>
 
   Widget _buildDefaultIcon(BuildContext context) {
     return Icon(
-      CupertinoIcons.news,
+      Icons.newspaper_rounded,
       size: 48,
       color: Theme.of(context).primaryColor,
     );

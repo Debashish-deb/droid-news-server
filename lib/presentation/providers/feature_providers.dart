@@ -8,6 +8,7 @@ import '../../infrastructure/persistence/vault/vault_database.dart';
 import '../../infrastructure/services/utils/assets_data_loader.dart';
 import '../../application/ai/ranking/user_interest_service.dart'
     show UserInterestService;
+import '../../application/ai/ranking/local_learning_engine.dart';
 import '../features/tts/services/tts_manager.dart';
 import '../features/tts/services/tts_database.dart';
 import '../features/tts/services/audio_cache_manager.dart';
@@ -16,7 +17,10 @@ import '../features/tts/core/synthesis_circuit_breaker.dart';
 import '../features/tts/core/tts_performance_monitor.dart';
 import '../features/tts/domain/repositories/tts_repository.dart';
 import '../features/tts/data/repositories/tts_repository_impl.dart';
+import '../features/tts/services/app_tts_coordinator.dart';
 import '../../domain/interfaces/subscription_repository.dart';
+
+final DateTime _appSessionStartedAt = DateTime.now();
 
 // —————————————————————————————————————————————————————————————————————————————
 // 3. Identity & Access
@@ -60,22 +64,28 @@ final synthesisCircuitBreakerProvider = Provider<SynthesisCircuitBreaker>((
   return SynthesisCircuitBreaker(analytics: ref.watch(ttsAnalyticsProvider));
 });
 
-final ttsRepositoryProvider = Provider<TtsRepository>((ref) {
-  return TtsRepositoryImpl(
+final ttsStorageRepositoryProvider = Provider<TtsStorageRepository>((ref) {
+  return TtsStorageRepositoryImpl(
     db: ref.watch(ttsDatabaseProvider),
     cacheManager: ref.watch(audioCacheProvider),
   );
 });
 
 final ttsManagerProvider = Provider<TtsManager>((ref) {
-  return TtsManager(
-    repository: ref.watch(ttsRepositoryProvider),
+  final manager = TtsManager(
+    repository: ref.watch(ttsStorageRepositoryProvider),
     analytics: ref.watch(ttsAnalyticsProvider),
     circuitBreaker: ref.watch(synthesisCircuitBreakerProvider),
     performanceMonitor: ref.watch(ttsPerformanceMonitorProvider),
     pipelineOrchestrator: ref.watch(di.pipelineOrchestratorProvider),
     cacheManager: ref.watch(audioCacheProvider),
   );
+  ref.onDispose(manager.dispose);
+  return manager;
+});
+
+final appTtsCoordinatorProvider = Provider<AppTtsCoordinator>((ref) {
+  return AppTtsCoordinator(ref.watch(ttsManagerProvider));
 });
 
 // —————————————————————————————————————————————————————————————————————————————
@@ -120,6 +130,14 @@ final userInterestProvider = Provider<UserInterestService>((ref) {
   return ref.watch(di.userInterestServiceProvider);
 });
 
+final localLearningEngineProvider = Provider<LocalLearningEngine>((ref) {
+  return ref.watch(di.localLearningEngineProvider);
+});
+
 final subscriptionRepoProvider = Provider<SubscriptionRepository>((ref) {
   return ref.watch(di.subscriptionRepositoryProvider);
+});
+
+final appSessionStartedAtProvider = Provider<DateTime>((ref) {
+  return _appSessionStartedAt;
 });

@@ -11,6 +11,8 @@ class DraggablePublisherGrid extends ConsumerStatefulWidget {
     required this.onPublisherTap,
     required this.isFavorite,
     required this.onFavoriteToggle,
+    this.itemBuilder,
+    this.itemExtent,
     this.disableMotion = false,
     this.lightweightMode = false,
     this.asSliver = false,
@@ -21,6 +23,9 @@ class DraggablePublisherGrid extends ConsumerStatefulWidget {
   final ValueChanged<dynamic> onPublisherTap;
   final bool Function(dynamic) isFavorite;
   final VoidCallback Function(dynamic) onFavoriteToggle;
+  final Widget Function(BuildContext context, Map<String, dynamic> publisher)?
+  itemBuilder;
+  final double? itemExtent;
   final bool disableMotion;
   final bool lightweightMode;
   final bool asSliver;
@@ -32,6 +37,8 @@ class DraggablePublisherGrid extends ConsumerStatefulWidget {
 
 class _DraggablePublisherGridState
     extends ConsumerState<DraggablePublisherGrid> {
+  static const double _lightweightItemExtent = 104;
+
   late List<String> _lastPublisherIds;
   Object? _lastPublishersRef;
   List<Map<String, dynamic>> _cachedSourcePublishers =
@@ -99,7 +106,9 @@ class _DraggablePublisherGridState
 
     for (final raw in publishers) {
       if (raw is! Map) continue;
-      final map = Map<String, dynamic>.from(raw);
+      final map = raw is Map<String, dynamic>
+          ? raw
+          : raw.cast<String, dynamic>();
       final id = map['id']?.toString() ?? '';
       if (id.isEmpty) continue;
       if (seen.add(id)) deduped.add(map);
@@ -147,23 +156,26 @@ class _DraggablePublisherGridState
     return merged;
   }
 
-  Widget _buildTileItem(Map<String, dynamic> publisher, double tileWidth) {
+  Widget _buildTileItem(
+    Map<String, dynamic> publisher,
+    double tileWidth, {
+    required bool lightweightMode,
+  }) {
     return SizedBox(
       key: ValueKey(publisher['id']),
-      width: tileWidth,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-        child: RepaintBoundary(
+        width: tileWidth,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
           child: PublisherTile(
+            layoutKey: widget.layoutKey,
             publisher: publisher,
             onTap: () => widget.onPublisherTap(publisher),
             isFavorite: widget.isFavorite(publisher),
             onFavoriteToggle: widget.onFavoriteToggle(publisher),
             disableMotion: widget.disableMotion,
-            lightweightMode: widget.lightweightMode,
+            lightweightMode: lightweightMode,
           ),
         ),
-      ),
     );
   }
 
@@ -173,7 +185,7 @@ class _DraggablePublisherGridState
     final controller = ref.read(
       publisherLayoutProvider(widget.layoutKey).notifier,
     );
-    final isEditMode = ref.watch(editModeProvider);
+    final isEditMode = ref.watch(editModeProvider(widget.layoutKey));
     _refreshPublisherCache();
 
     final sourceIds = _lastPublisherIds;
@@ -191,6 +203,7 @@ class _DraggablePublisherGridState
         .map((id) => publisherMap[id])
         .whereType<Map<String, dynamic>>()
         .toList(growable: false);
+    final effectiveLightweightMode = true;
 
     if (displayPublishers.isEmpty) {
       return widget.asSliver
@@ -202,18 +215,69 @@ class _DraggablePublisherGridState
     final tileWidth = MediaQuery.of(context).size.width - 24;
 
     if (!isEditMode) {
+      if (widget.itemBuilder != null) {
+        if (widget.asSliver) {
+          if (widget.itemExtent != null) {
+            return SliverFixedExtentList(
+              itemExtent: widget.itemExtent!,
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => KeyedSubtree(
+                  key: ValueKey(displayPublishers[index]['id']),
+                  child: widget.itemBuilder!(
+                    context,
+                    displayPublishers[index],
+                  ),
+                ),
+                childCount: displayPublishers.length,
+              ),
+            );
+          }
+          return SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => KeyedSubtree(
+                key: ValueKey(displayPublishers[index]['id']),
+                child: widget.itemBuilder!(context, displayPublishers[index]),
+              ),
+              childCount: displayPublishers.length,
+            ),
+          );
+        }
+
+        return Column(
+          children: List.generate(
+            displayPublishers.length,
+            (index) => KeyedSubtree(
+              key: ValueKey(displayPublishers[index]['id']),
+              child: widget.itemBuilder!(context, displayPublishers[index]),
+            ),
+          ),
+        );
+      }
+
       if (widget.asSliver) {
-        return SliverList(
-          delegate: SliverChildBuilderDelegate((context, index) {
-            return _buildTileItem(displayPublishers[index], tileWidth);
-          }, childCount: displayPublishers.length),
+        return SliverFixedExtentList(
+          itemExtent: _lightweightItemExtent,
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              return _buildTileItem(
+                displayPublishers[index],
+                tileWidth,
+                lightweightMode: effectiveLightweightMode,
+              );
+            },
+            childCount: displayPublishers.length,
+          ),
         );
       }
 
       return Column(
         children: List.generate(
           displayPublishers.length,
-          (index) => _buildTileItem(displayPublishers[index], tileWidth),
+          (index) => _buildTileItem(
+            displayPublishers[index],
+            tileWidth,
+            lightweightMode: effectiveLightweightMode,
+          ),
         ),
       );
     }
@@ -223,13 +287,9 @@ class _DraggablePublisherGridState
       runSpacing: 2,
       alignment: WrapAlignment.center,
       onReorder: (oldIndex, newIndex) {
-        // Adjust index for removal if dragging downwards
-        // Standard reorder behavior: if moving down, newIndex includes the item itself
-        /* 
-           Note: reorderables package might handle this differently than ReorderableListView.
-           If using reorderables 0.6.0+, it usually behaves like the standard list.
-           We'll add the safety check.
-        */
+        if (oldIndex == newIndex) return;
+        if (newIndex < 0 || newIndex > displayPublishers.length) return;
+
         final ids = displayPublishers
             .map((p) => p['id'].toString())
             .toList(growable: false);
@@ -237,7 +297,11 @@ class _DraggablePublisherGridState
         controller.reorder(oldIndex, newIndex, ids);
       },
       children: List.generate(displayPublishers.length, (index) {
-        return _buildTileItem(displayPublishers[index], tileWidth);
+        return _buildTileItem(
+          displayPublishers[index],
+          tileWidth,
+          lightweightMode: effectiveLightweightMode,
+        );
       }),
     );
 

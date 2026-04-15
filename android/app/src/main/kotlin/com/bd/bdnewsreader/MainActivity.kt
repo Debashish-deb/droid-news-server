@@ -17,19 +17,29 @@ class MainActivity : AudioServiceActivity() {
 
     private companion object {
         const val SECURITY_CHANNEL = "com.bdnews/security"
+        const val SPLASH_CHANNEL = "com.bdnews/splash"
     }
+    @Volatile
+    private var keepLaunchSplashVisible = true
 
     // ✅ Splash screen must be installed before super.onCreate
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        val splashScreen = installSplashScreen()
+        splashScreen.setKeepOnScreenCondition { keepLaunchSplashVisible }
         super.onCreate(savedInstanceState)
         ensureDebugBuildIsInspectable()
         setupEdgeToEdge()
+        // Failsafe: never allow the splash to get stuck if Dart bootstrap
+        // crashes or a method-channel message is missed.
+        window.decorView.postDelayed({
+            keepLaunchSplashVisible = false
+        }, 4000)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         setupSecurityChannel(flutterEngine)
+        setupSplashChannel(flutterEngine)
         PerformanceService(this).setupChannel(flutterEngine)
     }
 
@@ -76,6 +86,28 @@ class MainActivity : AudioServiceActivity() {
                 }
                 "openNotificationSettings" -> {
                     result.success(openNotificationSettings())
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    private fun setupSplashChannel(flutterEngine: FlutterEngine) {
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            SPLASH_CHANNEL
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "release" -> {
+                    keepLaunchSplashVisible = false
+                    result.success(true)
+                }
+                "hold" -> {
+                    keepLaunchSplashVisible = true
+                    result.success(true)
+                }
+                "isHolding" -> {
+                    result.success(keepLaunchSplashVisible)
                 }
                 else -> result.notImplemented()
             }

@@ -8,9 +8,10 @@ import 'dart:async' as _i3;
 import 'package:bdnewsreader/core/architecture/either.dart' as _i4;
 import 'package:bdnewsreader/core/architecture/failure.dart' as _i5;
 import 'package:bdnewsreader/domain/entities/subscription.dart' as _i6;
+import 'package:bdnewsreader/domain/entities/tts_quota_status.dart' as _i8;
 import 'package:bdnewsreader/domain/interfaces/subscription_repository.dart'
     as _i2;
-import 'package:in_app_purchase/in_app_purchase.dart' as _i8;
+import 'package:in_app_purchase/in_app_purchase.dart' as _i9;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i7;
 
@@ -90,6 +91,24 @@ class MockSubscriptionRepository extends _i1.Mock
           ),
         )),
       ) as _i3.Future<_i4.Either<_i5.AppFailure, _i6.Subscription>>);
+
+  @override
+  _i3.Future<_i4.Either<_i5.AppFailure, _i6.Subscription>>
+      purchasePremiumProduct(String? productId) => (super.noSuchMethod(
+            Invocation.method(
+              #purchasePremiumProduct,
+              [productId],
+            ),
+            returnValue: _i3
+                .Future<_i4.Either<_i5.AppFailure, _i6.Subscription>>.value(
+                _i7.dummyValue<_i4.Either<_i5.AppFailure, _i6.Subscription>>(
+              this,
+              Invocation.method(
+                #purchasePremiumProduct,
+                [productId],
+              ),
+            )),
+          ) as _i3.Future<_i4.Either<_i5.AppFailure, _i6.Subscription>>);
 
   @override
   _i3.Future<_i4.Either<_i5.AppFailure, _i6.Subscription>>
@@ -255,36 +274,47 @@ class MockSubscriptionRepository extends _i1.Mock
       ) as _i3.Future<_i4.Either<_i5.AppFailure, bool>>);
 
   @override
-  _i3.Future<_i4.Either<_i5.AppFailure, void>> upgradeWithGooglePay({
-    required _i6.SubscriptionTier? tier,
-    required String? paymentToken,
-  }) =>
+  _i3.Future<_i4.Either<_i5.AppFailure, _i8.TtsQuotaStatus>> getTtsQuotaStatus(
+          {String? articleUrl}) =>
       (super.noSuchMethod(
         Invocation.method(
-          #upgradeWithGooglePay,
+          #getTtsQuotaStatus,
           [],
-          {
-            #tier: tier,
-            #paymentToken: paymentToken,
-          },
+          {#articleUrl: articleUrl},
+        ),
+        returnValue:
+            _i3.Future<_i4.Either<_i5.AppFailure, _i8.TtsQuotaStatus>>.value(
+                _i7.dummyValue<_i4.Either<_i5.AppFailure, _i8.TtsQuotaStatus>>(
+          this,
+          Invocation.method(
+            #getTtsQuotaStatus,
+            [],
+            {#articleUrl: articleUrl},
+          ),
+        )),
+      ) as _i3.Future<_i4.Either<_i5.AppFailure, _i8.TtsQuotaStatus>>);
+
+  @override
+  _i3.Future<_i4.Either<_i5.AppFailure, void>> recordTtsArticleUsage(
+          String? articleUrl) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #recordTtsArticleUsage,
+          [articleUrl],
         ),
         returnValue: _i3.Future<_i4.Either<_i5.AppFailure, void>>.value(
             _i7.dummyValue<_i4.Either<_i5.AppFailure, void>>(
           this,
           Invocation.method(
-            #upgradeWithGooglePay,
-            [],
-            {
-              #tier: tier,
-              #paymentToken: paymentToken,
-            },
+            #recordTtsArticleUsage,
+            [articleUrl],
           ),
         )),
       ) as _i3.Future<_i4.Either<_i5.AppFailure, void>>);
 
   @override
   _i3.Future<_i4.Either<_i5.AppFailure, _i6.Subscription>> processStorePurchase(
-          _i8.PurchaseDetails? purchase) =>
+          _i9.PurchaseDetails? purchase) =>
       (super.noSuchMethod(
         Invocation.method(
           #processStorePurchase,

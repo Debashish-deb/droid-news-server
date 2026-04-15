@@ -1,6 +1,7 @@
 // lib/widgets/error_screen.dart
 
 import 'package:flutter/foundation.dart';
+import '../../core/theme/theme_skeleton.dart';
 import 'package:flutter/material.dart';
 import '../../l10n/generated/app_localizations.dart';
 
@@ -29,27 +30,25 @@ class ErrorScreen extends StatelessWidget {
         body: SafeArea(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: ThemeSkeleton.shared.insetsAll(24.0),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  
                   Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: ThemeSkeleton.shared.insetsAll(24),
                     decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.1),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.error_outline,
                       size: 64,
-                      color: Colors.red.shade400,
+                      color: theme.colorScheme.primary,
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: ThemeSkeleton.size32),
 
-            
                   Text(
                     AppLocalizations.of(context).errorOops,
                     style: theme.textTheme.headlineSmall?.copyWith(
@@ -59,9 +58,8 @@ class ErrorScreen extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: ThemeSkeleton.size16),
 
-                 
                   Text(
                     AppLocalizations.of(context).errorUnexpected,
                     style: theme.textTheme.bodyMedium?.copyWith(
@@ -70,17 +68,15 @@ class ErrorScreen extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
 
-                  
                   if (kDebugMode) ...<Widget>[
-                    const SizedBox(height: 24),
+                    const SizedBox(height: ThemeSkeleton.size24),
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: ThemeSkeleton.shared.insetsAll(16),
                       decoration: BoxDecoration(
-                        color:
-                            isDark
-                                ? Colors.grey.shade900
-                                : Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(12),
+                        color: isDark
+                            ? Colors.grey.shade900
+                            : Colors.grey.shade200,
+                        borderRadius: ThemeSkeleton.shared.circular(12),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,7 +88,7 @@ class ErrorScreen extends StatelessWidget {
                               color: isDark ? Colors.white : Colors.black87,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: ThemeSkeleton.size8),
                           Text(
                             error.toString(),
                             style: TextStyle(
@@ -106,21 +102,20 @@ class ErrorScreen extends StatelessWidget {
                     ),
                   ],
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: ThemeSkeleton.size32),
 
-                
                   if (onRetry != null)
                     ElevatedButton.icon(
                       onPressed: onRetry,
                       icon: const Icon(Icons.refresh),
-                       label: Text(AppLocalizations.of(context).restartApp),
+                      label: Text(AppLocalizations.of(context).restartApp),
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
+                        padding: ThemeSkeleton.shared.insetsSymmetric(
                           horizontal: 32,
                           vertical: 16,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: ThemeSkeleton.shared.circular(12),
                         ),
                       ),
                     ),
@@ -133,4 +128,3 @@ class ErrorScreen extends StatelessWidget {
     );
   }
 }
-

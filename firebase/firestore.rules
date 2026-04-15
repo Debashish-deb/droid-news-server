@@ -68,7 +68,13 @@ service cloud.firestore {
                        ]))
                     // CRITICAL: Prevent maxDevices manipulation
                     && (!request.resource.data.diff(resource.data)
-                       .affectedKeys().hasAny(['maxDevices']));
+                       .affectedKeys().hasAny(['maxDevices']))
+                    // Trial usage can only move forward to true, never reset.
+                    && (
+                      !request.resource.data.diff(resource.data)
+                        .affectedKeys().hasAny(['trial_used']) ||
+                      request.resource.data.trial_used == true
+                    );
       
       // User data subcollections
       match /data/{document=**} {

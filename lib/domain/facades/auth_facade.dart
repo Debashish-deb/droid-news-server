@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 abstract class AuthFacade {
   /// Current authenticated user
   User? get currentUser;
-  
+
   /// Whether a user is currently logged in
   bool get isLoggedIn;
 
@@ -20,6 +20,10 @@ abstract class AuthFacade {
   /// Returns error message on failure, null on success
   Future<String?> login(String email, String password);
 
+  /// Resend Firebase email verification for an email/password account.
+  /// Returns error message on failure, null on success
+  Future<String?> resendEmailVerification(String email, String password);
+
   /// Sign in with Google
   /// Returns error message on failure, null on success
   Future<String?> signInWithGoogle();
@@ -33,8 +37,11 @@ abstract class AuthFacade {
   /// Check if user has used trial
   Future<bool> hasUsedTrial();
 
-  /// Mark trial as used
-  Future<void> markTrialUsed();
+  /// Mark trial as used and persist its server-backed lifecycle.
+  Future<void> markTrialUsed({
+    required DateTime startedAt,
+    required DateTime endsAt,
+  });
 
   /// Get user profile
   Future<Map<String, String>> getProfile();

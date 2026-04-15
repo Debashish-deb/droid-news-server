@@ -1,39 +1,48 @@
 /// Available app theme modes.
-enum AppThemeMode { system, light, dark, bangladesh, amoled }
+enum AppThemeMode { system, dark, bangladesh }
 
-/// New policy: keep only Auto(System) and Bangladesh as user-facing modes.
-/// Legacy persisted values are normalized at runtime to avoid enum reindexing.
-AppThemeMode normalizeThemeMode(AppThemeMode mode) {
-  switch (mode) {
-    case AppThemeMode.light:
-    case AppThemeMode.dark:
-      return AppThemeMode.system;
-    case AppThemeMode.amoled:
-      return AppThemeMode.amoled;
-    case AppThemeMode.system:
-    case AppThemeMode.bangladesh:
-      return mode;
-  }
-}
+AppThemeMode normalizeThemeMode(AppThemeMode mode) => switch (mode) {
+  AppThemeMode.system => AppThemeMode.system,
+  AppThemeMode.dark => AppThemeMode.dark,
+  AppThemeMode.bangladesh => AppThemeMode.bangladesh,
+};
 
 bool isUserSelectableThemeMode(AppThemeMode mode) {
-  return mode == AppThemeMode.system ||
-      mode == AppThemeMode.amoled ||
-      mode == AppThemeMode.bangladesh;
+  final normalized = normalizeThemeMode(mode);
+  return normalized == AppThemeMode.system ||
+      normalized == AppThemeMode.dark ||
+      normalized == AppThemeMode.bangladesh;
 }
 
 AppThemeMode themeModeFromName(String? rawName) {
-  final name = (rawName ?? '').trim();
-  final matched = AppThemeMode.values.where((m) => m.name == name);
-  if (matched.isEmpty) return AppThemeMode.system;
-  return normalizeThemeMode(matched.first);
+  final name = (rawName ?? '').trim().toLowerCase();
+  return switch (name) {
+    'light' => AppThemeMode.system,
+    'dark' => AppThemeMode.dark,
+    'amoled' => AppThemeMode.dark,
+    'bangladesh' => AppThemeMode.bangladesh,
+    'desh' => AppThemeMode.bangladesh,
+    'emerald' => AppThemeMode.bangladesh,
+    'system' => AppThemeMode.system,
+    _ => AppThemeMode.system,
+  };
 }
 
 AppThemeMode themeModeFromIndex(int? rawIndex) {
-  if (rawIndex == null ||
-      rawIndex < 0 ||
-      rawIndex >= AppThemeMode.values.length) {
-    return AppThemeMode.system;
-  }
-  return normalizeThemeMode(AppThemeMode.values[rawIndex]);
+  return switch (rawIndex) {
+    1 => AppThemeMode.system,
+    2 => AppThemeMode.dark,
+    3 => AppThemeMode.bangladesh,
+    4 => AppThemeMode.dark,
+    0 => AppThemeMode.system,
+    _ => AppThemeMode.system,
+  };
+}
+
+int themeModeToStorageIndex(AppThemeMode mode) {
+  return switch (normalizeThemeMode(mode)) {
+    AppThemeMode.system => 0,
+    AppThemeMode.dark => 2,
+    AppThemeMode.bangladesh => 3,
+  };
 }

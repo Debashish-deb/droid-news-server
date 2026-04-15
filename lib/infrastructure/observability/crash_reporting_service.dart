@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_classes_with_only_static_members
+
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -115,4 +117,3 @@ class CrashReportingService {
     logBreadcrumb('Network error: $url - $error');
   }
 }
-

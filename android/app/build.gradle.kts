@@ -1,3 +1,4 @@
+import java.io.File
 import java.util.Properties
 
 plugins {
@@ -10,6 +11,9 @@ plugins {
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties()
 val hasKeystoreProps = keystorePropertiesFile.exists()
+val enablePerAbiApk = providers.gradleProperty("android.enablePerAbiApk")
+    .map(String::toBoolean)
+    .orElse(false)
 
 if (hasKeystoreProps) {
     keystorePropertiesFile.inputStream().buffered().use { keystoreProperties.load(it) }
@@ -17,7 +21,16 @@ if (hasKeystoreProps) {
 
 fun requireKeystoreProp(name: String): String {
     return keystoreProperties.getProperty(name)
-        ?: throw GradleException("Missing `$name` in android/app/key.properties (required for release signing).")
+        ?: throw GradleException("Missing `$name` in android/key.properties (required for release signing).")
+}
+
+fun resolveKeystoreFile(path: String) = run {
+    val candidate = File(path)
+    if (candidate.isAbsolute) {
+        candidate
+    } else {
+        keystorePropertiesFile.parentFile.resolve(path)
+    }
 }
 
 android {
@@ -30,7 +43,7 @@ android {
             create("release") {
                 keyAlias = requireKeystoreProp("keyAlias")
                 keyPassword = requireKeystoreProp("keyPassword")
-                storeFile = file(requireKeystoreProp("storeFile"))
+                storeFile = resolveKeystoreFile(requireKeystoreProp("storeFile"))
                 storePassword = requireKeystoreProp("storePassword")
                 enableV1Signing = true
                 enableV2Signing = true
@@ -55,6 +68,27 @@ android {
         )
     }
 
+    bundle {
+        abi {
+            enableSplit = true
+        }
+        density {
+            enableSplit = true
+        }
+        language {
+            enableSplit = true
+        }
+    }
+
+    splits {
+        abi {
+            isEnable = enablePerAbiApk.get()
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = !enablePerAbiApk.get()
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
@@ -69,7 +103,7 @@ android {
         release {
             if (!hasKeystoreProps) {
                 throw GradleException(
-                    "Release build requires android/app/key.properties for signing. " +
+                    "Release build requires android/key.properties for signing. " +
                     "Create it (or use CI secrets) before building release."
                 )
             }
@@ -90,6 +124,11 @@ android {
             initWith(getByName("release"))
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += listOf("release")
+            // Keep profile builds representative for runtime performance, but
+            // avoid release-only shrinking/minification so `flutter run --profile`
+            // stays debuggable and sidesteps third-party R8 collisions.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
 
         debug {

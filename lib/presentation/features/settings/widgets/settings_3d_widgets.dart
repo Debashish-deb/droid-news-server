@@ -1,4 +1,5 @@
 import 'dart:ui';
+import '../../../../core/theme/theme_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/config/performance_config.dart';
@@ -27,15 +28,17 @@ class Settings3DIcon extends ConsumerWidget {
     final isDark = theme.brightness == Brightness.dark;
     final baseLabelColor = scheme.onSurface;
 
-    final Color faceColor = scheme.surfaceVariant.withValues(alpha: 
-      isDark ? 0.20 : 0.32,
+    final Color faceColor = scheme.surfaceVariant.withValues(
+      alpha: isDark ? 0.20 : 0.32,
     );
 
     final Color iconColor = baseLabelColor;
 
-    final Color shadowColor = scheme.shadow.withValues(alpha: isDark ? 0.2 : 0.12);
-    final Color highlightColor = scheme.surface.withValues(alpha: 
-      isDark ? 0.25 : 0.65,
+    final Color shadowColor = scheme.shadow.withValues(
+      alpha: isDark ? 0.2 : 0.12,
+    );
+    final Color highlightColor = scheme.surface.withValues(
+      alpha: isDark ? 0.25 : 0.65,
     );
 
     final double boxSize = compact ? 34 : 42; // More compact
@@ -45,7 +48,7 @@ class Settings3DIcon extends ConsumerWidget {
       width: boxSize,
       height: boxSize,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: ThemeSkeleton.shared.circular(borderRadius),
         color: faceColor,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -152,7 +155,9 @@ class _Settings3DButtonState extends ConsumerState<Settings3DButton>
     final isDark = theme.brightness == Brightness.dark;
     final accent = ref.watch(navIconColorProvider);
     final baseLabelColor = scheme.onSurface;
-    final buttonBorderColor = scheme.outline.withValues(alpha: isDark ? 0.78 : 0.84);
+    final buttonBorderColor = scheme.outline.withValues(
+      alpha: isDark ? 0.78 : 0.84,
+    );
     final bool disableMotion =
         perf.reduceMotion || perf.lowPowerMode || perf.isLowEndDevice;
     final bool allowGlassBlur =
@@ -195,7 +200,7 @@ class _Settings3DButtonState extends ConsumerState<Settings3DButton>
           height: widget.height ?? 54,
           padding: widget.padding,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(
+            borderRadius: ThemeSkeleton.shared.circular(
               12,
             ), // Rounded rectangle for switch look
             color: isDark
@@ -207,7 +212,7 @@ class _Settings3DButtonState extends ConsumerState<Settings3DButton>
             ),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: ThemeSkeleton.shared.circular(12),
             child: Stack(
               alignment: Alignment.center,
               children: [
@@ -228,9 +233,9 @@ class _Settings3DButtonState extends ConsumerState<Settings3DButton>
                       width: 3,
                       decoration: BoxDecoration(
                         color: activeColor,
-                        borderRadius: const BorderRadius.only(
-                          topRight: Radius.circular(4),
-                          bottomRight: Radius.circular(4),
+                        borderRadius: BorderRadius.only(
+                          topRight: ThemeSkeleton.shared.radius(4),
+                          bottomRight: ThemeSkeleton.shared.radius(4),
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -254,17 +259,18 @@ class _Settings3DButtonState extends ConsumerState<Settings3DButton>
                         color: baseLabelColor,
                       ),
                     if (widget.icon != null && widget.label != null)
-                      const SizedBox(height: 2),
+                      const SizedBox(height: ThemeSkeleton.size2),
                     if (widget.label != null)
                       Text(
                         widget.label!,
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: widget.fontSize ?? 11,
                           fontWeight: widget.isSelected
                               ? FontWeight.w800
                               : FontWeight.w700,
-                          color: baseLabelColor.withValues(alpha: 
-                            widget.isSelected ? 1.0 : 0.92,
+                          color: baseLabelColor.withValues(
+                            alpha: widget.isSelected ? 1.0 : 0.92,
                           ),
                         ),
                       ),

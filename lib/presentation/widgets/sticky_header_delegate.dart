@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 class StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
-
   StickyHeaderDelegate({
     required this.child,
     required this.minHeight,
@@ -12,11 +11,17 @@ class StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   final double maxHeight;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     final theme = Theme.of(context);
     // Add glass/blur effect when stuck (shrinkOffset > 0) or simply use background color
     return Container(
-      color: theme.scaffoldBackgroundColor.withValues(alpha: 0.95), // Slight transparency for glass feel
+      color: theme.scaffoldBackgroundColor.withValues(
+        alpha: 0.95,
+      ), // Slight transparency for glass feel
       alignment: Alignment.centerLeft,
       child: child,
     );

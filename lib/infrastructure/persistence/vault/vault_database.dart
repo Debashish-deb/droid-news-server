@@ -1,17 +1,16 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
-
 /// The "Safe" - A local SQLite database for storing encrypted data.
 
 class VaultDatabase {
-
   VaultDatabase();
   static Database? _database;
+  static const String _databaseFileName = 'secure_vault.db';
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('secure_vault.db');
+    _database = await _initDB(_databaseFileName);
     return _database!;
   }
 
@@ -19,11 +18,7 @@ class VaultDatabase {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: _createDB,
-    );
+    return await openDatabase(path, version: 1, onCreate: _createDB);
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -38,26 +33,29 @@ class VaultDatabase {
         updated_at TEXT NOT NULL
       )
     ''');
-    
-    await db.execute('CREATE INDEX idx_collection ON vault_documents(collection)');
+
+    await db.execute(
+      'CREATE INDEX idx_collection ON vault_documents(collection)',
+    );
   }
 
-  Future<void> writeDocument(String collection, String id, String encryptedData) async {
+  Future<void> writeDocument(
+    String collection,
+    String id,
+    String encryptedData,
+  ) async {
     final db = await database;
     final now = DateTime.now().toIso8601String();
-    
-    await db.insert(
-      'vault_documents',
-      {
-        'id': id,
-        'collection': collection,
-        'encrypted_data': encryptedData,
-        'iv': '', // IV is embedded in data in our SecurityService implementation, so we can leave this empty or remove column
-        'created_at': now,
-        'updated_at': now,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+
+    await db.insert('vault_documents', {
+      'id': id,
+      'collection': collection,
+      'encrypted_data': encryptedData,
+      'iv':
+          '', // IV is embedded in data in our SecurityService implementation, so we can leave this empty or remove column
+      'created_at': now,
+      'updated_at': now,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<String?> readDocument(String collection, String id) async {
@@ -86,13 +84,27 @@ class VaultDatabase {
 
     return maps.map((e) => e['encrypted_data'] as String).toList();
   }
-  
+
   Future<void> deleteDocument(String collection, String id) async {
     final db = await database;
     await db.delete(
-      'vault_documents', 
+      'vault_documents',
       where: 'id = ? AND collection = ?',
-      whereArgs: [id, collection]
+      whereArgs: [id, collection],
     );
+  }
+
+  static Future<void> closeDatabase() async {
+    final db = _database;
+    _database = null;
+    if (db != null && db.isOpen) {
+      await db.close();
+    }
+  }
+
+  static Future<void> deleteStorage() async {
+    await closeDatabase();
+    final dbPath = await getDatabasesPath();
+    await deleteDatabase(join(dbPath, _databaseFileName));
   }
 }

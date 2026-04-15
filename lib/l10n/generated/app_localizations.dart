@@ -227,7 +227,7 @@ abstract class AppLocalizations {
   /// No description provided for @contactEmail.
   ///
   /// In en, this message translates to:
-  /// **'customerservice@dsmobiles.com'**
+  /// **'support@appcraftr.store'**
   String get contactEmail;
 
   /// No description provided for @mailClientError.
@@ -599,7 +599,7 @@ abstract class AppLocalizations {
   /// No description provided for @companyFooter.
   ///
   /// In en, this message translates to:
-  /// **'© {year} DreamSD Group'**
+  /// **'© {year} AppCraftr'**
   String companyFooter(Object year);
 
   /// No description provided for @magazines.
@@ -887,7 +887,7 @@ abstract class AppLocalizations {
   /// No description provided for @bangladeshTheme.
   ///
   /// In en, this message translates to:
-  /// **'Desh Theme'**
+  /// **'Emerald Theme'**
   String get bangladeshTheme;
 
   /// No description provided for @adsRemoved.
@@ -1199,8 +1199,44 @@ abstract class AppLocalizations {
   /// No description provided for @faqHowToUseDesc.
   ///
   /// In en, this message translates to:
-  /// **'Navigate news categories from the homepage.'**
+  /// **'Start from Home to browse categories and open any article. Swipe through top stories, use Search for topics, and save favorites for quick access.'**
   String get faqHowToUseDesc;
+
+  /// No description provided for @helpReaderToolsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reader Mode & TTS'**
+  String get helpReaderToolsTitle;
+
+  /// No description provided for @helpReaderToolsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Inside an article, switch to Reader Mode for clean text. Tap Listen to use text-to-speech, then adjust speed, voice, and font/appearance for comfortable reading.'**
+  String get helpReaderToolsDesc;
+
+  /// No description provided for @helpOfflineServiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline Service'**
+  String get helpOfflineServiceTitle;
+
+  /// No description provided for @helpOfflineServiceDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap Download/Save on articles, then open Offline Articles from Extras to read without internet and manage saved items.'**
+  String get helpOfflineServiceDesc;
+
+  /// No description provided for @helpSourceManagementTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Source Management'**
+  String get helpSourceManagementTitle;
+
+  /// No description provided for @helpSourceManagementDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings > Manage Sources to choose your preferred publishers. This helps personalize your feed and keeps your homepage relevant.'**
+  String get helpSourceManagementDesc;
 
   /// No description provided for @faqDataSecure.
   ///
@@ -1241,7 +1277,7 @@ abstract class AppLocalizations {
   /// No description provided for @ourStoryDesc.
   ///
   /// In en, this message translates to:
-  /// **'BD News Reader is the first mobile app by DSMobiles Group, delivering fast and reliable news updates. Our mission is to create free, high-quality apps that inform and empower.'**
+  /// **'BD News Reader is the first mobile app by AppCraftr, delivering fast and reliable news updates. Our mission is to create free, high-quality apps that inform and empower.'**
   String get ourStoryDesc;
 
   /// No description provided for @ourVisionDesc.
@@ -2222,6 +2258,12 @@ abstract class AppLocalizations {
   /// **'Light'**
   String get themeLightLabel;
 
+  /// No description provided for @themeAutoLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get themeAutoLabel;
+
   /// No description provided for @themeDarkLabel.
   ///
   /// In en, this message translates to:
@@ -2231,7 +2273,7 @@ abstract class AppLocalizations {
   /// No description provided for @themeDeshLabel.
   ///
   /// In en, this message translates to:
-  /// **'Desh'**
+  /// **'Emerald'**
   String get themeDeshLabel;
 
   /// No description provided for @ttsLoading.
@@ -2819,7 +2861,7 @@ abstract class AppLocalizations {
   /// No description provided for @privacyThirdPartyDesc.
   ///
   /// In en, this message translates to:
-  /// **'We partner with trusted services:\n• Google AdMob: For personalized or non-personalized ads.\n• Firebase: For authentication and analytics.\n• RevenueCat/Google Play: For secure subscription management.\n• News Publishers: When you view articles in WebView, the publisher\'s own privacy policy applies.'**
+  /// **'We partner with trusted services:\n• Google AdMob: For personalized or non-personalized ads.\n• Firebase: For authentication and analytics.\n• Google Play: For secure subscription management.\n• News Publishers: When you view articles in WebView, the publisher\'s own privacy policy applies.'**
   String get privacyThirdPartyDesc;
 
   /// No description provided for @privacySecurityTitle.
@@ -2855,7 +2897,7 @@ abstract class AppLocalizations {
   /// No description provided for @privacyContactDesc.
   ///
   /// In en, this message translates to:
-  /// **'For any privacy-related questions, contact us at: customerservice@dsmobiles.com'**
+  /// **'For any privacy-related questions, contact us at: support@appcraftr.store'**
   String get privacyContactDesc;
 
   /// No description provided for @privacyLastUpdated.
@@ -2905,6 +2947,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{hours}h ago'**
   String hoursAgo(Object hours);
+
+  /// No description provided for @verifyEmailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify your email'**
+  String get verifyEmailTitle;
+
+  /// No description provided for @verificationEmailSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification email sent. Please verify your email, then sign in.'**
+  String get verificationEmailSent;
+
+  /// No description provided for @emailNotVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Please verify your email address before logging in.'**
+  String get emailNotVerified;
+
+  /// No description provided for @checkInboxPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your inbox and spam folder, then try again.'**
+  String get checkInboxPrompt;
+
+  /// No description provided for @resendVerificationEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend verification email'**
+  String get resendVerificationEmail;
+
+  /// No description provided for @verificationEmailResent.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification email sent. Please check your inbox.'**
+  String get verificationEmailResent;
+
+  /// No description provided for @iVerifiedTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'I verified, try again'**
+  String get iVerifiedTryAgain;
+
+  /// No description provided for @verificationEmailCooldown.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification email was sent recently. Please wait before requesting another one.'**
+  String get verificationEmailCooldown;
 }
 
 class _AppLocalizationsDelegate

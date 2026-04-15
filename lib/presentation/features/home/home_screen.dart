@@ -1,41 +1,75 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:io' show Platform;
-import 'dart:math' as math;
-import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
-import '../../../core/di/providers.dart' hide networkQualityProvider;
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../../../core/navigation/app_paths.dart';
-import '../../providers/news_providers.dart';
-import '../../providers/tab_providers.dart';
-import '../../providers/language_providers.dart';
-import '../../providers/theme_providers.dart';
-import '../../providers/app_settings_providers.dart';
-import '../../providers/feature_providers.dart' show assetsLoaderProvider;
-import '../../providers/network_providers.dart';
-import '../../../core/enums/theme_mode.dart';
+
+import '../../../core/di/providers.dart'
+    hide localLearningEngineProvider, networkQualityProvider;
+import '../../../core/navigation/navigation_helper.dart';
+import '../../../core/theme/design_tokens.dart';
 import '../../../core/theme/theme.dart';
 import '../../../core/config/performance_config.dart';
 import '../../../core/persistence/offline_handler.dart';
+import '../../../core/architecture/failure.dart' show AppFailure;
+import '../../../l10n/generated/app_localizations.dart';
+
+import '../../providers/news_providers.dart';
+import '../../providers/tab_providers.dart';
+import '../../providers/language_providers.dart';
+import '../../providers/app_settings_providers.dart';
+import '../../providers/feature_providers.dart'
+    show localLearningEngineProvider;
+import '../../providers/network_providers.dart';
+
 import '../../../../domain/entities/news_article.dart';
 import '../../../../infrastructure/network/app_network_service.dart';
-import '../../../core/architecture/failure.dart' show AppFailure;
+
 import '../../widgets/app_drawer.dart';
 import '../../widgets/error_widget.dart';
 import '../../widgets/animated_theme_container.dart';
-import 'widgets/news_card.dart';
-import 'widgets/professional_header.dart';
-import '../../../../l10n/generated/app_localizations.dart';
-import '../../widgets/glass_icon_button.dart';
+import '../../widgets/banner_ad_widget.dart';
+import '../../widgets/bouncy_chip_segmented_row.dart';
+import '../../widgets/premium_screen_header.dart';
 import '../../widgets/premium_theme_icon.dart';
-import '../../widgets/unlock_article_dialog.dart';
-import '../../widgets/category_chips_bar.dart';
+import '../../widgets/premium_scaffold.dart';
+import '../../widgets/glass_container.dart';
+
 import '../common/news_detail_args.dart';
+import 'widgets/news_card.dart';
 import 'widgets/news_feed_skeleton.dart';
+import 'widgets/professional_header.dart';
+
+extension _CtxColors on BuildContext {
+  AppColorsExtension get colors {
+    final theme = Theme.of(this);
+    return theme.extension<AppColorsExtension>() ?? _fallbackColors(theme);
+  }
+}
+
+AppColorsExtension _fallbackColors(ThemeData theme) {
+  final scheme = theme.colorScheme;
+  final isDark = theme.brightness == Brightness.dark;
+  final onSurfaceVariant = scheme.onSurfaceVariant;
+
+  return AppColorsExtension(
+    bg: scheme.surface,
+    surface: scheme.surface,
+    card: isDark ? scheme.surfaceContainerHighest : scheme.surface,
+    cardBorder: scheme.outlineVariant.withValues(alpha: isDark ? 0.48 : 0.72),
+    textPrimary: scheme.onSurface,
+    textSecondary: onSurfaceVariant,
+    textHint: onSurfaceVariant.withValues(alpha: isDark ? 0.74 : 0.82),
+    goldStart: const Color(0xFFD4A853),
+    goldMid: const Color(0xFFB8893C),
+    goldGlow: const Color(0x33D4A853),
+    successGreen: const Color(0xFF22C55E),
+    errorRed: scheme.error,
+    proBlue: scheme.primary,
+    slideBlue: AppColors.slideBlue,
+    slideGreen: AppColors.slideGreen,
+    slideRed: AppColors.slideRed,
+  );
+}
 
 // ── Pre-computed constants so nothing is created at runtime ──────────────────
 
@@ -55,23 +89,26 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
-  late final TabController _tabController;
+  static const Duration _kStartupCacheSettleDelay = Duration(milliseconds: 200);
+  late int _selectedCategoryIndex;
   late final Map<String, bool> _loadMoreInFlight = {};
-  late final ScrollController _chipsScrollController;
-  late final List<GlobalKey> _chipKeys;
 
   final ValueNotifier<bool> _showScrollToTop = ValueNotifier(false);
-
-  List<Particle>? _particles; // null until first needed
-  late final AnimationController _particleController;
-  bool _particlesEnabled = false;
 
   bool _isOffline = false;
   bool _showOfflineBanner = false;
   bool _isAppInForeground = true;
+  bool _isElementActive = false;
+  bool _isDisposed = false;
+  bool _didStartLifecycleDependentWork = false;
+  bool _performanceLowPowerMode = false;
+  DevicePerformanceTier _performanceTier = DevicePerformanceTier.midRange;
   Timer? _refreshTimer;
   Timer? _offlineBannerTimer;
   Timer? _deferredStartupSyncTimer;
+  Timer? _startupFeedRetryTimer;
+  Timer? _startupInitTimer;
+  Timer? _localePrimeRetryTimer;
   StreamSubscription<bool>? _connectivitySub;
   final List<ProviderSubscription<dynamic>> _providerSubscriptions =
       <ProviderSubscription<dynamic>>[];
@@ -80,13 +117,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   bool _startupCachePrimed = false;
   DateTime? _lastPrimeCompletedAt;
 
-  // ── Cached heavy colors (recomputed only on theme change) ────────────────
-  Color? _cachedGradientStart;
-  Color? _cachedGradientEnd;
-  AppThemeMode? _cachedGradientMode;
-
   AppLocalizations get loc => AppLocalizations.of(context);
-  String get _activeCategory => _kCategories[_tabController.index];
+  String get _activeCategory => _kCategories[_selectedCategoryIndex];
+  bool get _canReadProviders => mounted && _isElementActive && !_isDisposed;
 
   void _diag(String message) {
     if (!kDebugMode) return;
@@ -97,6 +130,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void initState() {
     super.initState();
+    _isElementActive = true;
     WidgetsBinding.instance.addObserver(this);
 
     final savedCategory = ref.read(homeCategoryProvider);
@@ -105,150 +139,140 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       '🏠 [startup_diag] Home init category | saved=$savedCategory, initialIndex=$initialIndex, fallback=${initialIndex >= 0 ? _kCategories[initialIndex] : _kCategories.first}',
     );
 
-    _tabController = TabController(
-      length: _kCategories.length,
-      vsync: this,
-      initialIndex: initialIndex >= 0 ? initialIndex : 0,
-    );
-    _tabController.addListener(_onTabChanged);
+    _selectedCategoryIndex = initialIndex >= 0 ? initialIndex : 0;
     if (initialIndex < 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
+        if (_canReadProviders) {
           ref
               .read(homeCategoryProvider.notifier)
               .setCategory(_kCategories.first);
         }
       });
     }
-
-    _chipsScrollController = ScrollController();
-    _chipKeys = [];
-    for (int i = 0; i < _kCategories.length; i++) {
-      _chipKeys.add(GlobalKey());
-    }
-
-    // Particles: a single, very-slow ticker – only drives repaints, not logic
-    _particleController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 30),
-    );
-
-    _initConnectivity();
     _setupProviderListeners();
-
-    // Defer heavy work until first frame is on screen
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      unawaited(_initializeApp());
-      _maybeEnableParticles();
-    });
+    _initConnectivity();
+    unawaited(_initializeApp());
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _maybeEnableParticles();
-  }
-
-  void _maybeEnableParticles() {
     final perf = PerformanceConfig.of(context);
-    final enabled =
-        !perf.reduceEffects &&
-        !perf.reduceMotion &&
-        !perf.lowPowerMode &&
-        !perf.isLowEndDevice &&
-        perf.performanceTier == DevicePerformanceTier.flagship;
-    if (enabled == _particlesEnabled) return;
-    _particlesEnabled = enabled;
-    if (enabled) {
-      _particles ??= _buildParticles();
-      _particleController.repeat();
-      if (kDebugMode && Platform.environment.containsKey('FLUTTER_TEST')) {
-        _particleController.stop();
-      }
-    } else {
-      _particleController.stop();
+    final previousTier = _performanceTier;
+    final previousLowPowerMode = _performanceLowPowerMode;
+    _performanceTier = perf.performanceTier;
+    _performanceLowPowerMode = perf.lowPowerMode;
+
+    if (!_didStartLifecycleDependentWork ||
+        previousTier != _performanceTier ||
+        previousLowPowerMode != _performanceLowPowerMode) {
+      _didStartLifecycleDependentWork = true;
+      _setupAutoRefresh();
     }
   }
 
-  List<Particle> _buildParticles() {
-    final rng = math.Random();
-    return List.generate(
-      6,
-      (_) => Particle(
-        // Keep density low to preserve battery and thermals.
-        x: rng.nextDouble(),
-        y: rng.nextDouble(),
-        size: rng.nextDouble() * 3 + 1,
-        speed: rng.nextDouble() * 0.10 + 0.03,
-        delay: rng.nextDouble() * 2,
-        color: Colors.white.withValues(alpha: rng.nextDouble() * 0.12 + 0.04),
-      ),
-    );
+  @override
+  void activate() {
+    super.activate();
+    _isElementActive = true;
+  }
+
+  @override
+  void deactivate() {
+    _isElementActive = false;
+    super.deactivate();
   }
 
   void _setupProviderListeners() {
     // All listeners use listenManual so they don't force rebuilds of the whole tree
     _providerSubscriptions.add(
       ref.listenManual<Locale>(currentLocaleProvider, (prev, next) {
-        if (!mounted) return;
+        if (!_canReadProviders) return;
         if (prev != null && prev != next) {
-          // Locale flips can happen while initial prime is in-flight.
-          // Queue one forced prime so the active feed always matches locale.
-          if (_primeInFlight) {
-            _pendingPrimeAfterLocaleChange = true;
+          final newsState = ref.read(newsProvider);
+          if (_primeInFlight || newsState.isLoading(_activeCategory)) {
+            _queuePrimeAfterLocaleChange();
             return;
           }
-          unawaited(_primeHomeCategories(force: true));
+          // Locale flips can happen while initial prime is in-flight.
+          // Queue one forced prime so the active feed always matches locale.
+          unawaited(
+            _primeHomeCategories(
+              force: true,
+              includeLatestSeed: _activeCategory == 'latest',
+            ),
+          );
         }
       }),
     );
 
     _providerSubscriptions.add(
       ref.listenManual<bool>(dataSaverProvider, (prev, next) {
-        if (!mounted) return;
+        if (!_canReadProviders) return;
         if (prev != null && prev != next) _setupAutoRefresh();
       }),
     );
 
     _providerSubscriptions.add(
       ref.listenManual<NetworkQuality>(networkQualityProvider, (prev, next) {
-        if (!mounted) return;
+        if (!_canReadProviders) return;
         if (prev != null && prev != next) _setupAutoRefresh();
       }),
     );
 
     _providerSubscriptions.add(
       ref.listenManual<int>(currentTabIndexProvider, (prev, next) {
-        if (!mounted) return;
+        if (!_isElementActive || _isDisposed || !mounted) return;
         if (next == 0) _scrollToTop();
       }),
     );
 
     _providerSubscriptions.add(
       ref.listenManual<String>(homeCategoryProvider, (prev, next) {
-        if (!mounted) return;
+        if (!_canReadProviders) return;
         if (_kCategories.length <= 1) return;
         if (prev != next) {
           final idx = _kCategories.indexOf(next);
-          if (idx != -1 && _tabController.index != idx) {
-            _tabController.animateTo(idx);
+          if (idx != -1 && idx != _selectedCategoryIndex) {
+            _setActiveCategoryIndex(idx, updateProvider: false);
           }
         }
       }),
     );
   }
 
+  void _queuePrimeAfterLocaleChange() {
+    _pendingPrimeAfterLocaleChange = true;
+    _localePrimeRetryTimer?.cancel();
+    _localePrimeRetryTimer = Timer(const Duration(milliseconds: 900), () {
+      if (!_canReadProviders) return;
+      final newsState = ref.read(newsProvider);
+      if (_primeInFlight || newsState.isLoading(_activeCategory)) {
+        _queuePrimeAfterLocaleChange();
+        return;
+      }
+      _pendingPrimeAfterLocaleChange = false;
+      unawaited(
+        _primeHomeCategories(
+          force: true,
+          includeLatestSeed: _activeCategory == 'latest',
+        ),
+      );
+    });
+  }
+
   void _initConnectivity() async {
     _isOffline = await OfflineHandler.isOffline();
     _connectivitySub = OfflineHandler().onConnectivityChanged.listen((offline) {
-      if (!mounted) return;
+      if (!_canReadProviders) return;
       setState(() => _isOffline = offline);
       if (offline) {
         _showOfflineBanner = true;
         _offlineBannerTimer?.cancel();
         _offlineBannerTimer = Timer(const Duration(seconds: 5), () {
-          if (mounted) setState(() => _showOfflineBanner = false);
+          if (_isElementActive && !_isDisposed && mounted) {
+            setState(() => _showOfflineBanner = false);
+          }
         });
       } else {
         if (_showOfflineBanner) setState(() => _showOfflineBanner = false);
@@ -261,21 +285,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Future<void> _initializeApp() async {
     _isOffline = await OfflineHandler.isOffline();
-    if (!mounted) return;
-    ref.read(hiveServiceProvider).init(_kCategories).catchError((e) {
-      debugPrint('⚠️ Hive init failed: $e');
-    });
-    // Pre-warm static publisher datasets so newspaper/magazine screens open fast.
-    unawaited(ref.read(assetsLoaderProvider).loadData());
+    if (!_canReadProviders) return;
 
     // Startup must stay cache-first to avoid network pressure before first
     // interaction. Schedule refresh shortly after first content paints.
-    await _primeHomeCategories(allowNetworkSync: false);
-    if (!mounted) return;
+    await _primeHomeCategories(
+      allowNetworkSync: false,
+      includeLatestSeed: _activeCategory == 'latest',
+    );
+    if (!_canReadProviders) return;
     _startupCachePrimed = true;
 
+    // Give the local article stream a brief window to publish cached content
+    // before deciding whether the visible feed still needs rescue sync.
+    await Future<void>.delayed(_kStartupCacheSettleDelay);
+    if (!_canReadProviders) return;
+
+    final visibleCategory = _activeCategory;
+    final hasVisibleCache = ref
+        .read(newsProvider)
+        .getArticles(visibleCategory)
+        .isNotEmpty;
     if (!_isOffline) {
-      _scheduleDeferredStartupSync();
+      _scheduleDeferredStartupSync(
+        category: visibleCategory,
+        prioritizeVisibleContent: !hasVisibleCache,
+      );
+      _scheduleStartupFeedWatchdog(category: visibleCategory);
     }
 
     _setupAutoRefresh();
@@ -285,7 +321,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     bool force = false,
     bool allowNetworkSync = true,
     bool ignoreCooldown = false,
+    bool includeLatestSeed = false,
   }) async {
+    if (!_canReadProviders) return;
     if (_primeInFlight) {
       _diag('🏠 [startup_diag] Prime categories skipped (already in flight)');
       return;
@@ -309,75 +347,154 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       // during the first interactive seconds after login.
       if (activeCategory != 'latest') {
         await _loadNews(category: activeCategory, syncWithNetwork: false);
+        if (!_canReadProviders) return;
         _diag(
           '🏠 [startup_diag] Primed visible category cache: $activeCategory',
         );
       }
 
-      // Refresh latest feed first. Trending is derived from this dataset.
-      await _loadNews(
-        force: force,
-        category: 'latest',
-        syncWithNetwork: allowNetworkSync,
-      );
-
-      // Warm secondary tab from cache only, without extra network pressure.
-      if (activeCategory == 'latest') {
-        unawaited(_loadNews(category: 'trending', syncWithNetwork: false));
+      if (includeLatestSeed || activeCategory == 'latest') {
+        // Refresh latest feed when it is visible or when the app has already
+        // cleared the first-paint-sensitive startup window.
+        await _loadNews(
+          force: force,
+          category: 'latest',
+          syncWithNetwork: allowNetworkSync,
+        );
+        if (!_canReadProviders) return;
+        _diag('🏠 [startup_diag] Startup sync requested for latest only');
+      } else {
+        _diag(
+          '🏠 [startup_diag] Skipped latest seed during first paint '
+          '(active=$activeCategory)',
+        );
       }
-
-      _diag('🏠 [startup_diag] Startup sync requested for latest only');
       _lastPrimeCompletedAt = DateTime.now();
     } finally {
       _primeInFlight = false;
-      if (_pendingPrimeAfterLocaleChange && mounted) {
+      if (_pendingPrimeAfterLocaleChange && _canReadProviders) {
         _pendingPrimeAfterLocaleChange = false;
-        unawaited(_primeHomeCategories(force: true));
+        unawaited(
+          _primeHomeCategories(
+            force: true,
+            includeLatestSeed: _activeCategory == 'latest',
+          ),
+        );
       }
     }
   }
 
-  void _scheduleDeferredStartupSync() {
+  void _scheduleDeferredStartupSync({
+    required String category,
+    bool prioritizeVisibleContent = false,
+  }) {
+    final delay = switch ((_performanceTier, prioritizeVisibleContent)) {
+      (DevicePerformanceTier.flagship, true) => const Duration(seconds: 1),
+      (DevicePerformanceTier.flagship, false) => const Duration(seconds: 4),
+      (DevicePerformanceTier.midRange, true) => const Duration(seconds: 2),
+      (DevicePerformanceTier.midRange, false) => const Duration(seconds: 6),
+      (DevicePerformanceTier.budget, true) ||
+      (DevicePerformanceTier.lowEnd, true) => const Duration(seconds: 3),
+      (DevicePerformanceTier.budget, false) ||
+      (DevicePerformanceTier.lowEnd, false) => const Duration(seconds: 8),
+    };
     _deferredStartupSyncTimer?.cancel();
-    _deferredStartupSyncTimer = Timer(const Duration(seconds: 3), () {
-      if (!mounted || _isOffline || !_isAppInForeground) return;
-      _diag('🏠 [startup_diag] Running deferred startup sync');
-      unawaited(_primeHomeCategories(ignoreCooldown: true));
+    _deferredStartupSyncTimer = Timer(delay, () {
+      if (!_canReadProviders || _isOffline || !_isAppInForeground) return;
+      final targetCategory = _activeCategory;
+      final newsState = ref.read(newsProvider);
+      if (newsState.isLoading(targetCategory)) {
+        _diag(
+          '🏠 [startup_diag] Deferred startup sync skipped '
+          '(category loading: $targetCategory)',
+        );
+        return;
+      }
+      if (prioritizeVisibleContent) {
+        final visibleArticles = newsState.getArticles(targetCategory);
+        if (visibleArticles.isNotEmpty) {
+          _diag(
+            '🏠 [startup_diag] Deferred startup sync downgraded '
+            '(visible category already ready: $targetCategory)',
+          );
+          _scheduleDeferredStartupSync(category: targetCategory);
+          return;
+        }
+      }
+      _diag(
+        '🏠 [startup_diag] Running deferred startup sync '
+        '(category=$targetCategory, '
+        'prioritizeVisibleContent=$prioritizeVisibleContent, '
+        'scheduledFrom=$category)',
+      );
+      unawaited(_loadNews(category: targetCategory));
+    });
+  }
+
+  void _scheduleStartupFeedWatchdog({String? category, int attempt = 0}) {
+    _startupFeedRetryTimer?.cancel();
+    final targetCategory = category ?? _activeCategory;
+    final baseDelay = switch (_performanceTier) {
+      DevicePerformanceTier.flagship => const Duration(seconds: 4),
+      DevicePerformanceTier.midRange => const Duration(seconds: 5),
+      DevicePerformanceTier.budget ||
+      DevicePerformanceTier.lowEnd => const Duration(seconds: 7),
+    };
+    final delay = attempt == 0 ? baseDelay : const Duration(seconds: 2);
+
+    _startupFeedRetryTimer = Timer(delay, () {
+      if (!_canReadProviders || _isOffline || !_isAppInForeground) return;
+      final state = ref.read(newsProvider);
+      final targetArticles = state.getArticles(targetCategory);
+      if (targetArticles.isNotEmpty || state.isLoading(targetCategory)) {
+        return;
+      }
+      final locale = ref.read(currentLocaleProvider);
+      final notifier = ref.read(newsProvider.notifier);
+      if (notifier.hadRecentSuccessfulNetworkSync(targetCategory, locale)) {
+        _diag(
+          '🏠 [startup_diag] Startup feed watchdog waiting for post-sync stream hydration '
+          '(category=$targetCategory, attempt=$attempt)',
+        );
+        if (attempt == 0) {
+          _scheduleStartupFeedWatchdog(
+            category: targetCategory,
+            attempt: attempt + 1,
+          );
+        }
+        return;
+      }
+      _diag(
+        '🏠 [startup_diag] Startup feed watchdog retrying sync '
+        '(category=$targetCategory, attempt=$attempt)',
+      );
+      unawaited(_loadNews(category: targetCategory, force: true));
     });
   }
 
   // ── Tab / Scroll helpers ──────────────────────────────────────────────────
 
-  void _onTabChanged() {
-    if (_tabController.indexIsChanging) return;
-    if (_kCategories.length > 1) {
-      final cat = _kCategories[_tabController.index];
+  void _setActiveCategoryIndex(int index, {bool updateProvider = true}) {
+    if (index < 0 || index >= _kCategories.length) return;
+    if (!_canReadProviders) return;
+    if (_selectedCategoryIndex != index) {
+      setState(() => _selectedCategoryIndex = index);
+    }
+    final cat = _kCategories[index];
+    if (updateProvider) {
       ref.read(homeCategoryProvider.notifier).setCategory(cat);
-      _centerChip(_tabController.index);
-      final state = ref.read(newsProvider);
-      _diag(
-        '🏠 [startup_diag] Tab changed | category=$cat, count=${state.getArticles(cat).length}, loading=${state.isLoading(cat)}',
-      );
-      if (state.getArticles(cat).isEmpty && !state.isLoading(cat)) {
-        unawaited(_loadNews(category: cat));
-      }
+    }
+    final state = ref.read(newsProvider);
+    _diag(
+      '🏠 [startup_diag] Category switched | category=$cat, count=${state.getArticles(cat).length}, loading=${state.isLoading(cat)}',
+    );
+    if (state.getArticles(cat).isEmpty && !state.isLoading(cat)) {
+      unawaited(_loadNews(category: cat));
     }
   }
 
-  void _centerChip(int index) {
-    if (index < 0 || index >= _chipKeys.length) return;
-    final ctx = _chipKeys[index].currentContext;
-    if (ctx == null) return;
-    Scrollable.ensureVisible(
-      ctx,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOutCubic,
-      alignment: 0.5,
-    );
-  }
-
   bool _onScrollNotification(ScrollNotification notification) {
-    if (!mounted) return false;
+    if (!_canReadProviders) return false;
 
     final pos = notification.metrics;
     final offset = pos.pixels;
@@ -402,6 +519,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _scrollToTop() {
+    if (!_isElementActive || _isDisposed || !mounted) return;
     final ctrl = PrimaryScrollController.maybeOf(context);
     if (ctrl != null && ctrl.hasClients) {
       ctrl.animateTo(
@@ -418,40 +536,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     bool force = false,
     String? category,
     bool syncWithNetwork = true,
+    bool manualAdOpportunity = false,
   }) async {
-    if (!mounted) return;
+    if (!_canReadProviders) return;
     final locale = ref.read(currentLocaleProvider);
     final target = category ?? _activeCategory;
     final shouldSyncWithNetwork = syncWithNetwork && !_isOffline;
-    await ref
-        .read(newsProvider.notifier)
-        .loadNews(
-          target,
-          locale,
-          force: force,
-          syncWithNetwork: shouldSyncWithNetwork,
-        );
+    try {
+      final notifier = ref.read(newsProvider.notifier);
+      await notifier.loadNews(
+        target,
+        locale,
+        force: force,
+        syncWithNetwork: shouldSyncWithNetwork,
+      );
+      if (manualAdOpportunity && _canReadProviders) {
+        unawaited(ref.read(interstitialAdServiceProvider).onManualRefresh());
+      }
+    } catch (e) {
+      _diag('🏠 loadNews failed | category=$target, error=$e');
+    }
   }
 
   Future<void> _loadMoreNews({String? category}) async {
-    if (!mounted) return;
+    if (!_canReadProviders) return;
     final locale = ref.read(currentLocaleProvider);
     final target = category ?? _activeCategory;
-    await ref.read(newsProvider.notifier).loadMoreNews(target, locale);
+    try {
+      final notifier = ref.read(newsProvider.notifier);
+      await notifier.loadMoreNews(target, locale);
+    } catch (e) {
+      _diag('🏠 loadMoreNews failed | category=$target, error=$e');
+    }
   }
 
   // ── Auto-refresh (battery-aware) ──────────────────────────────────────────
 
   void _setupAutoRefresh() {
     _refreshTimer?.cancel();
-    if (!_isAppInForeground) return;
+    if (!_isAppInForeground || !_canReadProviders) return;
 
-    final perf = PerformanceConfig.of(context);
     final dataSaver = ref.read(dataSaverProvider);
     final quality = ref.read(networkQualityProvider);
 
     Duration interval;
-    if (perf.lowPowerMode || dataSaver) {
+    if (_performanceLowPowerMode || dataSaver) {
       interval = const Duration(hours: 1);
     } else if (quality == NetworkQuality.poor ||
         quality == NetworkQuality.offline) {
@@ -461,22 +590,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
 
     _refreshTimer = Timer.periodic(interval, (_) {
-      if (mounted && !_isOffline && _isAppInForeground) _loadNews();
+      if (_canReadProviders && !_isOffline && _isAppInForeground) _loadNews();
     });
   }
 
   // ── Article tap ───────────────────────────────────────────────────────────
 
   Future<void> _handleArticleTap(NewsArticle article) async {
-    if (article.tags?.contains('premium') == true) {
-      final unlocked = await showUnlockDialog(
-        context,
-        article.url,
-        article.title,
-      );
-      if (!unlocked) return;
-    }
-    ref.read(interstitialAdServiceProvider).onArticleViewed();
+    unawaited(ref.read(interstitialAdServiceProvider).onArticleViewed());
+    ref.read(localLearningEngineProvider).trackOpen(article);
 
     final currentCategory = _activeCategory;
     final feedArticles = List<NewsArticle>.from(
@@ -490,7 +612,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
 
     if (!mounted) return;
-    context.push(AppPaths.newsDetail, extra: args);
+    await NavigationHelper.openNewsDetail<void>(context, args);
   }
 
   // ── App lifecycle ─────────────────────────────────────────────────────────
@@ -503,12 +625,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       case AppLifecycleState.inactive:
         _isAppInForeground = false;
         _refreshTimer?.cancel();
-        if (_particlesEnabled) _particleController.stop();
         break;
       case AppLifecycleState.resumed:
         _isAppInForeground = true;
         _setupAutoRefresh();
-        if (_particlesEnabled) _particleController.repeat();
         break;
       default:
         break;
@@ -517,16 +637,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   void dispose() {
+    _isDisposed = true;
+    _isElementActive = false;
     WidgetsBinding.instance.removeObserver(this);
-    _tabController
-      ..removeListener(_onTabChanged)
-      ..dispose();
-    _chipsScrollController.dispose();
-    _particleController.dispose();
     _showScrollToTop.dispose();
     _refreshTimer?.cancel();
     _offlineBannerTimer?.cancel();
     _deferredStartupSyncTimer?.cancel();
+    _startupFeedRetryTimer?.cancel();
+    _startupInitTimer?.cancel();
+    _localePrimeRetryTimer?.cancel();
     _connectivitySub?.cancel();
     for (final sub in _providerSubscriptions) {
       sub.close();
@@ -541,301 +661,171 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final themeMode = ref.watch(currentThemeModeProvider);
-    final perf = PerformanceConfig.of(context);
-    final isLoading = ref.watch(
-      newsProvider.select((state) => state.isLoading(_activeCategory)),
-    );
-
-    // Compute gradient only when theme changes
-    if (_cachedGradientStart == null ||
-        _cachedGradientEnd == null ||
-        _cachedGradientMode != themeMode) {
-      final colors = AppGradients.getBackgroundGradient(themeMode);
-      _cachedGradientStart = colors[0];
-      _cachedGradientEnd = colors[1];
-      _cachedGradientMode = themeMode;
-    }
-    final start = _cachedGradientStart!;
-    final end = _cachedGradientEnd!;
-
-    return Scaffold(
-      backgroundColor: Colors.transparent,
+    return PremiumScaffold(
+      useBackground: false, // Hosted in MainNavigationScreen
       drawer: const AppDrawer(),
-      body: Builder(
-        builder: (scaffoldCtx) => Stack(
-          children: [
-            // ── 1. Gradient background (cheapest layer) ──────────────────
-            Positioned.fill(
-              child: RepaintBoundary(
-                child: AnimatedThemeContainer(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        start.withValues(alpha: 0.9),
-                        end.withValues(alpha: 0.9),
-                      ],
-                    ),
-                  ),
-                  child: _particlesEnabled && _particles != null
-                      ? _ParticleBackground(
-                          particles: _particles!,
-                          controller: _particleController,
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              ),
-            ),
-
-            // ── 2. Fixed top chrome + scrollable feed content ──────────────
-            Column(
-              children: [
-                RepaintBoundary(
-                  child: _GlassAppBar(
-                    scaffoldContext: scaffoldCtx,
-                    gradientStart: start,
-                    reduceEffects: perf.reduceEffects,
-                    enableBlur:
-                        !perf.reduceEffects &&
-                        !perf.lowPowerMode &&
-                        !perf.isLowEndDevice &&
-                        perf.performanceTier == DevicePerformanceTier.flagship,
-                    onRefresh: () => _loadNews(force: true),
-                    isRefreshing: isLoading,
-                  ),
-                ),
-                if (_kCategories.length > 1) ...[
-                  RepaintBoundary(
-                    child: _CategoryChipsBar(
-                      tabController: _tabController,
-                      chipsController: _chipsScrollController,
-                      chipKeys: _chipKeys,
-                      onTabSelected: (i) {
-                        _tabController.animateTo(i);
-                        _centerChip(i);
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                if (_showOfflineBanner)
-                  _OfflineBanner(
-                    onDismiss: () => setState(() => _showOfflineBanner = false),
-                  ),
-                Expanded(
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: _onScrollNotification,
-                    child: _NewsTabBarView(
-                      tabController: _tabController,
-                      isOffline: _isOffline,
-                      onLoadNews: _loadNews,
-                      onArticleTap: _handleArticleTap,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            // ── 3. Scroll-to-top FAB (ValueListenableBuilder = 0 rebuilds upstream) ─
-            Positioned(
-              bottom: 116,
-              right: 20,
-              child: _ScrollToTopFab(
-                visible: _showScrollToTop,
-                onTap: _scrollToTop,
-              ),
-            ),
-          ],
+      title: loc.homeTitle,
+      headerLeading: PremiumHeaderLeading.menu,
+      headerActions: [
+        Consumer(
+          builder: (context, ref, child) {
+            final isLoading = ref.watch(
+              newsProvider.select((state) => state.isLoading(_activeCategory)),
+            );
+            return PremiumHeaderIconButton(
+              icon: isLoading
+                  ? Icons.hourglass_top_rounded
+                  : Icons.refresh_rounded,
+              onPressed: isLoading
+                  ? () {}
+                  : () {
+                      unawaited(
+                        _loadNews(force: true, manualAdOpportunity: true),
+                      );
+                    },
+              tooltip: 'Refresh',
+            );
+          },
         ),
+      ],
+      body: Stack(
+        children: [
+          // ── 1. Content layer ──────────────
+          Column(
+            children: [
+              if (_kCategories.length > 1) ...[
+                _CategoryChipsBar(
+                  selectedIndex: _selectedCategoryIndex,
+                  onTabSelected: _setActiveCategoryIndex,
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (_showOfflineBanner)
+                _OfflineBanner(
+                  onDismiss: () => setState(() => _showOfflineBanner = false),
+                ),
+              Expanded(
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: _onScrollNotification,
+                  child: _NewsCategoryStack(
+                    selectedIndex: _selectedCategoryIndex,
+                    isOffline: _isOffline,
+                    onLoadNews: _loadNews,
+                    onArticleTap: _handleArticleTap,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // ── 2. Scroll-to-top FAB ─
+          Positioned(
+            bottom: 116,
+            right: 20,
+            child: _ScrollToTopFab(
+              visible: _showScrollToTop,
+              onTap: _scrollToTop,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  SUB-WIDGETS  (extracted so the parent tree never rebuilds them needlessly)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Category chips – only rebuilds when tab index changes
 class _CategoryChipsBar extends StatelessWidget {
   const _CategoryChipsBar({
-    required this.tabController,
-    required this.chipsController,
-    required this.chipKeys,
+    required this.selectedIndex,
     required this.onTabSelected,
   });
 
-  final TabController tabController;
-  final ScrollController chipsController;
-  final List<GlobalKey> chipKeys;
+  final int selectedIndex;
   final ValueChanged<int> onTabSelected;
 
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final labels = <String>[loc.latest, loc.trending];
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
-    return SizedBox(
-      height: 48,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          // Skip BackdropFilter here – it forces a compositing layer on every
-          // scroll pixel when inside a ListView. Use a semi-opaque fill instead.
-          color: isDark ? const Color(0x14FFFFFF) : const Color(0x0D000000),
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(
-            color: isDark ? const Color(0x1AFFFFFF) : const Color(0x0D000000),
-            width: 0.8,
-          ),
-        ),
-        child: AnimatedBuilder(
-          animation: tabController,
-          builder: (context, _) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
-              child: Row(
-                children: List.generate(_kCategories.length, (i) {
-                  final selected = i == tabController.index;
-                  return Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        right: i == _kCategories.length - 1 ? 0 : 4,
-                      ),
-                      child: Bouncy3DChip(
-                        key: chipKeys[i],
-                        label: labels[i],
-                        selected: selected,
-                        expanded: true,
-                        onTap: () => onTabSelected(i),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            );
-          },
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: BouncyChipSegmentedRow<int>(
+        options: <SegmentedChipOption<int>>[
+          SegmentedChipOption<int>(value: 0, label: labels[0]),
+          SegmentedChipOption<int>(value: 1, label: labels[1]),
+        ],
+        selectedValue: selectedIndex,
+        fillAvailableWidth: true,
+        spacing: 4,
+        onSelected: onTabSelected,
       ),
     );
   }
 }
 
-/// Glass app-bar – no Riverpod watch, receives everything via constructor
-class _GlassAppBar extends StatelessWidget {
-  const _GlassAppBar({
-    required this.scaffoldContext,
-    required this.gradientStart,
-    required this.reduceEffects,
-    required this.enableBlur,
-    required this.onRefresh,
-    this.isRefreshing = false,
+/// News content for all categories.
+/// Each page watches only its own category slice to prevent whole-stack rebuilds.
+class _NewsCategoryStack extends StatefulWidget {
+  const _NewsCategoryStack({
+    required this.selectedIndex,
+    required this.isOffline,
+    required this.onLoadNews,
+    required this.onArticleTap,
   });
 
-  final BuildContext scaffoldContext;
-  final Color gradientStart;
-  final bool reduceEffects;
-  final bool enableBlur;
-  final VoidCallback onRefresh;
-  final bool isRefreshing;
+  final int selectedIndex;
+  final bool isOffline;
+  final Future<void> Function({
+    bool force,
+    String? category,
+    bool syncWithNetwork,
+    bool manualAdOpportunity,
+  }) onLoadNews;
+  final Future<void> Function(NewsArticle) onArticleTap;
+
+  @override
+  State<_NewsCategoryStack> createState() => _NewsCategoryStackState();
+}
+
+class _NewsCategoryStackState extends State<_NewsCategoryStack> {
+  late final Set<int> _initializedIndices;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializedIndices = {widget.selectedIndex};
+  }
+
+  @override
+  void didUpdateWidget(_NewsCategoryStack oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedIndex != oldWidget.selectedIndex) {
+      _initializedIndices.add(widget.selectedIndex);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final topPad = MediaQuery.of(context).padding.top;
-    final baseColor =
-        theme.appBarTheme.backgroundColor ?? theme.colorScheme.surface;
     final loc = AppLocalizations.of(context);
 
-    return SizedBox(
-      height: topPad + 60,
-      child: Stack(
-        children: [
-          // Visual background (pointer-ignored)
-          IgnorePointer(
-            child: SizedBox(
-              height: topPad + 60,
-              child: reduceEffects
-                  ? ColoredBox(color: baseColor.withValues(alpha: 0.94))
-                  : DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            gradientStart.withValues(alpha: 0.98),
-                            gradientStart.withValues(alpha: 0.85),
-                            gradientStart.withValues(alpha: 0.60),
-                            Colors.transparent,
-                          ],
-                          stops: const [0.0, 0.4, 0.7, 1.0],
-                        ),
-                      ),
-                      child: enableBlur
-                          ? ClipRect(
-                              child: BackdropFilter(
-                                filter: ui.ImageFilter.blur(
-                                  sigmaX: 10,
-                                  sigmaY: 10,
-                                ),
-                                child: const ColoredBox(
-                                  color: Colors.transparent,
-                                ),
-                              ),
-                            )
-                          : const ColoredBox(color: Colors.transparent),
-                    ),
-            ),
-          ),
-          // Interactive content
-          SafeArea(
-            bottom: false,
-            child: SizedBox(
-              height: 60,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Row(
-                  children: [
-                    GlassIconButton(
-                      icon: Icons.menu_rounded,
-                      onPressed: () =>
-                          Scaffold.of(scaffoldContext).openDrawer(),
-                      isDark: theme.brightness == Brightness.dark,
-                    ),
-                    Expanded(
-                      child: IgnorePointer(
-                        child: Center(
-                          child: Text(
-                            loc.homeTitle,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.onSurface.withValues(
-                                alpha: 0.95,
-                              ),
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    GlassIconButton(
-                      icon: Icons.refresh_rounded,
-                      onPressed: isRefreshing ? null : onRefresh,
-                      isDark: theme.brightness == Brightness.dark,
-                      isLoading: isRefreshing,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return IndexedStack(
+      index: widget.selectedIndex,
+      children: List.generate(_kCategories.length, (index) {
+        if (!_initializedIndices.contains(index)) {
+          return const SizedBox.shrink(); // Lazy load the category page
+        }
+        final cat = _kCategories[index];
+        return _CategoryPageContainer(
+          key: ValueKey('page_$cat'),
+          category: cat,
+          isOffline: widget.isOffline,
+          onLoadNews: widget.onLoadNews,
+          onArticleTap: widget.onArticleTap,
+          theme: theme,
+          loc: loc,
+        );
+      }),
     );
   }
 }
@@ -848,27 +838,28 @@ class _OfflineBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
+    final colors = context.colors;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: GlassContainer(
-        borderColor: const Color(0x80FFA000),
-        backgroundColor: const Color(0x1AFFA000),
+        borderColor: colors.goldStart.withValues(alpha: 0.5),
+        backgroundColor: colors.goldStart.withValues(alpha: 0.1),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             children: [
               const Icon(
                 Icons.wifi_off_rounded,
-                color: Color(0xFFFFB74D),
+                color: Color(0xFFFFB74D), // Stay gold for visibility
                 size: 20,
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   loc.offlineShowingCached,
-                  style: const TextStyle(
-                    color: Color(0xE6FFFFFF),
+                  style: TextStyle(
+                    color: colors.textPrimary,
                     fontWeight: FontWeight.w500,
                     fontSize: 13,
                   ),
@@ -877,14 +868,17 @@ class _OfflineBanner extends StatelessWidget {
               TextButton(
                 onPressed: onDismiss,
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  minimumSize: const Size(64, 44),
+                  tapTargetSize: MaterialTapTargetSize.padded,
                 ),
                 child: Text(
                   loc.ok,
-                  style: const TextStyle(
-                    color: Color(0xFFFFB74D),
+                  style: TextStyle(
+                    color: colors.goldStart,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -916,10 +910,13 @@ class _ScrollToTopFab extends StatelessWidget {
         borderRadius: BorderRadius.circular(50),
         child: IconButton(
           onPressed: onTap,
-          icon: const PremiumThemeIcon(Icons.arrow_upward_rounded),
+          icon: PremiumThemeIcon(
+            Icons.arrow_upward_rounded,
+            bangladeshColor: context.colors.goldStart,
+          ),
           style: IconButton.styleFrom(
-            backgroundColor: const Color(0x336C63FF),
-            foregroundColor: Colors.white,
+            backgroundColor: context.colors.proBlue.withValues(alpha: 0.2),
+            foregroundColor: context.colors.textPrimary,
           ),
         ),
       ),
@@ -927,59 +924,26 @@ class _ScrollToTopFab extends StatelessWidget {
   }
 }
 
-/// News content for all tabs.
-/// Each page watches only its own category slice to prevent whole-tab rebuilds.
-class _NewsTabBarView extends StatelessWidget {
-  const _NewsTabBarView({
-    required this.tabController,
-    required this.isOffline,
-    required this.onLoadNews,
-    required this.onArticleTap,
-  });
-
-  final TabController tabController;
-  final bool isOffline;
-  final Future<void> Function({bool force, String? category}) onLoadNews;
-  final Future<void> Function(NewsArticle) onArticleTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final loc = AppLocalizations.of(context);
-
-    return TabBarView(
-      controller: tabController,
-      children: _kCategories.map((cat) {
-        return RepaintBoundary(
-          child: _CategoryPageContainer(
-            key: ValueKey('page_$cat'),
-            category: cat,
-            isOffline: isOffline,
-            onLoadNews: onLoadNews,
-            onArticleTap: onArticleTap,
-            theme: theme,
-            loc: loc,
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
 class _CategoryPageContainer extends ConsumerWidget {
   const _CategoryPageContainer({
-    required super.key,
     required this.category,
     required this.isOffline,
     required this.onLoadNews,
     required this.onArticleTap,
     required this.theme,
     required this.loc,
+    super.key,
   });
 
   final String category;
   final bool isOffline;
-  final Future<void> Function({bool force, String? category}) onLoadNews;
+  final Future<void> Function({
+    bool force,
+    String? category,
+    bool syncWithNetwork,
+    bool manualAdOpportunity,
+  })
+  onLoadNews;
   final Future<void> Function(NewsArticle) onArticleTap;
   final ThemeData theme;
   final AppLocalizations loc;
@@ -1007,7 +971,11 @@ class _CategoryPageContainer extends ConsumerWidget {
       error: error,
       hasMore: hasMore,
       isOffline: isOffline,
-      onRefresh: () => onLoadNews(force: true, category: category),
+      onRefresh: () => onLoadNews(
+        force: true,
+        category: category,
+        manualAdOpportunity: true,
+      ),
       onRetry: () => onLoadNews(category: category),
       onArticleTap: onArticleTap,
       theme: theme,
@@ -1019,7 +987,6 @@ class _CategoryPageContainer extends ConsumerWidget {
 /// A single category page – AutomaticKeepAlive keeps scroll position alive
 class _CategoryPage extends StatefulWidget {
   const _CategoryPage({
-    required super.key,
     required this.category,
     required this.articles,
     required this.isLoading,
@@ -1031,6 +998,7 @@ class _CategoryPage extends StatefulWidget {
     required this.onArticleTap,
     required this.theme,
     required this.loc,
+    super.key,
   });
 
   final String category;
@@ -1049,19 +1017,51 @@ class _CategoryPage extends StatefulWidget {
   State<_CategoryPage> createState() => _CategoryPageState();
 }
 
-class _CategoryPageState extends State<_CategoryPage> {
+class _CategoryPageState extends State<_CategoryPage>
+    with AutomaticKeepAliveClientMixin<_CategoryPage> {
+  static const int _firstInlineAdAfterArticles = 5;
+  static const int _inlineAdEveryArticles = 5;
+
+  List<NewsArticle> _cachedVisibleArticles = const <NewsArticle>[];
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cachedVisibleArticles = widget.articles;
+  }
+
+  @override
+  void didUpdateWidget(covariant _CategoryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.articles, widget.articles) ||
+        oldWidget.articles.length != widget.articles.length) {
+      _cachedVisibleArticles = widget.articles;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+    final perf = PerformanceConfig.of(context);
+    final visibleArticles = _cachedVisibleArticles;
     return RefreshIndicator.adaptive(
       onRefresh: widget.onRefresh,
       color: widget.theme.colorScheme.primary,
       backgroundColor: widget.theme.colorScheme.surface,
       displacement: 60,
       child: CustomScrollView(
-        cacheExtent: 900,
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
+        key: PageStorageKey<String>('home_category_${widget.category}'),
+        cacheExtent: perf.isLowEndDevice
+            ? 220
+            : (perf.performanceTier == DevicePerformanceTier.midRange
+                  ? 420
+                  : 640),
+        physics: perf.isLowEndDevice
+            ? const ClampingScrollPhysics()
+            : const AlwaysScrollableScrollPhysics(),
         slivers: [
           // Error banner
           if (widget.error != null && !widget.isOffline)
@@ -1072,8 +1072,10 @@ class _CategoryPageState extends State<_CategoryPage> {
                   vertical: 8,
                 ),
                 child: GlassContainer(
-                  borderColor: const Color(0x80FF5252),
-                  backgroundColor: const Color(0x1AFF5252),
+                  borderColor: context.colors.errorRed.withValues(alpha: 0.5),
+                  backgroundColor: context.colors.errorRed.withValues(
+                    alpha: 0.1,
+                  ),
                   child: ErrorDisplay(
                     error: AppFailure.serverError(widget.error!),
                     onRetry: widget.onRetry,
@@ -1086,7 +1088,7 @@ class _CategoryPageState extends State<_CategoryPage> {
 
           SliverToBoxAdapter(
             child: ProfessionalHeader(
-              articleCount: widget.articles.length,
+              articleCount: visibleArticles.length,
               category: widget.category == 'national' ? null : widget.category,
             ),
           ),
@@ -1111,9 +1113,7 @@ class _CategoryPageState extends State<_CategoryPage> {
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 _buildItem,
-                childCount:
-                    widget.articles.length + (widget.articles.isEmpty ? 0 : 1),
-                addAutomaticKeepAlives: false,
+                childCount: _contentChildCount(visibleArticles.length) + 1,
                 addSemanticIndexes: false,
               ),
             ),
@@ -1123,16 +1123,25 @@ class _CategoryPageState extends State<_CategoryPage> {
   }
 
   Widget _buildItem(BuildContext ctx, int index) {
-    final articles = widget.articles;
-    if (index < articles.length) {
-      final article = articles[index];
+    final articles = _cachedVisibleArticles;
+    final contentCount = _contentChildCount(articles.length);
+
+    if (index < contentCount) {
+      if (_isInlineAdSlot(index)) {
+        return const BannerAdWidget(
+          framed: true,
+          margin: EdgeInsets.fromLTRB(16, 6, 16, 6),
+        );
+      }
+
+      final article = articles[_articleIndexForDisplayIndex(index)];
       return Padding(
         // Pre-computed EdgeInsets to avoid object creation per-frame
         padding: EdgeInsets.fromLTRB(
           16,
-          index == 0 ? 4 : 6,
+          _articleIndexForDisplayIndex(index) == 0 ? 4 : 6,
           16,
-          index == articles.length - 1 ? 16 : 6,
+          _articleIndexForDisplayIndex(index) == articles.length - 1 ? 16 : 6,
         ),
         child: NewsCard(
           key: ValueKey('${widget.category}_${article.url}_$index'),
@@ -1165,7 +1174,7 @@ class _CategoryPageState extends State<_CategoryPage> {
               child: Text(
                 widget.loc.endOfNews,
                 style: widget.theme.textTheme.bodyMedium?.copyWith(
-                  color: const Color(0x66FFFFFF),
+                  color: context.colors.textHint,
                   fontStyle: FontStyle.italic,
                   fontSize: 13,
                 ),
@@ -1173,6 +1182,39 @@ class _CategoryPageState extends State<_CategoryPage> {
             ),
           )
         : const SizedBox(height: 16);
+  }
+
+  int _contentChildCount(int articleCount) {
+    return articleCount + _inlineAdCount(articleCount);
+  }
+
+  int _inlineAdCount(int articleCount) {
+    if (articleCount <= _firstInlineAdAfterArticles) {
+      return 0;
+    }
+    return 1 +
+        ((articleCount - _firstInlineAdAfterArticles - 1) ~/
+            _inlineAdEveryArticles);
+  }
+
+  bool _isInlineAdSlot(int displayIndex) {
+    if (displayIndex < _firstInlineAdAfterArticles) {
+      return false;
+    }
+    return (displayIndex - _firstInlineAdAfterArticles) %
+            (_inlineAdEveryArticles + 1) ==
+        0;
+  }
+
+  int _articleIndexForDisplayIndex(int displayIndex) {
+    if (displayIndex <= _firstInlineAdAfterArticles) {
+      return displayIndex;
+    }
+    final adsBefore =
+        ((displayIndex - _firstInlineAdAfterArticles - 1) ~/
+            (_inlineAdEveryArticles + 1)) +
+        1;
+    return displayIndex - adsBefore;
   }
 }
 
@@ -1216,7 +1258,7 @@ class _EmptyState extends StatelessWidget {
             Icon(
               _kCategoryIcons[category] ?? Icons.article_rounded,
               size: 64,
-              color: const Color(0x4DFFFFFF),
+              color: context.colors.textHint.withValues(alpha: 0.4),
             ),
             const SizedBox(height: 16),
             Text(
@@ -1251,85 +1293,4 @@ class _EmptyState extends StatelessWidget {
       ),
     );
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  PARTICLE BACKGROUND  (isolated RepaintBoundary – never triggers parent)
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _ParticleBackground extends StatelessWidget {
-  const _ParticleBackground({
-    required this.particles,
-    required this.controller,
-  });
-
-  final List<Particle> particles;
-  final Animation<double> controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (_, _) => CustomPaint(
-        painter: _ParticlePainter(particles: particles, t: controller.value),
-        size: Size.infinite,
-      ),
-    );
-  }
-}
-
-class _ParticlePainter extends CustomPainter {
-  _ParticlePainter({required this.particles, required this.t});
-
-  final List<Particle> particles;
-  final double t;
-
-  // Reuse a single Paint object
-  final Paint _paint = Paint()..style = PaintingStyle.fill;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    for (final p in particles) {
-      final time = t + p.delay;
-      final yFrac = (p.y + time * p.speed) % 1.0;
-      final opacity =
-          p.color.opacity *
-          (0.5 + 0.5 * math.sin(time * math.pi * 2 + p.x * math.pi));
-      final r =
-          p.size *
-          (1 + 0.15 * math.sin(time * math.pi * 2 + p.delay * math.pi));
-
-      _paint.color = p.color.withValues(alpha: opacity);
-      canvas.drawCircle(
-        Offset(p.x * size.width, yFrac * size.height),
-        r,
-        _paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_ParticlePainter old) => old.t != t;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  DATA CLASS
-// ─────────────────────────────────────────────────────────────────────────────
-
-class Particle {
-  const Particle({
-    required this.x,
-    required this.y,
-    required this.size,
-    required this.speed,
-    required this.delay,
-    required this.color,
-  });
-
-  final double x;
-  final double y;
-  final double size;
-  final double speed;
-  final double delay;
-  final Color color;
 }

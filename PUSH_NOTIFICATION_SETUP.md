@@ -1,306 +1,618 @@
-# Push Notification Platform Configuration Guide
+// Replace these widget classes in your file. Everything else (logic, providers) stays the same.
 
-## Overview
+class _ProfilePanel extends StatelessWidget {
+  // ... keep existing constructor and fields identical ...
 
-This guide walks you through the platform-specific configuration required for push notifications on Android and iOS.
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
-## Android Configuration
-
-### 1. AndroidManifest.xml
-
-Add the following permissions to `android/app/src/main/AndroidManifest.xml`:
-
-```xml
-<!-- Add these permissions before the <application> tag -->
-<uses-permission android:name="android.permission.INTERNET"/>
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/> <!-- Android 13+ -->
-<uses-permission android:name="android.permission.VIBRATE"/>
-<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-```
-
-### 2. Notification Icon (Optional but Recommended)
-
-For better branding, add a custom notification icon:
-
-1. Create notification icon image (white on transparent, 24x24dp)
-2. Use Android Asset Studio or place manually in:
-   - `android/app/src/main/res/drawable/ic_notification.png`
-   - Or use multiple densities:
-     - `res/drawable-hdpi/ic_notification.png` (72x72px)
-     - `res/drawable-mdpi/ic_notification.png` (48x48px)  
-     - `res/drawable-xhdpi/ic_notification.png` (96x96px)
-     - `res/drawable-xxhdpi/ic_notification.png` (144x144px)
-     - `res/drawable-xxxhdpi/ic_notification.png` (192x192px)
-
-3. Update the notification service if using custom icon:
-
-   ```dart
-   icon: '@drawable/ic_notification', // in push_notification_service.dart
-   ```
-
-### 3. Firebase Configuration
-
-Ensure `google-services.json` is in `android/app/` directory.
-
----
-
-## iOS Configuration
-
-### 1. Capabilities
-
-Open `ios/Runner.xcworkspace` in Xcode and:
-
-1. Select the **Runner** target
-2. Go to **Signing & Capabilities**
-3. Click **+ Capability**
-4. Add **Push Notifications**
-5. Add **Background Modes** and enable:
-   - ✅ Remote notifications
-   - ✅ Background fetch (optional)
-
-### 2. Info.plist
-
-No changes needed - permissions are requested at runtime.
-
-### 3. APNs Configuration (Critical for Production)
-
-#### Get APNs Auth Key
-
-1. Go to [Apple Developer Portal](https://developer.apple.com/account)
-2. Navigate to **Certificates, Identifiers & Profiles**
-3. Select **Keys** → Create new key
-4. Enable **Apple Push Notifications service (APNs)**
-5. Download the `.p8` file (you can only download once!)
-6. Note the **Key ID** and **Team ID**
-
-#### Upload to Firebase
-
-1. Go to [Firebase Console](https://console.firebase.google.com)
-2. Select your project
-3. Go to **Project Settings** → **Cloud Messaging**
-4. Under **Apple app configuration**, click **Upload**
-5. Upload your `.p8` file
-6. Enter **Key ID** and **Team ID**
-7. Click **Upload**
-
-### 4. Firebase Configuration
-
-Ensure `GoogleService-Info.plist` is in `ios/Runner/` directory.
-
-### 5. Testing Requirements
-
-**IMPORTANT**: iOS push notifications only work on physical devices, not the simulator!
-
----
-
-## Testing Your Setup
-
-### 1. Check Token Generation
-
-Run the app and check the console/logs for:
-
-```
-🔑 FCM Token: <long-token-string>
-```
-
-If you see this, Firebase Messaging is working!
-
-### 2. Send Test Notification from Firebase Console
-
-1. Go to [Firebase Console](https://console.firebase.google.com)
-2. Navigate to **Engage** → **Cloud Messaging**
-3. Click **Send your first message**
-4. Fill in:
-   - **Notification title**: "Test Notification"
-   - **Notification text**: "This is a test message"
-5. Click **Next**
-6. Select your app
-7. Click **Next**
-8. Click **Review** → **Publish**
-
-### 3. Expected Behavior
-
-**App in Foreground:**
-
-- Local notification banner appears
-- Tapping opens the app to appropriate screen
-
-**App in Background:**
-
-- System notification appears
-- Tapping opens the app
-
-**App Terminated:**
-
-- System notification appears
-- Tapping launches the app
-
----
-
-## Notification Payload Format
-
-When sending notifications from your backend, use this format:
-
-```json
-{
-  "notification": {
-    "title": "Breaking News",
-    "body": "New article published"
-  },
-  "data": {
-    "screen": "/news-detail",
-    "url": "https://example.com/article/123",
-    "title": "Article Title",
-    "channel": "general_news"
-  },
-  "topic": "breaking_news"
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: scheme.outlineVariant.withOpacity(0.4),
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                scheme.surface,
+                scheme.surfaceContainerLowest.withOpacity(0.5),
+              ],
+            ),
+          ),
+          child: Column(
+            children: [
+              _IdentitySection(
+                avatarPath: avatarPath,
+                nameCtl: nameCtl,
+                email: emailCtl.text,
+                isEditing: isEditing,
+                isPremium: isPremium,
+                loc: loc,
+                onPickImage: onPickImage,
+              ),
+              const _PanelDivider(),
+              _StatsSection(
+                favoritesCount: favoritesCount,
+                downloadsCount: downloadsCount,
+                languageCode: languageCode,
+                loc: loc,
+              ),
+              const _PanelDivider(),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOutCubic,
+                child: _DetailSection(
+                  emailCtl: emailCtl,
+                  phoneCtl: phoneCtl,
+                  roleCtl: roleCtl,
+                  deptCtl: deptCtl,
+                  isEditing: isEditing,
+                  loc: loc,
+                ),
+              ),
+              const _PanelDivider(),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                child: isEditing
+                    ? _EditActions(
+                        key: const ValueKey('edit'),
+                        isSaving: isSaving,
+                        loc: loc,
+                        onSave: onSave,
+                        onCancel: onCancel,
+                      )
+                    : _ProfileActions(
+                        key: const ValueKey('view'),
+                        loc: loc,
+                        onHome: onHome,
+                        onLogout: onLogout,
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
-```
 
-**Data Fields:**
+class _IdentitySection extends StatelessWidget {
+  // ... existing constructor ...
 
-- `screen`: Route to navigate to (e.g., `/webview`, `/home`)
-- `url`: URL to open in webview
-- `title`: Title for webview screen
-- `channel`: Notification channel (`general_news`, `personalized`, `promotional`)
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
----
-
-## Topic Subscriptions
-
-Users are automatically subscribed to topics based on their preferences:
-
-- **breaking_news**: Breaking news updates (enabled by default)
-- **personalized**: Personalized content (enabled by default)
-- **promotional**: Promotional content (enabled by default, premium users can disable)
-
-### Sending to Topics
-
-From your backend:
-
-```bash
-curl -X POST https://fcm.googleapis.com/v1/projects/YOUR_PROJECT_ID/messages:send \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": {
-      "topic": "breaking_news",
-      "notification": {
-        "title": "Breaking News",
-        "body": "Important update"
-      },
-      "data": {
-        "screen": "/home",
-        "channel": "general_news"
-      }
-    }
-  }'
-```
-
----
-
-## Troubleshooting
-
-### Android
-
-**Notifications not appearing:**
-
-- Check if `POST_NOTIFICATIONS` permission is granted (Android 13+)
-- Verify `google-services.json` is present
-- Check notification channels are created
-- Enable logging and check console
-
-**App crashes on notification:**
-
-- Ensure background handler is registered before `runApp()`
-- Check notification payload format
-
-### iOS
-
-**Notifications not appearing:**
-
-- Verify APNs certificate is uploaded to Firebase
-- Check device is not in "Do Not Disturb" mode
-- Ensure notification permissions are granted
-- Test on physical device (not simulator!)
-
-**Permission dialog not showing:**
-
-- Permission is only requested once
-- Reset: Settings → General → Reset → Reset Location & Privacy
-
-### Common Issues
-
-**Token not generating:**
-
-- Check Firebase initialization in main.dart
-- Verify Firebase config files are present
-- Check internet connectivity
-
-**Notifications work in foreground but not background:**
-
-- Ensure background handler is registered
-- Check iOS capabilities (Background Modes)
-
----
-
-## Next Steps
-
-### Backend Integration
-
-Create an endpoint to store FCM tokens:
-
-```dart
-// Example: Send token to backend
-Future<void> _sendTokenToBackend(String token) async {
-  final response = await http.post(
-    Uri.parse('https://your-api.com/fcm/register'),
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode({
-      'fcm_token': token,
-      'user_id': userId,
-      'platform': Platform.isAndroid ? 'android' : 'ios',
-    }),
-  );
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            scheme.primaryContainer.withOpacity(0.15),
+            scheme.surface.withOpacity(0),
+          ],
+        ),
+      ),
+      child: Row(
+        children: [
+          _ProfileAvatar(
+            path: avatarPath,
+            enabled: isEditing,
+            onPickImage: onPickImage,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isEditing)
+                  TextField(
+                    controller: nameCtl,
+                    textInputAction: TextInputAction.next,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      height: 1.1,
+                      color: scheme.onSurface,
+                    ),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      filled: true,
+                      fillColor: scheme.surfaceContainerHighest.withOpacity(0.4),
+                      hintText: loc.userNamePlaceholder,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                  )
+                else
+                  Text(
+                    nameCtl.text.trim().isEmpty
+                        ? loc.userNamePlaceholder
+                        : nameCtl.text.trim(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      height: 1.1,
+                    ),
+                  ),
+                const SizedBox(height: 6),
+                Text(
+                  email.trim().isEmpty ? loc.emailLabel : email.trim(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (isPremium) ...[
+                  const SizedBox(height: 10),
+                  _PremiumBadge(label: loc.premiumMemberBadge),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
-```
 
-Uncomment the `// TODO` sections in `push_notification_service.dart` once your backend is ready.
+class _ProfileAvatar extends StatelessWidget {
+  // ... existing constructor ...
 
-### Analytics
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
 
-Track notification events:
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [
+            scheme.primary,
+            scheme.tertiary,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.primary.withOpacity(0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+            spreadRadius: -2,
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(3), // Ring thickness
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: scheme.surface,
+              border: Border.all(
+                color: scheme.surface,
+                width: 2,
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: _AvatarImage(path: path),
+          ),
+          if (enabled)
+            Positioned(
+              right: -4,
+              bottom: -4,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: scheme.primary,
+                  boxShadow: [
+                    BoxShadow(
+                      color: scheme.shadow.withOpacity(0.2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: onPickImage,
+                    child: const SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: Icon(
+                        Icons.camera_alt_outlined,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
-```dart
-// In notification service
-FirebaseAnalytics.instance.logEvent(
-  name: 'notification_received',
-  parameters: {'type': data['channel']},
-);
-```
+class _StatsSection extends StatelessWidget {
+  // ... existing constructor ...
 
----
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
 
-## Production Checklist
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: _StatChip(
+              icon: Icons.favorite_rounded,
+              value: localizeNumber('$favoritesCount', languageCode),
+              label: loc.favorites,
+              gradientColors: [
+                scheme.primaryContainer,
+                scheme.primaryContainer.withOpacity(0.6),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _StatChip(
+              icon: Icons.download_done_rounded,
+              value: localizeNumber('$downloadsCount', languageCode),
+              label: loc.downloaded,
+              gradientColors: [
+                scheme.tertiaryContainer,
+                scheme.tertiaryContainer.withOpacity(0.6),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-Before going live:
+class _StatChip extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final List<Color> gradientColors;
 
-- [ ] APNs certificate uploaded to Firebase (iOS)
-- [ ] Custom notification icons added (Android)
-- [ ] Tested on physical iOS device
-- [ ] Tested all app states (foreground/background/terminated)
-- [ ] Backend token storage implemented
-- [ ] Notification categories configured
-- [ ] Analytics tracking added
-- [ ] Rate limiting configured on backend
-- [ ] User preferences tested
-- [ ] Topic subscriptions working
+  const _StatChip({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.gradientColors,
+  });
 
----
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
-## Resources
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: gradientColors,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: scheme.outlineVariant.withOpacity(0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: scheme.surface.withOpacity(0.6),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: scheme.onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-- [Firebase Cloud Messaging Documentation](https://firebase.google.com/docs/cloud-messaging)
-- [Flutter Local Notifications Plugin](https://pub.dev/packages/flutter_local_notifications)
-- [FlutterFire Messaging](https://firebase.flutter.dev/docs/messaging/overview)
-- [APNs Documentation](https://developer.apple.com/documentation/usernotifications)
+class _DetailField extends StatelessWidget {
+  // ... existing constructor ...
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: isEditing
+          ? BoxDecoration(
+              color: scheme.surfaceContainerHighest.withOpacity(0.4),
+              borderRadius: BorderRadius.circular(12),
+            )
+          : null,
+      child: Row(
+        crossAxisAlignment: isEditing
+            ? CrossAxisAlignment.center
+            : CrossAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isEditing
+                  ? scheme.primaryContainer.withOpacity(0.6)
+                  : scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: isEditing
+                  ? scheme.onPrimaryContainer
+                  : scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: isEditing
+                ? TextField(
+                    controller: controller,
+                    keyboardType: keyboardType,
+                    textInputAction: TextInputAction.next,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      labelText: label,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        controller.text.trim().isEmpty
+                            ? '-'
+                            : controller.text.trim(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: controller.text.trim().isEmpty
+                              ? scheme.onSurfaceVariant.withOpacity(0.6)
+                              : scheme.onSurface,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditActions extends StatelessWidget {
+  // ... existing constructor ...
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: isSaving ? null : onCancel,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                side: BorderSide(
+                  color: scheme.outlineVariant,
+                ),
+              ),
+              child: Text(loc.cancel),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: isSaving ? null : onSave,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+                shadowColor: scheme.primary.withOpacity(0.4),
+              ),
+              icon: isSaving
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: scheme.onPrimary,
+                      ),
+                    )
+                  : const Icon(Icons.check_rounded),
+              label: Text(loc.save),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileActions extends StatelessWidget {
+  // ... existing constructor ...
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        children: [
+          _ActionTile(
+            icon: Icons.home_rounded,
+            label: loc.home,
+            color: scheme.onSurface,
+            onTap: onHome,
+          ),
+          _ActionTile(
+            icon: Icons.logout_rounded,
+            label: loc.logout,
+            color: scheme.error,
+            onTap: onLogout,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: scheme.outlineVariant.withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: color),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: color.withOpacity(0.5),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -1,181 +1,195 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:ui' show ImageFilter;
-import '../../../l10n/generated/app_localizations.dart';
-import '../../../core/enums/theme_mode.dart';
-import '../../providers/theme_providers.dart';
-import '../../../core/theme/design_tokens.dart';
-import '../../../core/theme/theme.dart';
-import '../settings/widgets/settings_3d_widgets.dart';
-import '../../widgets/glass_icon_button.dart';
 
-import '../common/app_bar.dart';
+import '../../../core/config/performance_config.dart';
+import '../../../core/theme/theme.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../widgets/app_drawer.dart';
+import '../../widgets/premium_screen_header.dart';
+import '../../widgets/premium_shell_palette.dart' show PremiumShellPalette;
+
+extension _CtxColors on BuildContext {
+  AppColorsExtension get colors =>
+      Theme.of(this).extension<AppColorsExtension>()!;
+}
 
 class HelpScreen extends ConsumerWidget {
   const HelpScreen({super.key});
 
-  Future<void> _launchEmail(String subject) async {
-    final Uri emailUri = Uri(
+  Future<void> _launchEmail(BuildContext context, String subject) async {
+    final uri = Uri(
       scheme: 'mailto',
-      path: 'customerservice@dsmobiles.com',
+      path: 'support@appcraftr.store',
       queryParameters: <String, dynamic>{'subject': subject},
     );
-    if (await canLaunchUrl(emailUri)) {
-      await launchUrl(emailUri);
-    }
+    await _launchUri(context, uri);
   }
 
-  Future<void> _launchWebsite() async {
-    final Uri websiteUri = Uri.parse('https://www.dsmobiles.com');
-    if (await canLaunchUrl(websiteUri)) {
-      await launchUrl(websiteUri, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  Future<void> _launchRateUs() async {
-    final Uri rateUri = Uri.parse(
-      'https://play.google.com/store/apps/details?id=com.example.app',
+  Future<void> _launchWebsite(BuildContext context) async {
+    await _launchUri(
+      context,
+      Uri.parse('https://www.appcraftr.store'),
+      mode: LaunchMode.externalApplication,
     );
-    if (await canLaunchUrl(rateUri)) {
-      await launchUrl(rateUri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _launchRateUs(BuildContext context) async {
+    final loc = AppLocalizations.of(context);
+    await _launchUri(
+      context,
+      Uri.parse(
+        'https://play.google.com/store/apps/details?id=com.bd.bdnewsreader',
+      ),
+      mode: LaunchMode.externalApplication,
+      errorMessage: loc.storeOpenError,
+    );
+  }
+
+  Future<void> _launchUri(
+    BuildContext context,
+    Uri uri, {
+    LaunchMode mode = LaunchMode.platformDefault,
+    String? errorMessage,
+  }) async {
+    final loc = AppLocalizations.of(context);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: mode);
+      return;
     }
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(errorMessage ?? loc.openUrlError)));
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final AppLocalizations loc = AppLocalizations.of(context);
-    final AppThemeMode mode = ref.watch(currentThemeModeProvider);
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final loc = AppLocalizations.of(context);
+    final perf = PerformanceConfig.of(context);
+    final lowEffects =
+        perf.reduceEffects || perf.lowPowerMode || perf.isLowEndDevice;
 
-    // Gradient Logic
-    final List<Color> bgColors = AppGradients.getBackgroundGradient(mode);
-    final Color start = bgColors[0];
-    final Color end = bgColors[1];
-
-    final glassColor = ref.watch(glassColorProvider);
-    final borderColor = ref.watch(borderColorProvider);
-    final navIconColor = ref.watch(navIconColorProvider);
-
-    final Color textColor = isDark ? Colors.white : Colors.black87;
-    final Color subTextColor = isDark ? Colors.white60 : Colors.black54;
+    final palette = Theme.of(context).extension<PremiumShellPalette>()!;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
       backgroundColor: Colors.transparent,
       drawer: const AppDrawer(),
-      appBar: AppBar(
-        centerTitle: true,
-        toolbarHeight: 64,
-        title: AppBarTitle(loc.helpSupport),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: Builder(
-          builder: (context) => Center(
-            child: GlassIconButton(
-              icon: Icons.menu_rounded,
-              onPressed: () => Scaffold.of(context).openDrawer(),
-              isDark: isDark,
-            ),
+      appBar: PremiumScreenHeader(
+        title: loc.helpSupport,
+        leading: PremiumHeaderLeading.menu,
+      ),
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              palette.gradientStart.withValues(alpha: 0.9),
+              palette.footerGradient.colors[2].withValues(alpha: 0.9),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
         ),
-        leadingWidth: 64,
-      ),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 1. Gradient Background
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [start.withValues(alpha: 0.85), end.withValues(alpha: 0.85)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            children: [
+              _FrostedCard(
+                lowEffects: lowEffects,
+                child: Column(
+                  children: [
+                    _HelpTile(
+                      icon: Icons.question_answer_rounded,
+                      title: loc.faqHowToUse,
+                      subtitle: loc.faqHowToUseDesc,
+                    ),
+                    Divider(
+                      height: 1,
+                      color: context.colors.cardBorder.withValues(alpha: 0.4),
+                    ),
+                    _HelpTile(
+                      icon: Icons.menu_book_rounded,
+                      title: loc.helpReaderToolsTitle,
+                      subtitle: loc.helpReaderToolsDesc,
+                    ),
+                    Divider(
+                      height: 1,
+                      color: context.colors.cardBorder.withValues(alpha: 0.4),
+                    ),
+                    _HelpTile(
+                      icon: Icons.offline_pin_rounded,
+                      title: loc.helpOfflineServiceTitle,
+                      subtitle: loc.helpOfflineServiceDesc,
+                    ),
+                    Divider(
+                      height: 1,
+                      color: context.colors.cardBorder.withValues(alpha: 0.4),
+                    ),
+                    _HelpTile(
+                      icon: Icons.tune_rounded,
+                      title: loc.helpSourceManagementTitle,
+                      subtitle: loc.helpSourceManagementDesc,
+                    ),
+                    Divider(
+                      height: 1,
+                      color: context.colors.cardBorder.withValues(alpha: 0.4),
+                    ),
+                    _HelpTile(
+                      icon: Icons.lock_rounded,
+                      title: loc.faqDataSecure,
+                      subtitle: loc.faqDataSecureDesc,
+                    ),
+                    Divider(
+                      height: 1,
+                      color: context.colors.cardBorder.withValues(alpha: 0.4),
+                    ),
+                    _HelpTile(
+                      icon: Icons.update_rounded,
+                      title: loc.faqUpdates,
+                      subtitle: loc.faqUpdatesDesc,
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ),
-          // 2. Content
-          SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              children: <Widget>[
-                // FAQ Section in Glass Card
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: glassColor,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: borderColor),
+              const SizedBox(height: 10),
+              _FrostedCard(
+                lowEffects: lowEffects,
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _SupportIconButton(
+                          icon: Icons.email_outlined,
+                          semanticLabel: loc.contactSupport,
+                          onTap: () => _launchEmail(context, loc.helpInquiry),
+                        ),
                       ),
-                      child: Column(
-                        children: [
-                          _HelpTile(
-                            icon: Icons.question_answer,
-                            title: loc.faqHowToUse,
-                            subtitle: loc.faqHowToUseDesc,
-                            textColor: textColor,
-                            subTextColor: subTextColor,
-                            iconColor: navIconColor,
-                          ),
-                          Divider(height: 1, color: borderColor),
-                          _HelpTile(
-                            icon: Icons.lock_rounded,
-                            title: loc.faqDataSecure,
-                            subtitle: loc.faqDataSecureDesc,
-                            textColor: textColor,
-                            subTextColor: subTextColor,
-                            iconColor: navIconColor,
-                          ),
-                          Divider(height: 1, color: borderColor),
-                          _HelpTile(
-                            icon: Icons.update_rounded,
-                            title: loc.faqUpdates,
-                            subtitle: loc.faqUpdatesDesc,
-                            textColor: textColor,
-                            subTextColor: subTextColor,
-                            iconColor: navIconColor,
-                          ),
-                        ],
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _SupportIconButton(
+                          icon: Icons.language_rounded,
+                          semanticLabel: loc.visitWebsite,
+                          onTap: () => _launchWebsite(context),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _SupportIconButton(
+                          icon: Icons.star_rate_rounded,
+                          semanticLabel: loc.rateApp,
+                          onTap: () => _launchRateUs(context),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-
-                const SizedBox(height: 20),
-
-                Settings3DButton(
-                  onTap: () => _launchEmail(loc.helpInquiry),
-                  label: loc.contactSupport,
-                  icon: Icons.email_outlined,
-                  width: double.infinity,
-                  fontSize: 14,
-                ),
-                const SizedBox(height: 10),
-                Settings3DButton(
-                  onTap: _launchWebsite,
-                  label: loc.visitWebsite,
-                  icon: Icons.language,
-                  width: double.infinity,
-                  fontSize: 14,
-                ),
-                const SizedBox(height: 10),
-                Settings3DButton(
-                  onTap: _launchRateUs,
-                  label: loc.rateApp,
-                  icon: Icons.star_rate_rounded,
-                  width: double.infinity,
-                  fontSize: 14,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -186,26 +200,29 @@ class _HelpTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.textColor,
-    required this.subTextColor,
-    required this.iconColor,
   });
+
   final IconData icon;
   final String title;
   final String subtitle;
-  final Color textColor;
-  final Color subTextColor;
-  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: iconColor, size: 24),
-          const SizedBox(width: 16),
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: context.colors.proBlue.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: context.colors.proBlue, size: 18),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,11 +230,10 @@ class _HelpTile extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 14.8,
                     fontWeight: FontWeight.w800,
-                    color: textColor,
-                    fontFamily: AppTypography.fontFamily,
-                    letterSpacing: 0.2,
+                    color: context.colors.textPrimary,
+                    letterSpacing: 0.1,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -225,9 +241,8 @@ class _HelpTile extends StatelessWidget {
                   subtitle,
                   style: TextStyle(
                     fontSize: 13,
-                    color: subTextColor,
-                    height: 1.4,
-                    fontFamily: AppTypography.fontFamily,
+                    color: context.colors.textSecondary,
+                    height: 1.35,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -235,6 +250,90 @@ class _HelpTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SupportIconButton extends StatelessWidget {
+  const _SupportIconButton({
+    required this.icon,
+    required this.semanticLabel,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String semanticLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: semanticLabel,
+      child: Semantics(
+        button: true,
+        label: semanticLabel,
+        child: Material(
+          color: context.colors.card.withValues(alpha: 0.64),
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: context.colors.cardBorder.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Icon(icon, size: 22, color: context.colors.proBlue),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FrostedCard extends StatelessWidget {
+  const _FrostedCard({required this.lowEffects, required this.child});
+
+  final bool lowEffects;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final card = Container(
+      decoration: BoxDecoration(
+        color: context.colors.surface.withValues(
+          alpha: lowEffects ? 0.95 : 0.82,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: context.colors.cardBorder.withValues(alpha: 0.5),
+        ),
+        boxShadow: lowEffects
+            ? const <BoxShadow>[]
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+      ),
+      child: child,
+    );
+
+    if (lowEffects) return card;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+        child: card,
       ),
     );
   }

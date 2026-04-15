@@ -9,6 +9,8 @@ class AppPaths {
   static const String newspaper = '/newspaper';
   static const String magazine = '/magazines';
   static const String savedArticles = '/saved-articles';
+  static const String history = '/home/extras/history';
+  static const String quiz = '/home/extras/quiz';
   static const String help = '/home/help';
   static const String favorites = '/home/favorites';
   static const String about = '/home/about';
@@ -18,7 +20,6 @@ class AppPaths {
   static const String webview = '/webview';
   static const String securityLockout = '/security-lockout';
   static const String offline = '/home/extras/offline';
-  static const String removeAds = '/remove-ads';
   static const String settings = '/settings';
   static const String manageSources = '/settings/manage-sources';
   static const String extras = '/home/extras';

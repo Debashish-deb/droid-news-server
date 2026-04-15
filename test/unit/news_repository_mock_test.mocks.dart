@@ -21,7 +21,7 @@ import 'package:logger/src/log_level.dart' as _i15;
 import 'package:logger/src/logger.dart' as _i14;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i13;
-import 'package:shared_preferences/src/shared_preferences_legacy.dart' as _i4;
+import 'package:shared_preferences/shared_preferences.dart' as _i4;
 import 'package:sqflite/sqflite.dart' as _i2;
 
 // ignore_for_file: type=lint
@@ -374,6 +374,42 @@ class MockRssService extends _i1.Mock implements _i7.RssService {
         returnValueForMissingStub:
             _i5.Future<List<_i8.NewsArticle>>.value(<_i8.NewsArticle>[]),
       ) as _i5.Future<List<_i8.NewsArticle>>);
+
+  @override
+  _i7.FeedRequestOutcome lastRequestOutcome({
+    required String? category,
+    required String? language,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #lastRequestOutcome,
+          [],
+          {
+            #category: category,
+            #language: language,
+          },
+        ),
+        returnValue: _i7.FeedRequestOutcome.successWithData,
+        returnValueForMissingStub: _i7.FeedRequestOutcome.successWithData,
+      ) as _i7.FeedRequestOutcome);
+
+  @override
+  bool wasLastFetchSuccessful({
+    required String? category,
+    required String? language,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #wasLastFetchSuccessful,
+          [],
+          {
+            #category: category,
+            #language: language,
+          },
+        ),
+        returnValue: false,
+        returnValueForMissingStub: false,
+      ) as bool);
 }
 
 /// A class which mocks [NewsApiService].

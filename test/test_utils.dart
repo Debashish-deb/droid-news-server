@@ -1,4 +1,7 @@
-import 'package:bdnewsreader/core/di/providers.dart' show sharedPreferencesProvider;
+// ignore_for_file: avoid_classes_with_only_static_members
+
+import 'package:bdnewsreader/core/di/providers.dart'
+    show sharedPreferencesProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,23 +18,22 @@ class TestUtils {
   }) {
     return MaterialApp(
       home: UncontrolledProviderScope(
-        container: container ?? ProviderContainer(
-          overrides: [
-            if (prefs != null)
-              sharedPreferencesProvider.overrideWith((ref) => prefs),
-            ...overrides,
-          ],
-        ),
+        container:
+            container ??
+            ProviderContainer(
+              overrides: [
+                if (prefs != null)
+                  sharedPreferencesProvider.overrideWith((ref) => prefs),
+                ...overrides,
+              ],
+            ),
         child: child,
       ),
     );
   }
 
   /// Creates a test app with material scaffold
-  static Widget createTestScaffold({
-    required Widget child,
-    String? title,
-  }) {
+  static Widget createTestScaffold({required Widget child, String? title}) {
     return MaterialApp(
       home: Scaffold(
         appBar: title != null ? AppBar(title: Text(title)) : null,
@@ -62,7 +64,7 @@ class TestUtils {
       'title': title,
       'description': description,
       'url': url,
-      if (imageUrl != null) 'imageUrl': imageUrl,
+      'imageUrl': ?imageUrl,
       'source': source,
       'language': language,
       'publishedAt': publishedAt?.toIso8601String(),
@@ -71,16 +73,17 @@ class TestUtils {
 
   /// Creates multiple test articles
   static List<Map<String, dynamic>> createTestArticles(int count) {
-    return List.generate(count, (index) => createTestArticle(
-      id: index.toString(),
-      title: 'Test Article $index',
-      description: 'Description for article $index',
-      url: 'https://example.com/$index',
-      imageUrl: index % 2 == 0 ? 'https://example.com/$index.jpg' : null,
-      source: 'Test Source',
-      language: 'en',
-      publishedAt: DateTime.now().subtract(Duration(hours: count - index)),
-    ));
+    return List.generate(
+      count,
+      (index) => createTestArticle(
+        id: index.toString(),
+        title: 'Test Article $index',
+        description: 'Description for article $index',
+        url: 'https://example.com/$index',
+        imageUrl: index % 2 == 0 ? 'https://example.com/$index.jpg' : null,
+        publishedAt: DateTime.now().subtract(Duration(hours: count - index)),
+      ),
+    );
   }
 
   /// Waits for async operations with timeout
@@ -127,18 +130,12 @@ class TestUtils {
   }
 
   /// Verifies widget exists with better error message
-  static void expectWidgetExists(
-    Finder finder, {
-    String? reason,
-  }) {
+  static void expectWidgetExists(Finder finder, {String? reason}) {
     expect(finder, findsOneWidget, reason: reason);
   }
 
   /// Verifies widget doesn't exist with better error message
-  static void expectWidgetNotExists(
-    Finder finder, {
-    String? reason,
-  }) {
+  static void expectWidgetNotExists(Finder finder, {String? reason}) {
     expect(finder, findsNothing, reason: reason);
   }
 

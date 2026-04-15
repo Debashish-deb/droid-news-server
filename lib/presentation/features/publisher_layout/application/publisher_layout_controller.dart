@@ -18,14 +18,10 @@ import 'publisher_layout_state.dart';
 /// - **Idempotent load**: [loadOnce] is safe to call multiple times.
 /// - **Rollback**: if a background persist fails the in-memory state is
 ///   reverted to maintain consistency with what is on disk.
-class PublisherLayoutController
-    extends StateNotifier<PublisherLayoutState> {
-
-  PublisherLayoutController(
-    this._repository, {
-    required String layoutKey,
-  })  : _layoutKey = layoutKey,
-        super(const PublisherLayoutState());
+class PublisherLayoutController extends StateNotifier<PublisherLayoutState> {
+  PublisherLayoutController(this._repository, {required String layoutKey})
+    : _layoutKey = layoutKey,
+      super(const PublisherLayoutState());
 
   final PublisherLayoutRepository _repository;
   final String _layoutKey;
@@ -102,8 +98,10 @@ class PublisherLayoutController
       state = state.asLoaded(merged);
       _loadedOnce = true;
     } catch (e, st) {
-      debugPrint('[PublisherLayoutController] load error [$_layoutKey]: '
-          '$e\n$st');
+      debugPrint(
+        '[PublisherLayoutController] load error [$_layoutKey]: '
+        '$e\n$st',
+      );
       if (!mounted) return;
       state = state.asError(e);
       // Fall back to defaults so the UI is never blank
@@ -119,20 +117,12 @@ class PublisherLayoutController
   /// The state is updated **immediately** (optimistic) and the repository
   /// write is debounced in the background.  If the write ultimately fails,
   /// state is rolled back.
-  Future<void> reorder(
-    int from,
-    int to,
-    List<String> visibleIds,
-  ) {
+  Future<void> reorder(int from, int to, List<String> visibleIds) {
     if (!_isValidReorder(from, to, visibleIds)) return Future.value();
     return _enqueue(() => _reorder(from, to, visibleIds));
   }
 
-  Future<void> _reorder(
-    int from,
-    int to,
-    List<String> visibleIds,
-  ) async {
+  Future<void> _reorder(int from, int to, List<String> visibleIds) async {
     if (!mounted) return;
 
     final snapshot = state.ids;
@@ -145,14 +135,20 @@ class PublisherLayoutController
 
     // Debounced persist (fire-and-forget; rollback on failure)
     _repository.saveLayout(next, layoutKey: _layoutKey).catchError((e, st) {
-      debugPrint('[PublisherLayoutController] persist failed [$_layoutKey], '
-          'rolling back: $e\n$st');
+      debugPrint(
+        '[PublisherLayoutController] persist failed [$_layoutKey], '
+        'rolling back: $e\n$st',
+      );
       if (mounted) state = state.asLoaded(snapshot);
     });
   }
 
   bool _isValidReorder(int from, int to, List<String> visible) =>
-      from >= 0 && from < visible.length && to >= 0 && from != to;
+      from >= 0 &&
+      from < visible.length &&
+      to >= 0 &&
+      to <= visible.length &&
+      from != to;
 
   // ── Toggle visibility ─────────────────────────────────────────────────────
 
@@ -185,8 +181,7 @@ class PublisherLayoutController
     final snapshot = state.ids;
     state = state.asLoaded(current);
 
-    _repository.saveLayout(current, layoutKey: _layoutKey)
-        .catchError((e, st) {
+    _repository.saveLayout(current, layoutKey: _layoutKey).catchError((e, st) {
       debugPrint('[PublisherLayoutController] toggle persist failed: $e\n$st');
       if (mounted) state = state.asLoaded(snapshot);
     });
@@ -208,8 +203,7 @@ class PublisherLayoutController
     final snapshot = state.ids;
     state = state.asLoaded(List.unmodifiable(current));
 
-    _repository.saveLayout(current, layoutKey: _layoutKey)
-        .catchError((e, st) {
+    _repository.saveLayout(current, layoutKey: _layoutKey).catchError((e, st) {
       debugPrint('[PublisherLayoutController] remove persist failed: $e\n$st');
       if (mounted) state = state.asLoaded(snapshot);
     });
@@ -229,8 +223,7 @@ class PublisherLayoutController
     final snapshot = state.ids;
     state = state.asLoaded(next);
 
-    _repository.saveLayout(next, layoutKey: _layoutKey)
-        .catchError((e, st) {
+    _repository.saveLayout(next, layoutKey: _layoutKey).catchError((e, st) {
       debugPrint('[PublisherLayoutController] add persist failed: $e\n$st');
       if (mounted) state = state.asLoaded(snapshot);
     });
@@ -274,17 +267,17 @@ class PublisherLayoutController
   ) {
     final visible = List<String>.from(visibleIds);
 
-    // Adjust for list-shift when dragging downwards
-    final adjustedTo = from < to ? to - 1 : to;
     final moved = visible.removeAt(from);
-    visible.insert(adjustedTo.clamp(0, visible.length), moved);
+    visible.insert(to.clamp(0, visible.length), moved);
 
     // Build the result by replacing items in currentState that belong to
     // visibleIds — using the *post-mutation* visible list as the source of truth.
     // This fixes the subtle bug in the original where visibleIds.toSet() (pre-
     // mutation) was used, which could map items back to wrong positions when
     // the visible list contains duplicates or partial overlaps with state.
-    final visibleSet = Set<String>.from(visibleIds); // original set for membership
+    final visibleSet = Set<String>.from(
+      visibleIds,
+    ); // original set for membership
     final next = List<String>.from(currentState);
     int pointer = 0;
 

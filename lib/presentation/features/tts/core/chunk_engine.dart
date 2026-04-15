@@ -1,5 +1,7 @@
 import '../domain/models/speech_chunk.dart';
 import 'text_cleaner.dart';
+import 'bangla_tts_normalizer.dart';
+import '../services/speech_delivery_intelligence.dart';
 
 // ── ChunkEngine ────────────────────────────────────────────────────────────
 //
@@ -13,6 +15,7 @@ import 'text_cleaner.dart';
 //   • O(n) grouping — original code called List.indexOf() inside a loop
 //     producing O(n²) behaviour (~40 000 comparisons on a typical article)
 
+// ignore: avoid_classes_with_only_static_members
 class ChunkEngine {
   // ── Tuning constants ───────────────────────────────────────────────────────
   static const int minChunkSize = 180;
@@ -29,6 +32,7 @@ class ChunkEngine {
   static List<SpeechChunk> createChunks(
     String rawText, {
     String language = 'en',
+    String category = 'general',
     String? title,
     String? author,
     String? imageSource,
@@ -50,7 +54,7 @@ class ChunkEngine {
     final segments = _splitIntoSegments(fullText);
     final rawChunks = _groupSegments(segments); // O(n), not O(n²)
     final merged = _mergeSmallChunks(rawChunks);
-    return _finalizeChunks(merged, language);
+    return _finalizeChunks(merged, language, category);
   }
 
   // ── Metadata prefix builder ────────────────────────────────────────────────
@@ -65,21 +69,33 @@ class ChunkEngine {
   }) {
     final isBn = language.startsWith('bn');
 
-    final titleLabel = isBn ? 'শিরোনাম: ' : 'Title: ';
-    final introPhrase = isBn
-        ? 'বিস্তারিত খবরে আসছি'
-        : 'Moving on to detailed news';
+    final titleLabel = isBn ? 'শিরোনাম। ' : 'Title. ';
+    final introPhrase = isBn ? 'বিস্তারিত সংবাদ।' : 'Full story.';
 
     final buf = StringBuffer();
 
     if (title != null && title.isNotEmpty) {
+      final spokenTitle = isBn
+          ? BanglaTtsNormalizer.withBanglaTerminal(
+              BanglaTtsNormalizer.normalize(title),
+            )
+          : _withEnglishTerminal(title);
       buf
-        ..write('$titleLabel $title. ')
-        ..write('$introPhrase. ');
+        ..write(titleLabel)
+        ..write(spokenTitle)
+        ..write(' ')
+        ..write(introPhrase)
+        ..write(' ');
     }
 
     buf.write(body);
     return buf.toString();
+  }
+
+  static String _withEnglishTerminal(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty || RegExp(r'[.!?]$').hasMatch(trimmed)) return trimmed;
+    return '$trimmed.';
   }
 
   // ── Sentence splitter ──────────────────────────────────────────────────────
@@ -93,21 +109,67 @@ class ChunkEngine {
         .map((p) => p.trim())
         .where((p) => p.isNotEmpty);
 
+    var isFirstArticleSentence = true;
+
     for (final paragraph in paragraphs) {
       final sentences = _splitParagraphIntoSentences(paragraph);
-      for (final sentence in sentences) {
+      for (var index = 0; index < sentences.length; index++) {
+        final sentence = sentences[index];
         final s = sentence.trim();
         if (s.isEmpty || _looksLikeNoiseSegment(s)) continue;
 
+        final isParagraphStart = index == 0;
+        final isParagraphEnd = index == sentences.length - 1;
+
         if (s.length > maxChunkSize) {
-          segments.addAll(_splitLongSentence(s));
+          final parts = _splitLongSentence(s);
+          for (var partIndex = 0; partIndex < parts.length; partIndex++) {
+            final isFirstPart = partIndex == 0;
+            final isLastPart = partIndex == parts.length - 1;
+            segments.add(
+              _decorateSegment(
+                parts[partIndex],
+                isArticleStart: isFirstArticleSentence && isFirstPart,
+                isParagraphStart: isParagraphStart && isFirstPart,
+                isParagraphEnd: isParagraphEnd && isLastPart,
+              ),
+            );
+          }
         } else {
-          segments.add(s);
+          segments.add(
+            _decorateSegment(
+              s,
+              isArticleStart: isFirstArticleSentence,
+              isParagraphStart: isParagraphStart,
+              isParagraphEnd: isParagraphEnd,
+            ),
+          );
         }
+        isFirstArticleSentence = false;
       }
     }
 
     return segments;
+  }
+
+  static String _decorateSegment(
+    String text, {
+    required bool isArticleStart,
+    required bool isParagraphStart,
+    required bool isParagraphEnd,
+  }) {
+    final buf = StringBuffer();
+    if (isArticleStart) {
+      buf.write('${SpeechDeliveryIntelligence.articleStartMarker} ');
+    }
+    if (isParagraphStart) {
+      buf.write('${SpeechDeliveryIntelligence.paragraphStartMarker} ');
+    }
+    buf.write(text.trim());
+    if (isParagraphEnd) {
+      buf.write(' ${SpeechDeliveryIntelligence.paragraphEndMarker}');
+    }
+    return buf.toString().trim();
   }
 
   static List<String> _splitParagraphIntoSentences(String paragraph) {
@@ -304,12 +366,17 @@ class ChunkEngine {
   static List<SpeechChunk> _finalizeChunks(
     List<String> chunks,
     String language,
+    String category,
   ) {
     final result = <SpeechChunk>[];
     int startIndex = 0;
 
     for (int id = 0; id < chunks.length; id++) {
-      final text = chunks[id];
+      final rawText = chunks[id];
+      final pauseAnalysis = SpeechDeliveryIntelligence.analyzeRawChunkText(
+        rawText,
+      );
+      final text = SpeechDeliveryIntelligence.stripMarkers(rawText);
       final endIndex = startIndex + text.length;
 
       result.add(
@@ -319,6 +386,13 @@ class ChunkEngine {
           startIndex: startIndex,
           endIndex: endIndex,
           language: language,
+          articleCategory: category,
+          isArticleLead: pauseAnalysis.isArticleLead,
+          isParagraphStart: pauseAnalysis.isParagraphStart,
+          isParagraphEnd: pauseAnalysis.isParagraphEnd,
+          minorPauseCount: pauseAnalysis.minorPauseCount,
+          majorPauseCount: pauseAnalysis.majorPauseCount,
+          pauseBoundary: pauseAnalysis.boundary.name,
         ),
       );
 

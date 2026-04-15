@@ -53,3 +53,32 @@ __pycache__/
 # Local generated clutter
 .runtime/
 .pytest_cache/
+
+# One-time migration / dev utility scripts (do not re-add)
+*.py
+*.sh
+*.js
+!pubspec.yaml
+*.iml
+deploy_firebase_rules.sh
+migrate_screens.sh
+test_sources.sh
+
+# Test / analysis output dumps
+all_tests_*.json
+all_tests_*.txt
+test_output*
+analysis_output*
+full_analyze*
+routes_audit*
+lumi.txt
+flutter_*.log
+
+# Concatenated source dumps (AI tooling artifacts)
+lib/combined_app_code.txt
+lib/script_collector.dart
+structure.dart
+structure_2.dart
+
+# Duplicate flutter metadata files
+.flutter-plugins-dependencies (*)

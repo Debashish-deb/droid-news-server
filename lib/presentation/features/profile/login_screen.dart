@@ -14,17 +14,19 @@
 // • _GrainPainter + orbs in RepaintBoundary → GPU texture cached forever.
 // • withOpacity() in const positions replaced with const Color hex literals.
 
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/performance_config.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../providers/feature_providers.dart' show authServiceProvider;
 import '../../../core/navigation/app_paths.dart';
+import '../../widgets/platform_surface_treatment.dart';
 
 class _Token {
-  static const Color ink = Color(0xFFF2F2F7);
   static const Color goldBright = Color(0xFFD4A853);
   static const Color goldMid = Color(0xFFB8892B);
   static const Color goldDim = Color(0xFF7A5C1E);
@@ -38,6 +40,26 @@ class _Token {
   static const double radiusCard = 28.0;
   static const double radiusField = 16.0;
   static const double radiusButton = 18.0;
+}
+
+const String _emailVerificationRequiredPrefix =
+    'Please verify your email address before logging in.';
+const String _verificationEmailCooldownMessage =
+    'Verification email was sent recently. Please wait before requesting another one.';
+
+bool _isEmailVerificationMessage(String msg) {
+  return msg.startsWith(_emailVerificationRequiredPrefix) ||
+      msg == _verificationEmailCooldownMessage;
+}
+
+String _localizedAuthMessage(AppLocalizations loc, String msg) {
+  if (msg.startsWith(_emailVerificationRequiredPrefix)) {
+    return loc.emailNotVerified;
+  }
+  if (msg == _verificationEmailCooldownMessage) {
+    return loc.verificationEmailCooldown;
+  }
+  return msg;
 }
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -60,6 +82,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _error = ValueNotifier<String?>(null);
 
   bool _obscurePassword = true;
+  bool _didApplyEntrancePolicy = false;
+  bool _authRouteTransitionInFlight = false;
 
   static const _orbs = [
     _OrbDef(dx: -0.15, dy: 0.05, size: 340, opacity: 0.18),
@@ -91,7 +115,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
       ),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) => _ctrl.forward());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didApplyEntrancePolicy) return;
+    _didApplyEntrancePolicy = true;
+
+    final perf = PerformanceConfig.of(context);
+    final bool skipEntranceAnimation =
+        perf.reduceMotion ||
+        perf.reduceEffects ||
+        perf.lowPowerMode ||
+        perf.isLowEndDevice ||
+        preferAndroidMaterialSurfaceChrome(context) ||
+        (MediaQuery.maybeOf(context)?.disableAnimations ?? false);
+
+    if (skipEntranceAnimation) {
+      _ctrl.value = 1.0;
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _ctrl.forward();
+      }
+    });
   }
 
   @override
@@ -124,21 +174,69 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     _loading.value = true;
     _error.value = null;
     try {
-      final msg = await ref
-          .read(authServiceProvider)
-          .login(_emailCtl.text.trim(), _passCtl.text)
-          .timeout(const Duration(seconds: 15));
+      final auth = ref.read(authServiceProvider);
+      final msg = await auth.login(_emailCtl.text.trim(), _passCtl.text);
       if (!mounted) return;
-      _loading.value = false;
-      if (msg != null) {
-        _error.value = msg;
-      } else {
+      if (msg == null || auth.currentUser != null) {
+        _loading.value = false;
         context.go(AppPaths.home);
+      } else {
+        _loading.value = false;
+        _error.value = msg;
+      }
+    } on TimeoutException {
+      if (mounted) {
+        final auth = ref.read(authServiceProvider);
+        if (auth.currentUser != null) {
+          _loading.value = false;
+          context.go(AppPaths.home);
+        } else {
+          _loading.value = false;
+          _error.value = 'Connection timed out. Please try again.';
+        }
       }
     } catch (e) {
       if (mounted) {
         _loading.value = false;
-        _error.value = 'Connection timed out. Please try again.';
+        _error.value = 'Unable to sign in right now. Please try again.';
+      }
+    }
+  }
+
+  Future<void> _resendEmailVerification() async {
+    if (_loading.value) return;
+    if (_emailCtl.text.trim().isEmpty || _passCtl.text.isEmpty) {
+      _error.value = 'Please fill in all fields';
+      return;
+    }
+
+    _loading.value = true;
+    try {
+      final auth = ref.read(authServiceProvider);
+      final msg = await auth.resendEmailVerification(
+        _emailCtl.text.trim(),
+        _passCtl.text,
+      );
+      if (!mounted) return;
+      final loc = AppLocalizations.of(context);
+      final snackMessage = msg == null
+          ? loc.verificationEmailResent
+          : _localizedAuthMessage(loc, msg);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(snackMessage)));
+      if (msg == null || _isEmailVerificationMessage(msg)) {
+        _error.value = _emailVerificationRequiredPrefix;
+      } else {
+        _error.value = msg;
+      }
+    } catch (e) {
+      if (mounted) {
+        _error.value = 'Unable to resend verification email right now.';
+      }
+    } finally {
+      if (mounted) {
+        _loading.value = false;
       }
     }
   }
@@ -147,32 +245,57 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     _loading.value = true;
     _error.value = null;
     try {
-      final result = await ref
-          .read(authServiceProvider)
-          .signInWithGoogle()
-          .timeout(const Duration(seconds: 15));
+      final auth = ref.read(authServiceProvider);
+      final result = await auth.signInWithGoogle();
       if (!mounted) return;
-      _loading.value = false;
-      if (result != null) {
-        _error.value = result;
-      } else {
+      if (result == null || auth.currentUser != null) {
+        _loading.value = false;
         context.go(AppPaths.home);
+      } else {
+        _loading.value = false;
+        _error.value = result;
+      }
+    } on TimeoutException {
+      if (!mounted) return;
+      final auth = ref.read(authServiceProvider);
+      if (auth.currentUser != null) {
+        _loading.value = false;
+        context.go(AppPaths.home);
+      } else {
+        _loading.value = false;
+        _error.value = 'Google sign-in is taking longer than expected.';
       }
     } catch (e) {
       if (mounted) {
         _loading.value = false;
-        _error.value = 'Google sign-in timed out.';
+        _error.value = 'Google sign-in failed. Please try again.';
       }
     }
+  }
+
+  void _openSignup() {
+    if (!mounted || _authRouteTransitionInFlight) return;
+    _authRouteTransitionInFlight = true;
+    FocusManager.instance.primaryFocus?.unfocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.go(AppPaths.signup);
+      Future<void>.delayed(const Duration(milliseconds: 450), () {
+        if (mounted) {
+          _authRouteTransitionInFlight = false;
+        }
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final size = MediaQuery.of(context).size;
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: _Token.ink,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
           // Orbs — AnimatedBuilder scoped to _orbScale only
@@ -228,6 +351,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     setState(() => _obscurePassword = !_obscurePassword),
                 onLogin: _login,
                 onGoogle: _loginWithGoogle,
+                onResendVerification: _resendEmailVerification,
+                onRetryVerification: _login,
+                onCreateAccount: _openSignup,
                 loc: loc,
               ),
               builder: (_, child) => FadeTransition(
@@ -257,6 +383,9 @@ class _LoginBody extends StatelessWidget {
     required this.onToggleObscure,
     required this.onLogin,
     required this.onGoogle,
+    required this.onResendVerification,
+    required this.onRetryVerification,
+    required this.onCreateAccount,
     required this.loc,
   });
   final TextEditingController emailCtl, passCtl;
@@ -264,7 +393,12 @@ class _LoginBody extends StatelessWidget {
   final ValueNotifier<bool> loading;
   final ValueNotifier<String?> error;
   final bool obscurePassword;
-  final VoidCallback onToggleObscure, onLogin, onGoogle;
+  final VoidCallback onToggleObscure,
+      onLogin,
+      onGoogle,
+      onResendVerification,
+      onRetryVerification,
+      onCreateAccount;
   final AppLocalizations loc;
 
   @override
@@ -350,121 +484,176 @@ class _LoginBody extends StatelessWidget {
   );
 
   // BackdropFilter isolated in RepaintBoundary — blur only composites this card's layer
-  Widget _buildFormCard(BuildContext context) => RepaintBoundary(
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(_Token.radiusCard),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(_Token.radiusCard),
-            color: Colors.white.withValues(alpha: 0.85),
-            border: Border.all(color: Colors.white),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x1A000000),
-                blurRadius: 48,
-                offset: Offset(0, 24),
-              ),
-              BoxShadow(
-                color: Color(0x05D4A853),
-                blurRadius: 80,
-                spreadRadius: 8,
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Row(
-                children: [
-                  _GoldDot(),
-                  SizedBox(width: 10),
-                  Text(
-                    'SIGN IN',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: _Token.goldBright,
-                      letterSpacing: 2.4,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
+  Widget _buildFormCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final perf = PerformanceConfig.of(context);
+    final preferMaterialChrome = preferAndroidMaterialSurfaceChrome(context);
+    final bool cheapComposite =
+        perf.reduceEffects ||
+        perf.lowPowerMode ||
+        perf.isLowEndDevice ||
+        preferMaterialChrome;
+    final Color cardColor = preferMaterialChrome
+        ? materialSurfaceOverlayColor(
+            theme.colorScheme,
+            tone: MaterialSurfaceTone.highest,
+            surfaceAlpha: 0.97,
+            tintAlpha: 0.04,
+          )
+        : Colors.white.withValues(alpha: 0.85);
+    final Color borderColor = preferMaterialChrome
+        ? theme.colorScheme.outlineVariant.withValues(alpha: 0.68)
+        : Colors.white;
+    final List<BoxShadow> boxShadows = preferMaterialChrome
+        ? const <BoxShadow>[
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 24,
+              offset: Offset(0, 12),
+            ),
+          ]
+        : const <BoxShadow>[
+            BoxShadow(
+              color: Color(0x1A000000),
+              blurRadius: 48,
+              offset: Offset(0, 24),
+            ),
+            BoxShadow(
+              color: Color(0x05D4A853),
+              blurRadius: 80,
+              spreadRadius: 8,
+            ),
+          ];
 
-              // Each _PremiumField manages its own focus; no parent rebuild on tap
-              _PremiumField(
-                controller: emailCtl,
-                nextFocus: passwordFocus,
-                label: 'Email address',
-                icon: Icons.alternate_email_rounded,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 14),
-
-              _PremiumField(
-                controller: passCtl,
-                focusNode: passwordFocus,
-                label: 'Password',
-                icon: Icons.shield_outlined,
-                obscureText: obscurePassword,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => onLogin(),
-                suffixChild: GestureDetector(
-                  onTap: onToggleObscure,
-                  child: Icon(
-                    obscurePassword
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    size: 20,
-                    color: obscurePassword
-                        ? _Token.silverMuted
-                        : _Token.goldBright,
-                  ),
-                ),
-              ),
-
-              // Only error banner rebuilds when error changes
-              ValueListenableBuilder<String?>(
-                valueListenable: error,
-                builder: (_, msg, _) => msg != null && msg.isNotEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 18),
-                        child: _ErrorBanner(message: msg),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-
-              const SizedBox(height: 28),
-
-              // Only button rebuilds when loading changes
-              ValueListenableBuilder<bool>(
-                valueListenable: loading,
-                builder: (_, isLoading, _) => _GoldButton(
-                  label: 'Continue',
-                  loading: isLoading,
-                  onTap: isLoading ? null : onLogin,
-                ),
-              ),
-              const SizedBox(height: 20),
-              const _Divider(),
-              const SizedBox(height: 20),
-              ValueListenableBuilder<bool>(
-                valueListenable: loading,
-                builder: (_, isLoading, _) => _GoogleButton(
-                  loading: isLoading,
-                  onTap: isLoading ? null : onGoogle,
-                ),
-              ),
-            ],
-          ),
-        ),
+    final formContent = Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(_Token.radiusCard),
+        color: cardColor,
+        border: Border.all(color: borderColor),
+        boxShadow: boxShadows,
       ),
-    ),
-  );
+      padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Row(
+            children: [
+              _GoldDot(),
+              SizedBox(width: 10),
+              Text(
+                'SIGN IN',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: _Token.goldBright,
+                  letterSpacing: 2.4,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Each _PremiumField manages its own focus; no parent rebuild on tap
+          _PremiumField(
+            controller: emailCtl,
+            nextFocus: passwordFocus,
+            label: 'Email address',
+            icon: Icons.alternate_email_rounded,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 14),
+
+          _PremiumField(
+            controller: passCtl,
+            focusNode: passwordFocus,
+            label: 'Password',
+            icon: Icons.shield_outlined,
+            obscureText: obscurePassword,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => onLogin(),
+            suffixChild: GestureDetector(
+              onTap: onToggleObscure,
+              child: Icon(
+                obscurePassword
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                size: 20,
+                color: obscurePassword ? _Token.silverMuted : _Token.goldBright,
+              ),
+            ),
+          ),
+
+          // Only error banner rebuilds when error changes
+          ValueListenableBuilder<String?>(
+            valueListenable: error,
+            builder: (_, msg, _) {
+              if (msg == null || msg.isEmpty) {
+                return const SizedBox.shrink();
+              }
+
+              final isVerificationMessage = _isEmailVerificationMessage(msg);
+              return Padding(
+                padding: const EdgeInsets.only(top: 18),
+                child: Column(
+                  children: [
+                    _ErrorBanner(message: _localizedAuthMessage(loc, msg)),
+                    if (isVerificationMessage) ...[
+                      const SizedBox(height: 12),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: loading,
+                        builder: (_, isLoading, _) =>
+                            _VerificationRecoveryPanel(
+                              loc: loc,
+                              loading: isLoading,
+                              onResend: onResendVerification,
+                              onRetry: onRetryVerification,
+                            ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ),
+
+          const SizedBox(height: 28),
+
+          // Only button rebuilds when loading changes
+          ValueListenableBuilder<bool>(
+            valueListenable: loading,
+            builder: (_, isLoading, _) => _GoldButton(
+              label: 'Continue',
+              loading: isLoading,
+              onTap: isLoading ? null : onLogin,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const _Divider(),
+          const SizedBox(height: 20),
+          ValueListenableBuilder<bool>(
+            valueListenable: loading,
+            builder: (_, isLoading, _) => _GoogleButton(
+              loading: isLoading,
+              onTap: isLoading ? null : onGoogle,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return RepaintBoundary(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(_Token.radiusCard),
+        child: cheapComposite
+            ? formContent
+            : BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                child: formContent,
+              ),
+      ),
+    );
+  }
 
   Widget _buildFooter(BuildContext context, AppLocalizations loc) => Row(
     mainAxisAlignment: MainAxisAlignment.center,
@@ -475,7 +664,7 @@ class _LoginBody extends StatelessWidget {
       ),
       const SizedBox(width: 8),
       GestureDetector(
-        onTap: () => context.go(AppPaths.signup),
+        onTap: onCreateAccount,
         child: const Text(
           'Create account',
           style: TextStyle(
@@ -802,6 +991,68 @@ class _ErrorBanner extends StatelessWidget {
               height: 1.4,
             ),
           ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _VerificationRecoveryPanel extends StatelessWidget {
+  const _VerificationRecoveryPanel({
+    required this.loc,
+    required this.loading,
+    required this.onResend,
+    required this.onRetry,
+  });
+
+  final AppLocalizations loc;
+  final bool loading;
+  final VoidCallback onResend;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(12),
+      color: const Color(0x14D4A853),
+      border: Border.all(color: const Color(0x44D4A853)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          loc.verifyEmailTitle,
+          style: const TextStyle(
+            color: _Token.goldBright,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          loc.checkInboxPrompt,
+          style: const TextStyle(
+            color: _Token.silverMuted,
+            fontSize: 12,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: [
+            OutlinedButton(
+              onPressed: loading ? null : onResend,
+              child: Text(loc.resendVerificationEmail),
+            ),
+            TextButton(
+              onPressed: loading ? null : onRetry,
+              child: Text(loc.iVerifiedTryAgain),
+            ),
+          ],
         ),
       ],
     ),

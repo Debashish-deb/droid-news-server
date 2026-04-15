@@ -20,7 +20,8 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly([
         'name', 'email', 'phone', 'role', 'department', 'image',
         'updated_at', 'last_login_at', 'created_at',
-        'trial_used', 'current_subscription_tier'
+        'trial_used', 'trial_started_at', 'trial_ends_at',
+        'current_subscription_tier'
       ]);
     }
 
@@ -28,6 +29,11 @@ service cloud.firestore {
     function noEntitlementEscalation() {
       return !request.resource.data.diff(resource.data).affectedKeys()
         .hasAny(['is_premium', 'is_admin', 'subscription_tier']);
+    }
+
+    function noTrialReset() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['trial_used']) || request.resource.data.trial_used == true;
     }
     
     // User profiles - users can only read/write their own
@@ -42,7 +48,8 @@ service cloud.firestore {
         && userProfileFieldsOnly()
         && isValidString(request.resource.data.name, 200)
         && isValidString(request.resource.data.email, 320)
-        && noEntitlementEscalation();
+        && noEntitlementEscalation()
+        && noTrialReset();
     }
     
     // User preferences

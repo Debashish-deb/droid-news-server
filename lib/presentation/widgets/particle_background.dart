@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 /// Particle class for background effects
 class Particle {
-
   Particle({
     required this.x,
     required this.y,
@@ -20,18 +19,14 @@ class Particle {
 
 /// Particle painter for background effects
 class ParticlePainter extends CustomPainter {
-
-  ParticlePainter({
-    required this.particles,
-    required this.animationValue,
-  });
+  ParticlePainter({required this.particles, required this.animationValue});
   final List<Particle> particles;
   final double animationValue;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (particles.isEmpty) return;
-    
+
     final paint = Paint()..style = PaintingStyle.fill;
     final double pi2 = 2 * pi;
     final double sinAnim = sin(animationValue * pi);
@@ -40,9 +35,10 @@ class ParticlePainter extends CustomPainter {
 
     for (final particle in particles) {
       final offsetY = (particle.y + animationValue * particle.speed) % 1.0;
-      
+
       // Opacity calculation with pre-computed phase
-      final opacity = particle.color.opacity *
+      final opacity =
+          particle.color.opacity *
           (0.5 + 0.5 * sin(animPhase + particle.x * pi));
 
       paint.color = particle.color.withValues(alpha: opacity);

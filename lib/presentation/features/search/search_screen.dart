@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/di/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/config/performance_config.dart';
 
+import '../../widgets/premium_scaffold.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../domain/entities/news_article.dart';
 import 'providers/search_provider.dart';
@@ -20,13 +22,9 @@ import '../../widgets/app_drawer.dart';
 import 'dart:ui';
 import '../../widgets/glass_pill_button.dart';
 import '../../widgets/glass_icon_button.dart';
-import '../../widgets/animated_theme_container.dart';
-import '../../../core/theme/theme.dart';
-import '../common/app_bar.dart';
-import '../../../core/navigation/app_paths.dart';
-
-import '../../widgets/unlock_article_dialog.dart';
-import 'package:go_router/go_router.dart';
+import '../../widgets/premium_screen_header.dart';
+import '../../../core/navigation/navigation_helper.dart';
+import '../../widgets/platform_surface_treatment.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -55,47 +53,23 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Future<void> _handleArticleTap(NewsArticle article) async {
-    final bool isPremiumContent = article.tags?.contains('premium') == true;
-
-    if (isPremiumContent) {
-      final bool unlocked = await showUnlockDialog(
-        context,
-        article.url,
-        article.title,
-      );
-      if (!unlocked) return;
-    }
-
-    ref.read(interstitialAdServiceProvider).onArticleViewed();
+    unawaited(ref.read(interstitialAdServiceProvider).onArticleViewed());
 
     if (!mounted) return;
-    context.push(AppPaths.newsDetail, extra: article);
+    await NavigationHelper.openNewsDetail<void>(context, article);
   }
-
-  // Enhanced Search Implementation
-  List<MapEntry<String, String>> _publisherSuggestions = [];
 
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
 
-    // 1. Filter Local Publishers immediately
-    if (query.isNotEmpty) {
-      final normalizedQuery = query.toLowerCase();
-      setState(() {
-        _publisherSuggestions = SourceLogos.logos.entries
-            .where((e) => e.key.toLowerCase().contains(normalizedQuery))
-            .take(6)
-            .toList();
-      });
-    } else {
-      setState(() {
-        _publisherSuggestions = [];
-      });
-      // Clear topic search state when query is emptied
+    // Update the controller provider for memoized suggestions
+    ref.read(searchControllerProvider.notifier).state = query;
+
+    if (query.isEmpty) {
       ref.read(searchProvider.notifier).clearTopicSearch();
     }
 
-    // 2. Debounce API Search
+    // Debounce API Search
     _debounce = Timer(const Duration(milliseconds: 500), () {
       if (query.isNotEmpty) {
         ref.read(searchProvider.notifier).search(query);
@@ -116,7 +90,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     ref.read(searchProvider.notifier).searchByTopic(topic.label);
     _searchFocusNode.unfocus();
     setState(() {
-      _publisherSuggestions = [];
+      // Logic handled by providers
     });
   }
 
@@ -138,181 +112,198 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final themeMode = ref.watch(currentThemeModeProvider);
+    final perf = PerformanceConfig.of(context);
+    final bool lowEffects =
+        perf.reduceEffects ||
+        perf.lowPowerMode ||
+        perf.isLowEndDevice ||
+        perf.performanceTier != DevicePerformanceTier.flagship;
 
     final hPadding = MediaQuery.of(context).size.width * 0.05;
 
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        centerTitle: true,
-        toolbarHeight: 64,
-        title: AppBarTitle(loc.search),
-        leading: Builder(
-          builder: (context) => Center(
-            child: GlassIconButton(
-              icon: Icons.menu_rounded,
-              onPressed: () => Scaffold.of(context).openDrawer(),
-              isDark: isDark,
-            ),
-          ),
-        ),
-        leadingWidth: 64,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(color: Colors.transparent),
-          ),
-        ),
-      ),
+    return PremiumScaffold(
+      useBackground: false, // Hosted in MainNavigationScreen
+      showBackgroundParticles: false,
       drawer: const AppDrawer(),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned.fill(
-            child: AnimatedThemeContainer(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppGradients.getBackgroundGradient(
-                      themeMode,
-                    )[0].withValues(alpha: 0.85),
-                    AppGradients.getBackgroundGradient(
-                      themeMode,
-                    )[1].withValues(alpha: 0.85),
-                  ],
+      title: loc.search,
+      headerLeading: PremiumHeaderLeading.menu,
+      body: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: hPadding),
+          child: Column(
+            children: [
+              _buildGlassSearchBox(context, isDark, lowEffects: lowEffects),
+              Expanded(
+                child: _buildBody(
+                  context,
+                  ref.watch(searchProvider),
+                  ref.watch(searchIntelligenceProvider),
+                  _searchController.text.isNotEmpty,
+                  ref.watch(searchProvider).searchResults.isNotEmpty,
+                  isDark,
                 ),
               ),
-            ),
+            ],
           ),
-
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: hPadding),
-              child: Column(
-                children: [
-                  _buildGlassSearchBox(context, isDark),
-                  Expanded(
-                    child: _buildBody(
-                      context,
-                      ref.watch(searchProvider),
-                      ref.watch(searchIntelligenceProvider),
-                      _searchController.text.isNotEmpty,
-                      ref.watch(searchProvider).searchResults.isNotEmpty,
-                      isDark,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildGlassSearchBox(BuildContext context, bool isDark) {
+  Widget _buildGlassSearchBox(
+    BuildContext context,
+    bool isDark, {
+    required bool lowEffects,
+  }) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final themeMode = ref.watch(currentThemeModeProvider);
-    final isBangladesh = themeMode == AppThemeMode.bangladesh;
+    final isBangladesh = themeMode.name == 'bangladesh';
+    final preferMaterialChrome = preferAndroidMaterialSurfaceChrome(context);
     final selectionColor = ref.watch(navIconColorProvider);
+    final shellColor = preferMaterialChrome
+        ? materialSurfaceOverlayColor(
+            scheme,
+            surfaceAlpha: isDark || isBangladesh ? 0.94 : 0.98,
+            tintAlpha: isDark || isBangladesh ? 0.08 : 0.05,
+          )
+        : Color.alphaBlend(
+            selectionColor.withValues(
+              alpha: isDark || isBangladesh ? 0.08 : 0.03,
+            ),
+            (isDark || isBangladesh)
+                ? scheme.surface.withValues(alpha: 0.76)
+                : scheme.surface.withValues(alpha: 0.94),
+          );
+    final outlineColor = selectionColor.withValues(
+      alpha: isDark || isBangladesh ? 0.22 : 0.14,
+    );
+    final shadowColor = theme.colorScheme.shadow.withValues(
+      alpha: isDark || isBangladesh ? 0.18 : 0.10,
+    );
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 10),
       height: 64,
       decoration: BoxDecoration(
-        color: (isDark || isBangladesh)
-            ? Colors.white.withValues(alpha: 0.12)
-            : Colors.black.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(
-          color: (isDark || isBangladesh)
-              ? Colors.white.withValues(alpha: 0.25)
-              : Colors.black.withValues(alpha: 0.15),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-          if (isDark || isBangladesh)
-            BoxShadow(
-              color: selectionColor.withValues(alpha: 0.2),
-              blurRadius: 15,
-              spreadRadius: 2,
-            ),
-        ],
+        color: shellColor,
+        borderRadius: AppRadius.xxlBorder,
+        border: Border.all(color: outlineColor, width: 1.5),
+        boxShadow: lowEffects
+            ? const <BoxShadow>[]
+            : [
+                BoxShadow(
+                  color: shadowColor,
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+                if (isDark || isBangladesh)
+                  BoxShadow(
+                    color: selectionColor.withValues(alpha: 0.2),
+                    blurRadius: 15,
+                    spreadRadius: 2,
+                  ),
+              ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: TextField(
-              controller: _searchController,
-              focusNode: _searchFocusNode,
-              autofocus: true,
-              style: TextStyle(
+        borderRadius: AppRadius.xxlBorder,
+        child: lowEffects || preferMaterialChrome
+            ? _buildSearchFieldContent(
+                context,
+                isDark: isDark,
+                isBangladesh: isBangladesh,
+                selectionColor: selectionColor,
+              )
+            : BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                child: _buildSearchFieldContent(
+                  context,
+                  isDark: isDark,
+                  isBangladesh: isBangladesh,
+                  selectionColor: selectionColor,
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildSearchFieldContent(
+    BuildContext context, {
+    required bool isDark,
+    required bool isBangladesh,
+    required Color selectionColor,
+  }) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: TextField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        autofocus: true,
+        style:
+            theme.textTheme.titleMedium?.copyWith(
+              fontSize: 18,
+              color: scheme.onSurface,
+              fontFamily: AppTypography.fontFamily,
+              fontWeight: FontWeight.w600,
+            ) ??
+            TextStyle(
+              fontSize: 18,
+              color: scheme.onSurface,
+              fontFamily: AppTypography.fontFamily,
+              fontWeight: FontWeight.w600,
+            ),
+        cursorColor: selectionColor,
+        decoration: InputDecoration(
+          hintText: AppLocalizations.of(context).search,
+          hintStyle:
+              theme.textTheme.bodyLarge?.copyWith(
+                color: scheme.onSurfaceVariant,
                 fontSize: 18,
-                color: (isDark || isBangladesh) ? Colors.white : Colors.black,
-                fontFamily: AppTypography.fontFamily,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w400,
+              ) ??
+              TextStyle(
+                color: scheme.onSurfaceVariant,
+                fontSize: 18,
+                fontWeight: FontWeight.w400,
               ),
-              cursorColor: selectionColor,
-              decoration: InputDecoration(
-                hintText: AppLocalizations.of(context).search,
-                hintStyle: TextStyle(
-                  color: (isDark || isBangladesh)
-                      ? Colors.white54
-                      : Colors.black45,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w400,
-                ),
-                prefixIcon: Padding(
-                  padding: const EdgeInsets.only(left: 12),
-                  child: Icon(
-                    Icons.search_rounded,
-                    color: (isDark || isBangladesh)
-                        ? Colors.white70
-                        : Colors.black54,
-                    size: 26,
-                  ),
-                ),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: GlassIconButton(
-                          icon: Icons.close_rounded,
-                          onPressed: () {
-                            _searchController.clear();
-                            _onSearchChanged('');
-                            _searchFocusNode.requestFocus();
-                          },
-                          isDark: isDark || isBangladesh,
-                          size: 18,
-                          backgroundColor: Colors.black.withValues(alpha: 0.2),
-                        ),
-                      )
-                    : null,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-              ),
-              onChanged: _onSearchChanged,
-              onSubmitted: _onSearchSubmitted,
-              textInputAction: TextInputAction.search,
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: Icon(
+              Icons.search_rounded,
+              color: scheme.onSurfaceVariant,
+              size: 26,
             ),
           ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GlassIconButton(
+                    icon: Icons.close_rounded,
+                    onPressed: () {
+                      _searchController.clear();
+                      _onSearchChanged('');
+                      _searchFocusNode.requestFocus();
+                    },
+                    isDark: isDark || isBangladesh,
+                    size: 18,
+                    backgroundColor: scheme.surfaceContainerHighest.withValues(
+                      alpha: isDark || isBangladesh ? 0.78 : 0.92,
+                    ),
+                  ),
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
+        onChanged: _onSearchChanged,
+        onSubmitted: _onSearchSubmitted,
+        textInputAction: TextInputAction.search,
       ),
     );
   }
@@ -327,13 +318,21 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   ) {
     final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final perf = PerformanceConfig.of(context);
+    final bool lowEffects =
+        perf.reduceEffects ||
+        perf.lowPowerMode ||
+        perf.isLowEndDevice ||
+        perf.performanceTier != DevicePerformanceTier.flagship;
 
     if (isSearching) {
       final aiSuggestions = intelligenceState.filterSuggestions(
         _searchController.text,
         limit: 10,
       );
-      if (hasResults && _publisherSuggestions.isEmpty) {
+      final publisherSuggestions = ref.watch(publisherSuggestionsProvider);
+
+      if (hasResults && publisherSuggestions.isEmpty) {
         // Topic search mode: show results with publisher info
         return _buildTopicResultsView(
           searchState.searchResults,
@@ -344,30 +343,36 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       }
 
       // Suggestions Mode (Publishers + Google + Articles Mix)
-      return ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        children: [
+      return CustomScrollView(
+        physics: lowEffects
+            ? const ClampingScrollPhysics()
+            : const BouncingScrollPhysics(),
+        slivers: [
+          const SliverPadding(padding: EdgeInsets.only(top: 8)),
+
           // 1. Publisher Suggestions Grid
-          if (_publisherSuggestions.isNotEmpty) ...[
-            _glass(
+          if (publisherSuggestions.isNotEmpty)
+            _sliverGlass(
               Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _header(loc.publishersLabel, theme.colorScheme.primary),
                   const SizedBox(height: 12),
                   GridView.builder(
+                    padding: EdgeInsets.zero,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 3.5,
+                          crossAxisCount: 3,
+                          childAspectRatio: 2.2,
                           crossAxisSpacing: 8,
                           mainAxisSpacing: 8,
                         ),
-                    itemCount: _publisherSuggestions.length,
+                    itemCount: publisherSuggestions.length,
                     itemBuilder: (context, index) {
-                      final entry = _publisherSuggestions[index];
+                      final entry = publisherSuggestions[index];
                       return _buildSuggestionTile(
                         entry.key,
                         entry.value,
@@ -379,13 +384,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-          ],
+
+          if (publisherSuggestions.isNotEmpty)
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
           // 2. AI suggestions (latest + trending aware)
-          if (aiSuggestions.isNotEmpty) ...[
-            _glass(
+          if (aiSuggestions.isNotEmpty)
+            _sliverGlass(
               Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _header(loc.aiTrendingTopics, theme.colorScheme.primary),
@@ -410,12 +417,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-          ],
+
+          if (aiSuggestions.isNotEmpty)
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
           // 3. Google Search Option
-          _glass(
+          _sliverGlass(
             Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _header(
@@ -428,33 +437,37 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
           // 4. Actual results
           if (hasResults)
-            _glass(
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _header(loc.resultsLabel, theme.colorScheme.primary),
-                  const SizedBox(height: 12),
-                  ...searchState.searchResults.map((article) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: NewsCard(
-                        article: article,
-                        onTap: () => _handleArticleTap(article),
-                      ),
-                    );
-                  }),
-                ],
-              ),
+            SliverList(
+              delegate: SliverChildBuilderDelegate((context, index) {
+                if (index == 0) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _header(loc.resultsLabel, theme.colorScheme.primary),
+                      const SizedBox(height: 12),
+                    ],
+                  );
+                }
+                final article = searchState.searchResults[index - 1];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: NewsCard(
+                    article: article,
+                    onTap: () => _handleArticleTap(article),
+                  ),
+                );
+              }, childCount: searchState.searchResults.length + 1),
             ),
 
           // Google fallback
           if (searchState.showGoogleFallback && !hasResults)
-            _glass(
+            _sliverGlass(
               Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _header(loc.noMatchesFound, theme.colorScheme.primary),
@@ -479,7 +492,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
             ),
 
-          const SizedBox(height: 100),
+          const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
         ],
       );
     }
@@ -487,13 +500,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     // ─────────────────────────────────────────────
     // DEFAULT VIEW: Recent + Trending Topics
     // ─────────────────────────────────────────────
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      children: [
-        // Recent Searches
-        if (searchState.recentSearches.isNotEmpty) ...[
-          _glass(
+    return CustomScrollView(
+      physics: lowEffects
+          ? const ClampingScrollPhysics()
+          : const BouncingScrollPhysics(),
+      slivers: [
+        const SliverPadding(padding: EdgeInsets.only(top: 8)),
+        if (searchState.recentSearches.isNotEmpty)
+          _sliverGlass(
             Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Row(
@@ -510,7 +526,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           ref.read(searchProvider.notifier).clearHistory(),
                       icon: Icons.delete_sweep_rounded,
                       isDark: isDark,
-                      backgroundColor: Colors.red.withValues(alpha: 0.1),
+                      backgroundColor: theme.colorScheme.primary.withValues(
+                        alpha: 0.1,
+                      ),
                     ),
                   ],
                 ),
@@ -535,12 +553,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
-        ],
+
+        if (searchState.recentSearches.isNotEmpty)
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
         // ── TRENDING TOPICS ──────────────────────────
-        _glass(
+        _sliverGlass(
           Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _header(loc.aiTrendingTopics, theme.colorScheme.primary),
@@ -571,7 +591,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
         ),
 
-        const SizedBox(height: 100),
+        const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
       ],
     );
   }
@@ -607,57 +627,73 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     bool showGoogleFallback,
     bool isDark,
   ) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      children: [
-        // Back button
+    final perf = PerformanceConfig.of(context);
+    final bool lowEffects =
+        perf.reduceEffects ||
+        perf.lowPowerMode ||
+        perf.isLowEndDevice ||
+        perf.performanceTier != DevicePerformanceTier.flagship;
+    return CustomScrollView(
+      physics: lowEffects
+          ? const ClampingScrollPhysics()
+          : const BouncingScrollPhysics(),
+      slivers: [
+        const SliverPadding(padding: EdgeInsets.only(top: 8)),
+
+        // Back button & Stats
         if (topicQuery != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              children: [
-                GlassIconButton(
-                  icon: Icons.arrow_back_rounded,
-                  onPressed: () {
-                    _searchController.clear();
-                    _onSearchChanged('');
-                  },
-                  isDark: isDark,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '${results.length} articles for "$topicQuery"',
-                    style: TextStyle(
-                      color: isDark ? Colors.white70 : Colors.black54,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 12, left: 4, right: 4),
+              child: Row(
+                children: [
+                  GlassIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    onPressed: () {
+                      _searchController.clear();
+                      _onSearchChanged('');
+                    },
+                    isDark: isDark,
+                    size: 18,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${results.length} articles for "$topicQuery"',
+                      style: TextStyle(
+                        color: isDark ? Colors.white70 : Colors.black54,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
         // Results with publisher info
-        ...results.map((article) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _ArticleWithPublisher(
-              article: article,
-              isDark: isDark,
-              onTap: () => _handleArticleTap(article),
-            ),
-          );
-        }),
+        if (results.isNotEmpty)
+          SliverList(
+            delegate: SliverChildBuilderDelegate((context, index) {
+              final article = results[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _ArticleWithPublisher(
+                  article: article,
+                  isDark: isDark,
+                  onTap: () => _handleArticleTap(article),
+                ),
+              );
+            }, childCount: results.length),
+          ),
 
-        // Google fallback if no results
         if (showGoogleFallback && results.isEmpty && topicQuery != null)
-          _glass(
+          _sliverGlass(
             Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
@@ -688,7 +724,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
 
-        const SizedBox(height: 100),
+        const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
       ],
     );
   }
@@ -715,41 +751,61 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 : Colors.grey.shade300,
           ),
         ),
-        child: Row(
-          children: [
-            if (iconPath != null)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Image.asset(
-                  iconPath,
-                  width: 20,
-                  height: 20,
-                  errorBuilder: (_, _, _) => const Icon(Icons.public, size: 20),
-                ),
+        child: isPublisher
+            ? Center(
+                child: iconPath != null
+                    ? Image.asset(
+                        iconPath,
+                        height: 24,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) =>
+                            const Icon(Icons.public, size: 24),
+                      )
+                    : Icon(
+                        Icons.search,
+                        size: 20,
+                        color: isDark ? Colors.white54 : Colors.grey,
+                      ),
               )
-            else
-              Icon(
-                Icons.search,
-                size: 18,
-                color: isDark ? Colors.white54 : Colors.grey,
+            : Row(
+                children: [
+                  if (iconPath != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Image.asset(
+                        iconPath,
+                        width: 20,
+                        height: 20,
+                        errorBuilder: (_, _, _) =>
+                            const Icon(Icons.public, size: 20),
+                      ),
+                    )
+                  else
+                    Icon(
+                      Icons.search,
+                      size: 18,
+                      color: isDark ? Colors.white54 : Colors.grey,
+                    ),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isDark ? Colors.white : Colors.black87,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: isDark ? Colors.white : Colors.black87,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
+  }
+
+  Widget _sliverGlass(Widget child) {
+    return SliverToBoxAdapter(child: _glass(child));
   }
 
   Widget _buildGoogleSearchTile(String query, bool isDark) {
@@ -767,11 +823,26 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _glass(Widget child) {
     final themeMode = ref.watch(currentThemeModeProvider);
-    final bool isLight = themeMode == AppThemeMode.light;
-    final bool isBangladesh = themeMode == AppThemeMode.bangladesh;
-    final bool isDark = themeMode == AppThemeMode.dark;
+    final perf = PerformanceConfig.of(context);
+    final bool lowEffects =
+        perf.reduceEffects ||
+        perf.lowPowerMode ||
+        perf.isLowEndDevice ||
+        perf.performanceTier != DevicePerformanceTier.flagship;
+    final scheme = Theme.of(context).colorScheme;
+    final preferMaterialChrome = preferAndroidMaterialSurfaceChrome(context);
+    final isBangladesh = themeMode == AppThemeMode.bangladesh;
+    final bool isDark =
+        isBangladesh || Theme.of(context).brightness == Brightness.dark;
+    final bool isLight = !isDark;
 
-    final Color faceColor = isBangladesh
+    final Color faceColor = preferMaterialChrome
+        ? materialSurfaceOverlayColor(
+            scheme,
+            surfaceAlpha: isDark || isBangladesh ? 0.94 : 0.98,
+            tintAlpha: isDark || isBangladesh ? 0.08 : 0.05,
+          )
+        : isBangladesh
         ? const Color(0xFF00392C).withValues(alpha: 0.35)
         : (isLight
               ? Colors.white.withValues(alpha: 0.4)
@@ -787,121 +858,162 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: Container(
-            decoration: BoxDecoration(
-              color: faceColor,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: highlightColor.withValues(alpha: 0.15),
-                width: 1.5,
+        child: lowEffects || preferMaterialChrome
+            ? _buildGlassPanel(
+                child: child,
+                faceColor: faceColor,
+                highlightColor: highlightColor,
+                isDark: isDark,
+                isBangladesh: isBangladesh,
+                lowEffects: lowEffects,
+              )
+            : BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: _buildGlassPanel(
+                  child: child,
+                  faceColor: faceColor,
+                  highlightColor: highlightColor,
+                  isDark: isDark,
+                  isBangladesh: isBangladesh,
+                  lowEffects: lowEffects,
+                ),
               ),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: isDark || isBangladesh
-                    ? [
-                        Colors.white.withValues(alpha: 0.2),
-                        Colors.white.withValues(alpha: 0.05),
-                        Colors.white.withValues(alpha: 0.01),
-                      ]
-                    : [
-                        Colors.white.withValues(alpha: 0.95),
-                        Colors.white.withValues(alpha: 0.7),
-                        Colors.white.withValues(alpha: 0.5),
-                      ],
-              ),
-              boxShadow: [
+      ),
+    );
+  }
+
+  Widget _buildGlassPanel({
+    required Widget child,
+    required Color faceColor,
+    required Color highlightColor,
+    required bool isDark,
+    required bool isBangladesh,
+    required bool lowEffects,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: faceColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: highlightColor.withValues(alpha: lowEffects ? 0.24 : 0.15),
+          width: lowEffects ? 1.1 : 1.5,
+        ),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: isDark || isBangladesh
+              ? [
+                  Colors.white.withValues(alpha: lowEffects ? 0.12 : 0.2),
+                  Colors.white.withValues(alpha: lowEffects ? 0.02 : 0.05),
+                  Colors.white.withValues(alpha: 0.01),
+                ]
+              : [
+                  Colors.white.withValues(alpha: lowEffects ? 0.88 : 0.95),
+                  Colors.white.withValues(alpha: lowEffects ? 0.72 : 0.7),
+                  Colors.white.withValues(alpha: lowEffects ? 0.58 : 0.5),
+                ],
+        ),
+        boxShadow: lowEffects
+            ? const <BoxShadow>[]
+            : [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 
-                    isDark || isBangladesh ? 0.4 : 0.12,
+                  color: Colors.black.withValues(
+                    alpha: isDark || isBangladesh ? 0.4 : 0.12,
                   ),
                   blurRadius: 16,
                   offset: const Offset(0, 8),
                 ),
                 BoxShadow(
-                  color: Colors.white.withValues(alpha: 
-                    isDark || isBangladesh ? 0.03 : 0.15,
+                  color: Colors.white.withValues(
+                    alpha: isDark || isBangladesh ? 0.03 : 0.15,
                   ),
                   blurRadius: 8,
                   spreadRadius: -4,
                   offset: const Offset(0, -4),
                 ),
               ],
+      ),
+      child: Stack(
+        children: [
+          if (!lowEffects)
+            Positioned(
+              top: 0,
+              left: 20,
+              right: 20,
+              child: Container(
+                height: 2,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.white.withValues(alpha: 0.0),
+                      Colors.white.withValues(
+                        alpha: isDark || isBangladesh ? 0.5 : 0.9,
+                      ),
+                      Colors.white.withValues(
+                        alpha: isDark || isBangladesh ? 0.5 : 0.9,
+                      ),
+                      Colors.white.withValues(alpha: 0.0),
+                    ],
+                    stops: const [0.0, 0.2, 0.8, 1.0],
+                  ),
+                ),
+              ),
             ),
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 0,
-                  left: 20,
-                  right: 20,
-                  child: Container(
-                    height: 2,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white.withValues(alpha: 0.0),
-                          Colors.white.withValues(alpha: 
-                            isDark || isBangladesh ? 0.5 : 0.9,
-                          ),
-                          Colors.white.withValues(alpha: 
-                            isDark || isBangladesh ? 0.5 : 0.9,
-                          ),
-                          Colors.white.withValues(alpha: 0.0),
-                        ],
-                        stops: const [0.0, 0.2, 0.8, 1.0],
+          if (!lowEffects)
+            Positioned(
+              left: 0,
+              top: 20,
+              bottom: 20,
+              child: Container(
+                width: 1,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.white.withValues(alpha: 0.0),
+                      Colors.white.withValues(
+                        alpha: isDark || isBangladesh ? 0.2 : 0.4,
                       ),
-                    ),
+                      Colors.white.withValues(alpha: 0.0),
+                    ],
                   ),
                 ),
-                Positioned(
-                  left: 0,
-                  top: 20,
-                  bottom: 20,
-                  child: Container(
-                    width: 1,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white.withValues(alpha: 0.0),
-                          Colors.white.withValues(alpha: 
-                            isDark || isBangladesh ? 0.2 : 0.4,
-                          ),
-                          Colors.white.withValues(alpha: 0.0),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [child],
-                  ),
-                ),
-              ],
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [child],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
   Widget _header(String title, Color color) {
     final themeMode = ref.watch(currentThemeModeProvider);
+    final perf = PerformanceConfig.of(context);
+    final bool lowEffects =
+        perf.reduceEffects ||
+        perf.lowPowerMode ||
+        perf.isLowEndDevice ||
+        perf.performanceTier != DevicePerformanceTier.flagship;
     final Color accentColor;
-    if (themeMode == AppThemeMode.bangladesh) {
+    final theme = Theme.of(context);
+    final isTrending = title == loc.aiTrendingTopics;
+    if (isTrending) {
+      accentColor = color;
+    } else if (themeMode == AppThemeMode.bangladesh) {
       accentColor = Colors.redAccent;
-    } else if (themeMode == AppThemeMode.light) {
+    } else if (Theme.of(context).brightness == Brightness.light) {
       accentColor = Colors.blueAccent;
     } else {
       accentColor = const Color(0xFFFFC107);
     }
 
-    final theme = Theme.of(context);
+    final _ = Theme.of(context);
     final headerBgColor = theme.scaffoldBackgroundColor;
 
     return Container(
@@ -940,9 +1052,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   color: accentColor,
                   letterSpacing: 2.0,
                   fontFamily: AppTypography.fontFamily,
-                  shadows: [
-                    Shadow(color: accentColor.withValues(alpha: 0.4), blurRadius: 10),
-                  ],
+                  shadows: lowEffects
+                      ? null
+                      : [
+                          Shadow(
+                            color: accentColor.withValues(alpha: 0.4),
+                            blurRadius: 10,
+                          ),
+                        ],
                 ),
               ),
             ),
@@ -971,10 +1088,22 @@ class _TrendingTopicChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final perf = PerformanceConfig.of(context);
+    final bool lowEffects =
+        perf.reduceEffects ||
+        perf.lowPowerMode ||
+        perf.isLowEndDevice ||
+        perf.performanceTier != DevicePerformanceTier.flagship;
+    final bool lowMotion =
+        perf.reduceMotion ||
+        perf.performanceTier != DevicePerformanceTier.flagship ||
+        perf.lowPowerMode ||
+        perf.isLowEndDevice ||
+        (MediaQuery.maybeOf(context)?.disableAnimations ?? false);
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: lowMotion ? Duration.zero : const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isDark
@@ -984,13 +1113,15 @@ class _TrendingTopicChip extends StatelessWidget {
           border: Border.all(
             color: accentColor.withValues(alpha: isDark ? 0.35 : 0.2),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: accentColor.withValues(alpha: isDark ? 0.15 : 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: lowEffects
+              ? const <BoxShadow>[]
+              : [
+                  BoxShadow(
+                    color: accentColor.withValues(alpha: isDark ? 0.15 : 0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1004,7 +1135,9 @@ class _TrendingTopicChip extends StatelessWidget {
             Text(
               topic.label,
               style: TextStyle(
-                color: isDark ? Colors.white.withValues(alpha: 0.9) : Colors.black87,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.9)
+                    : Colors.black87,
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
                 fontFamily: AppTypography.fontFamily,

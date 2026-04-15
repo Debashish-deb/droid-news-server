@@ -3,12 +3,14 @@ import 'package:flutter/foundation.dart';
 import '../../../../domain/entities/news_article.dart';
 import '../../../../domain/repositories/news_repository.dart';
 import '../../../../application/ai/ranking/user_interest_service.dart';
+import '../../../../infrastructure/services/ml/categorization_helper.dart';
 
 /// Payload for background ranking computation
 class _RankingPayload {
-  _RankingPayload(this.articles, this.snapshot);
+  _RankingPayload(this.articles, this.snapshot, {this.prioritizeBangladesh = false});
   final List<NewsArticle> articles;
   final UserInterestSnapshot snapshot;
+  final bool prioritizeBangladesh;
 }
 
 
@@ -19,12 +21,16 @@ class RankingPipeline {
   final UserInterestService _interestService;
 
   /// RESTORED: Now async to support Isolate-based background ranking
-  Future<List<NewsArticle>> rank(List<NewsArticle> articles) async {
+  Future<List<NewsArticle>> rank(List<NewsArticle> articles, {bool prioritizeBangladesh = false}) async {
     if (articles.isEmpty) return [];
     
     return await compute(
       _rankLogic, 
-      _RankingPayload(articles, _interestService.getSnapshot()),
+      _RankingPayload(
+        articles, 
+        _interestService.getSnapshot(),
+        prioritizeBangladesh: prioritizeBangladesh,
+      ),
     );
   }
 
@@ -34,7 +40,7 @@ class RankingPipeline {
     
     return await result.fold(
       (fail) async => [],
-      (candidates) async => await rank(candidates),
+      (candidates) async => await rank(candidates, prioritizeBangladesh: category == 'latest'),
     );
   }
 
@@ -42,7 +48,7 @@ class RankingPipeline {
   static List<NewsArticle> _rankLogic(_RankingPayload payload) {
     // 1. Deduplicate
     final seen = <String>{};
-    final unique = payload.articles.where((a) => seen.add(a.url)).toList();
+    var unique = payload.articles.where((a) => seen.add(a.url)).toList();
 
     // 2. Score and Sort
     unique.sort((a, b) {
@@ -55,6 +61,11 @@ class RankingPipeline {
     if (unique.length > 10) {
       final explorationItem = unique.removeLast();
       unique.insert(5, explorationItem); // Discovery article at pos 5
+    }
+
+    // 4. Prioritize Bangladesh if requested (Moved from NewsNotifier for performance)
+    if (payload.prioritizeBangladesh) {
+      unique = _prioritizeBangladeshFeedStatic(unique);
     }
 
     return unique;
@@ -77,5 +88,68 @@ class RankingPipeline {
 
     // Weighted blend: 60% Personalization, 40% Freshness
     return (0.6 * personalization) + (0.4 * freshness);
+  }
+
+  /// Migrated from NewsNotifier to background thread
+  static List<NewsArticle> _prioritizeBangladeshFeedStatic(List<NewsArticle> articles) {
+    if (articles.length < 10) return articles;
+
+    final bangladesh = <NewsArticle>[];
+    final other = <NewsArticle>[];
+
+    for (final article in articles) {
+      if (_isBangladeshFocusedStatic(article)) {
+        bangladesh.add(article);
+      } else {
+        other.add(article);
+      }
+    }
+
+    if (bangladesh.isEmpty || other.isEmpty) return articles;
+
+    // 4:1 mix keeps the feed primarily Bangladesh-focused while still surfacing
+    // some global stories.
+    const bangladeshRun = 4;
+    final mixed = <NewsArticle>[];
+    var bdIndex = 0;
+    var otherIndex = 0;
+
+    while (bdIndex < bangladesh.length || otherIndex < other.length) {
+      for (var i = 0; i < bangladeshRun && bdIndex < bangladesh.length; i++) {
+        mixed.add(bangladesh[bdIndex++]);
+      }
+      if (otherIndex < other.length) {
+        mixed.add(other[otherIndex++]);
+      }
+      if (bdIndex >= bangladesh.length && otherIndex < other.length) {
+        mixed.addAll(other.skip(otherIndex));
+        break;
+      }
+      if (otherIndex >= other.length && bdIndex < bangladesh.length) {
+        mixed.addAll(bangladesh.skip(bdIndex));
+        break;
+      }
+    }
+
+    return mixed;
+  }
+
+  static bool _isBangladeshFocusedStatic(NewsArticle article) {
+    if (CategorizationHelper.isBangladeshCentric(
+      title: article.title,
+      description: article.description,
+      content: article.fullContent.isNotEmpty
+          ? article.fullContent
+          : article.snippet,
+    )) {
+      return true;
+    }
+
+    final source = article.source.toLowerCase();
+    final url = article.url.toLowerCase();
+    return source.contains('bangladesh') ||
+        source.contains('dhaka') ||
+        source.contains('bdnews') ||
+        url.contains('.bd/');
   }
 }

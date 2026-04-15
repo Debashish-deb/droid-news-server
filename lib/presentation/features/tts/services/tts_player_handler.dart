@@ -5,6 +5,24 @@ import 'package:just_audio/just_audio.dart';
 
 import '../engine/player/playback_watchdog.dart';
 
+abstract class ChunkQueueAudioHandler {
+  Set<int> get queuedChunkIndices;
+
+  Future<void> playQueuedChunk(
+    Uri uri, {
+    required int chunkIndex,
+    Map<String, dynamic>? extras,
+  });
+
+  Future<void> appendQueuedChunk(
+    Uri uri, {
+    required int chunkIndex,
+    Map<String, dynamic>? extras,
+  });
+
+  Future<void> clearQueuedChunks();
+}
+
 /// Audio handler that bridges just_audio with audio_service.
 ///
 /// Key design decisions vs original:
@@ -16,8 +34,13 @@ import '../engine/player/playback_watchdog.dart';
 ///   manual stop(), closing the race condition that could restart playback on
 ///   a cleared session.
 /// - Word-boundary progress is forwarded on [wordProgress] for UI highlighting.
-class TtsPlayerHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
-  TtsPlayerHandler({required this.onChunkCompleted}) {
+class TtsPlayerHandler extends BaseAudioHandler
+    with QueueHandler, SeekHandler
+    implements ChunkQueueAudioHandler {
+  TtsPlayerHandler({
+    required this.onChunkCompleted,
+    required this.onChunkStarted,
+  }) {
     _watchdog = PlaybackWatchdog(
       player: _player,
       onStuck: () {
@@ -40,6 +63,16 @@ class TtsPlayerHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       }
     });
 
+    _player.currentIndexStream.listen((index) {
+      if (index == null || index < 0 || index >= _queueItems.length) return;
+      final item = _queueItems[index];
+      mediaItem.add(item);
+      final chunkIndex = item.extras?['chunkIndex'];
+      if (chunkIndex is! int || chunkIndex == _lastStartedChunkIndex) return;
+      _lastStartedChunkIndex = chunkIndex;
+      onChunkStarted(chunkIndex);
+    });
+
     // Forward position to enable seek-within-chunk in the UI
     _player.positionStream.listen((pos) {
       _positionController.add(pos);
@@ -52,10 +85,17 @@ class TtsPlayerHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   // ── Required callback (no nullable window) ─────────────────────────────────
   final void Function() onChunkCompleted;
+  final void Function(int chunkIndex) onChunkStarted;
 
   // ── Internal state ─────────────────────────────────────────────────────────
   final AudioPlayer _player = AudioPlayer();
+  final ConcatenatingAudioSource _playlist = ConcatenatingAudioSource(
+    children: <AudioSource>[],
+  );
   late final PlaybackWatchdog _watchdog;
+  final List<MediaItem> _queueItems = <MediaItem>[];
+  final Set<int> _queuedChunkIndices = <int>{};
+  int? _lastStartedChunkIndex;
 
   /// Set to true during stop() to block the completion callback from
   /// triggering nextChunk() while the session is being torn down.
@@ -70,6 +110,9 @@ class TtsPlayerHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   Duration get currentPosition => _player.position;
   Duration? get currentDuration => _player.duration;
+
+  @override
+  Set<int> get queuedChunkIndices => Set<int>.unmodifiable(_queuedChunkIndices);
 
   // ── Safe completion ────────────────────────────────────────────────────────
 
@@ -140,6 +183,7 @@ class TtsPlayerHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _isStopping = true;
     _watchdog.stopMonitoring();
     await _player.stop();
+    await clearQueuedChunks();
     await super.stop();
   }
 
@@ -155,6 +199,11 @@ class TtsPlayerHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> playFromUri(Uri uri, [Map<String, dynamic>? extras]) async {
+    final chunkIndex = extras?['chunkIndex'];
+    if (chunkIndex is int) {
+      await playQueuedChunk(uri, extras: extras, chunkIndex: chunkIndex);
+      return;
+    }
     debugPrint('[TtsPlayerHandler] playFromUri: ${uri.path}');
     try {
       _isStopping = false;
@@ -180,15 +229,75 @@ class TtsPlayerHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
+  @override
+  Future<void> playQueuedChunk(
+    Uri uri, {
+    required int chunkIndex,
+    Map<String, dynamic>? extras,
+  }) async {
+    debugPrint(
+      '[TtsPlayerHandler] playQueuedChunk: ${uri.path} (#$chunkIndex)',
+    );
+    try {
+      _isStopping = false;
+      _watchdog.stopMonitoring();
+      await _player.stop();
+      await clearQueuedChunks();
+
+      final item = _createMediaItem(uri, extras);
+      await _playlist.add(AudioSource.uri(uri, tag: item));
+      _queueItems.add(item);
+      _queuedChunkIndices.add(chunkIndex);
+      queue.add(List<MediaItem>.unmodifiable(_queueItems));
+
+      await _player.setAudioSource(
+        _playlist,
+        initialIndex: 0,
+        initialPosition: Duration.zero,
+      );
+      mediaItem.add(item);
+      _watchdog.startMonitoring();
+      await _player.play();
+    } catch (e, st) {
+      debugPrint('[TtsPlayerHandler] playQueuedChunk error: $e\n$st');
+      _watchdog.stopMonitoring();
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> appendQueuedChunk(
+    Uri uri, {
+    required int chunkIndex,
+    Map<String, dynamic>? extras,
+  }) async {
+    if (_queuedChunkIndices.contains(chunkIndex)) return;
+    final item = _createMediaItem(uri, extras);
+    await _playlist.add(AudioSource.uri(uri, tag: item));
+    _queueItems.add(item);
+    _queuedChunkIndices.add(chunkIndex);
+    queue.add(List<MediaItem>.unmodifiable(_queueItems));
+  }
+
+  @override
+  Future<void> clearQueuedChunks() async {
+    _lastStartedChunkIndex = null;
+    _queueItems.clear();
+    _queuedChunkIndices.clear();
+    queue.add(const <MediaItem>[]);
+    try {
+      await _playlist.clear();
+    } catch (_) {
+      // Best-effort cleanup. The player may already be tearing down.
+    }
+  }
+
   /// Seek forward/backward within the current chunk for "skip 10s" controls.
   Future<void> seekRelative(Duration offset) async {
     final pos = _player.position;
     final dur = _player.duration ?? Duration.zero;
     final candidate = pos + offset;
-    final clampedMicros = candidate.inMicroseconds.clamp(
-      0,
-      dur.inMicroseconds,
-    );
+    final clampedMicros = candidate.inMicroseconds.clamp(0, dur.inMicroseconds);
     final next = Duration(microseconds: clampedMicros);
     await _player.seek(next);
   }
@@ -200,5 +309,15 @@ class TtsPlayerHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _player.dispose();
     _positionController.close();
     _durationController.close();
+  }
+
+  MediaItem _createMediaItem(Uri uri, Map<String, dynamic>? extras) {
+    return MediaItem(
+      id: uri.path,
+      album: extras?['album'] as String? ?? 'Reading',
+      title: extras?['title'] as String? ?? 'Article',
+      artist: extras?['artist'] as String? ?? 'News Reader',
+      extras: extras,
+    );
   }
 }

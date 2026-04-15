@@ -17,11 +17,11 @@
 
     <!-- ─── SPLASH & WINDOW ────────────────────────────────────────── -->
 
-    <!-- Deepest possible dark — AMOLED pixels stay off = zero energy   -->
-    <color name="splash_background">#080C18</color>
+    <!-- Transparent launch surface; Flutter paints the first real frame. -->
+    <color name="splash_background">#00000000</color>
 
     <!-- Flutter scaffold bg in dark mode — one step up from pure black  -->
-    <color name="window_background_night">#0D1120</color>
+    <color name="window_background_night">#0D1015</color>
 
     <!-- System bars stay fully transparent; Flutter controls them       -->
     <color name="status_bar_transparent">#00000000</color>
@@ -38,8 +38,8 @@
          Gold accent remains identical — it reads beautifully on dark.    -->
 
     <color name="brand_navy_900">#03060F</color>   <!-- deepest ink — bottom sheets        -->
-    <color name="brand_navy_800">#080C18</color>   <!-- ★ splash / true dark bg            -->
-    <color name="brand_navy_700">#0D1120</color>   <!-- scaffold / screen background       -->
+    <color name="brand_navy_800">#0D1015</color>   <!-- ★ splash / true dark bg            -->
+    <color name="brand_navy_700">#151A21</color>   <!-- scaffold / screen background       -->
     <color name="brand_navy_600">#121726</color>   <!-- card / tile backgrounds            -->
     <color name="brand_navy_500">#1A2035</color>   <!-- elevated card / sheet surface      -->
     <color name="brand_navy_400">#242C42</color>   <!-- pressed state, input fill          -->
@@ -57,7 +57,7 @@
 
     <!-- ─── SURFACES ───────────────────────────────────────────────── -->
     <color name="surface_primary">#121726</color>      <!-- cards, sheets, dialogs           -->
-    <color name="surface_secondary">#0D1120</color>   <!-- scaffold / screen background     -->
+    <color name="surface_secondary">#0D1015</color>   <!-- scaffold / screen background     -->
     <color name="surface_tertiary">#0A0E1A</color>    <!-- recessed sections / code blocks  -->
     <color name="surface_overlay">#1E2540</color>     <!-- hover / pressed state overlay    -->
     <color name="dialog_background_night">#151C30</color>

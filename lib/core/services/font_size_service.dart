@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_classes_with_only_static_members
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -37,7 +39,6 @@ class FontSizeService {
 
 /// Font size notifier for state management
 class FontSizeNotifier extends ChangeNotifier {
-
   FontSizeNotifier() {
     _loadFontSize();
   }
@@ -75,4 +76,3 @@ extension FontSizeExtension on TextStyle {
     return copyWith(fontSize: (fontSize ?? 14) * multiplier);
   }
 }
-

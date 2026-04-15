@@ -3,26 +3,43 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../application/identity/entitlement_policy.dart';
 import '../../application/sync/sync_orchestrator.dart';
+import '../../domain/entities/subscription.dart' show SubscriptionTier;
 import '../../domain/repositories/premium_repository.dart';
 import '../../domain/repositories/settings_repository.dart';
 import '../../core/enums/theme_mode.dart';
 import '../../core/di/providers.dart';
-import '../../core/theme/design_tokens.dart';
+import '../../core/theme/theme.dart';
+import '../../core/theme/theme_skeleton.dart';
 
 const double _defaultReaderLineHeight = 1.6;
 const double _defaultReaderContrast = 1.0;
 
+/// Shared non-color layout/shape tokens for all themes.
+final themeSkeletonProvider = Provider<ThemeSkeleton>((ref) {
+  return ThemeSkeleton.shared;
+});
+
+/// Theme-owned color combination. This is the only theme-varying UI bundle;
+/// all structural metrics stay in [themeSkeletonProvider].
+final themeColorCombinationProvider = Provider<AppThemeColorCombination>((ref) {
+  final mode = normalizeThemeMode(ref.watch(currentThemeModeProvider));
+  final systemBrightness =
+      SchedulerBinding.instance.platformDispatcher.platformBrightness;
+  return AppTheme.colorCombinationForMode(
+    mode,
+    systemBrightness: systemBrightness,
+  );
+});
+
 @pragma('vm:prefer-inline')
 ThemeMode _toFlutterThemeMode(AppThemeMode mode) {
   switch (normalizeThemeMode(mode)) {
-    case AppThemeMode.amoled:
-      return ThemeMode.dark;
+    case AppThemeMode.dark:
     case AppThemeMode.bangladesh:
       return ThemeMode.dark;
     case AppThemeMode.system:
-    case AppThemeMode.light:
-    case AppThemeMode.dark:
       return ThemeMode.system;
   }
 }
@@ -30,15 +47,15 @@ ThemeMode _toFlutterThemeMode(AppThemeMode mode) {
 @pragma('vm:prefer-inline')
 bool _isDarkThemeMode(AppThemeMode mode) {
   final normalized = normalizeThemeMode(mode);
-  return normalized == AppThemeMode.bangladesh ||
-      normalized == AppThemeMode.amoled;
+  return normalized == AppThemeMode.dark ||
+      normalized == AppThemeMode.bangladesh;
 }
 
 // Provider for ThemeNotifier
 // Must be overridden in ProviderScope with actual SharedPreferences instance
 final themeProvider = StateNotifierProvider<ThemeNotifier, ThemeState>((ref) {
   final repo = ref.watch(settingsRepositoryProvider);
-  final syncOrchestrator = ref.watch(syncOrchestratorProvider);
+  final syncOrchestrator = ref.read(syncOrchestratorProvider);
   final premiumRepository = ref.watch(premiumRepositoryProvider);
   return ThemeNotifier(repo, syncOrchestrator, premiumRepository);
 });
@@ -84,60 +101,41 @@ final readerContrastProvider = Provider<double>((ref) {
 
 // Provider for glass color based on theme
 final glassColorProvider = Provider<Color>((ref) {
-  final mode = normalizeThemeMode(ref.watch(currentThemeModeProvider));
-  final isDark = ref.watch(isDarkModeProvider);
-  switch (mode) {
-    case AppThemeMode.amoled:
-      return Colors.black.withValues(alpha: 0.86);
-    case AppThemeMode.bangladesh:
-      return const Color(0xFF00392C).withValues(alpha: 0.6);
-    case AppThemeMode.system:
-      return isDark
-          ? AppColors.darkSurface.withValues(alpha: 0.72)
-          : Colors.white.withValues(alpha: 0.8);
-    case AppThemeMode.light:
-    case AppThemeMode.dark:
-      return isDark
-          ? AppColors.darkSurface.withValues(alpha: 0.72)
-          : Colors.white.withValues(alpha: 0.8);
-  }
+  return ref.watch(
+    themeColorCombinationProvider.select((palette) => palette.glassColor),
+  );
 });
 
 // Provider for glass shadows based on theme
 final glassShadowsProvider = Provider<List<BoxShadow>>((ref) {
-  final mode = normalizeThemeMode(ref.watch(currentThemeModeProvider));
-  final isDark = ref.watch(isDarkModeProvider);
-  final shadowOpacity = switch (mode) {
-    AppThemeMode.amoled => 0.34,
-    AppThemeMode.bangladesh => 0.22,
-    AppThemeMode.system => isDark ? 0.24 : 0.12,
-    AppThemeMode.light => isDark ? 0.24 : 0.12,
-    AppThemeMode.dark => isDark ? 0.24 : 0.12,
-  };
+  final skeleton = ref.watch(themeSkeletonProvider);
+  final shadowColor = ref.watch(
+    themeColorCombinationProvider.select((palette) => palette.glassShadowColor),
+  );
 
   return <BoxShadow>[
     BoxShadow(
-      color: Colors.black.withValues(alpha: shadowOpacity),
-      blurRadius: 30,
-      offset: const Offset(0, 12),
-    ),
-    BoxShadow(
-      color: Colors.white.withValues(alpha: 0.03),
-      blurRadius: 2,
-      offset: const Offset(0, -1),
+      color: shadowColor,
+      blurRadius: skeleton.glassShadowBlurRadius,
+      spreadRadius: skeleton.glassShadowSpreadRadius,
+      offset: Offset(0, skeleton.glassShadowOffsetY),
     ),
   ];
 });
 
 // Provider for border color based on theme
 final borderColorProvider = Provider<Color>((ref) {
-  return ref.watch(isDarkModeProvider) ? Colors.white : Colors.black;
+  return ref.watch(
+    themeColorCombinationProvider.select((palette) => palette.borderColor),
+  );
 });
 
 /// Single source of truth for selection accent used across screens.
 /// Kept intentionally high-contrast for theme consistency.
 final selectionColorProvider = Provider<Color>((ref) {
-  return ref.watch(isDarkModeProvider) ? Colors.white : Colors.black;
+  return ref.watch(
+    themeColorCombinationProvider.select((palette) => palette.selectionColor),
+  );
 });
 
 // Provider for navigation icon color
@@ -147,11 +145,17 @@ final navIconColorProvider = Provider<Color>((ref) {
 
 // Provider for navigation indicator color
 final navIndicatorColorProvider = Provider<Color>((ref) {
-  return ref.watch(selectionColorProvider).withValues(alpha: 0.18);
+  return ref.watch(
+    themeColorCombinationProvider.select(
+      (palette) => palette.navIndicatorColor,
+    ),
+  );
 });
 
 final textColorProvider = Provider<Color>((ref) {
-  return ref.watch(isDarkModeProvider) ? Colors.white : Colors.black;
+  return ref.watch(
+    themeColorCombinationProvider.select((palette) => palette.textColor),
+  );
 });
 
 // Theme state immutable class
@@ -214,8 +218,10 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
       isPremium,
     ) {
       if (!isPremium) {
-        final isPremiumTheme =
-            normalizeThemeMode(state.mode) == AppThemeMode.bangladesh;
+        final isPremiumTheme = !EntitlementPolicy.canUseTheme(
+          SubscriptionTier.free,
+          state.mode,
+        );
         if (isPremiumTheme) {
           // Only downgrade if the server has DEFINITIVELY resolved status.
           // During startup, status may flip false before Firestore responds.
@@ -233,6 +239,7 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
   final SyncOrchestrator _syncOrchestrator;
   final PremiumRepository _premiumRepository;
   StreamSubscription<bool>? _premiumStatusSub;
+  int _themePersistGeneration = 0;
 
   /// Public getter to avoid protected 'state' access warnings
   ThemeState get current => state;
@@ -289,26 +296,48 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
 
   Future<void> setTheme(AppThemeMode mode, {bool syncToCloud = true}) async {
     final normalizedMode = normalizeThemeMode(mode);
-    if (normalizedMode == AppThemeMode.bangladesh &&
-        _premiumRepository.shouldShowAds) {
-      if (state.mode == AppThemeMode.bangladesh) {
+    if (!EntitlementPolicy.canUseTheme(
+      _premiumRepository.tier,
+      normalizedMode,
+    )) {
+      if (!EntitlementPolicy.canUseTheme(_premiumRepository.tier, state.mode)) {
         state = state.copyWith(mode: AppThemeMode.system);
-        unawaited(_persistTheme(AppThemeMode.system, syncToCloud: syncToCloud));
+        _scheduleThemePersist(AppThemeMode.system, syncToCloud: syncToCloud);
       }
       return;
     }
     if (normalizedMode == state.mode) return;
     state = state.copyWith(mode: normalizedMode);
-    unawaited(_persistTheme(normalizedMode, syncToCloud: syncToCloud));
+    _scheduleThemePersist(normalizedMode, syncToCloud: syncToCloud);
   }
 
-  Future<void> _persistTheme(
+  void _scheduleThemePersist(AppThemeMode mode, {bool syncToCloud = true}) {
+    final generation = ++_themePersistGeneration;
+    unawaited(
+      _persistThemeDeferred(
+        mode,
+        generation: generation,
+        syncToCloud: syncToCloud,
+      ),
+    );
+  }
+
+  Future<void> _persistThemeDeferred(
     AppThemeMode mode, {
+    required int generation,
     bool syncToCloud = true,
   }) async {
+    // Keep theme transition jank-free: defer disk + sync churn and coalesce
+    // rapid taps to persist only the most recent selection.
+    await Future<void>.delayed(const Duration(milliseconds: 220));
+    if (!mounted || generation != _themePersistGeneration) return;
+
     await _repository.setThemeMode(mode);
     if (syncToCloud) {
-      _syncOrchestrator.pushSettings(immediate: true);
+      // Push cloud sync after the visual theme swap settles.
+      await Future<void>.delayed(const Duration(milliseconds: 520));
+      if (!mounted || generation != _themePersistGeneration) return;
+      _syncOrchestrator.pushSettings();
     }
   }
 

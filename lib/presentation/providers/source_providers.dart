@@ -74,3 +74,22 @@ final disabledSourcesProvider = Provider<Set<String>>((ref) {
   final repo = ref.watch(sourceRepositoryProvider);
   return repo.getDisabledSourceIdsSync();
 });
+
+/// Memoized grouped sources for the SourceManagementScreen to offload build-time calculations
+final groupedSourcesProvider =
+    Provider<AsyncValue<Map<String, List<NewsSource>>>>((ref) {
+      final sourcesAsync = ref.watch(sourcesProvider);
+
+      return sourcesAsync.whenData((sources) {
+        final Map<String, List<NewsSource>> grouped = {};
+        for (final source in sources) {
+          grouped.putIfAbsent(source.category, () => []).add(source);
+        }
+        // Sort sources within each category alphabetically
+        for (final key in grouped.keys) {
+          grouped[key]!.sort((a, b) => a.name.compareTo(b.name));
+        }
+        return grouped;
+      });
+    });
+

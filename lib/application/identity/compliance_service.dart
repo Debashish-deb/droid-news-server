@@ -3,15 +3,14 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../domain/facades/auth_facade.dart';
+import '../../core/security/secure_prefs.dart';
+import '../../core/privacy/local_storage_wiper.dart';
 
 // Service to handle GDPR compliance (Right to Access & Right to Erasure).
 class ComplianceService {
-
   ComplianceService({required AuthFacade authService})
-      : _authService = authService;
+    : _authService = authService;
   final AuthFacade _authService;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -22,14 +21,24 @@ class ComplianceService {
     final userId = user.uid;
 
     final profileDoc = await _firestore.collection('users').doc(userId).get();
-    
-    final settingsDoc = await _firestore.collection('users').doc(userId).collection('data').doc('settings').get();
-    final favoritesDoc = await _firestore.collection('users').doc(userId).collection('data').doc('favorites').get();
+
+    final settingsDoc = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('data')
+        .doc('settings')
+        .get();
+    final favoritesDoc = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('data')
+        .doc('favorites')
+        .get();
 
     final prefs = await SharedPreferences.getInstance();
     final Map<String, dynamic> localPrefs = {};
     for (String key in prefs.getKeys()) {
-       localPrefs[key] = prefs.get(key);
+      localPrefs[key] = prefs.get(key);
     }
 
     final Map<String, dynamic> export = {
@@ -50,18 +59,28 @@ class ComplianceService {
 
     final userId = user.uid;
 
-    await _firestore.collection('users').doc(userId).collection('data').doc('settings').delete();
-    await _firestore.collection('users').doc(userId).collection('data').doc('favorites').delete();
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('data')
+        .doc('settings')
+        .delete();
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('data')
+        .doc('favorites')
+        .delete();
     await _firestore.collection('users').doc(userId).delete();
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    await Hive.deleteFromDisk();
-    await const FlutterSecureStorage().deleteAll();
+    await LocalStorageWiper.wipeLocalAppData();
+    await SecurePrefs.sharedStorage.deleteAll(
+      aOptions: SecurePrefs.androidOptions,
+      iOptions: SecurePrefs.iosOptions,
+    );
 
     await user.delete();
-    
+
     await _authService.logout();
   }
 }
-

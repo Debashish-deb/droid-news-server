@@ -6,6 +6,7 @@ import 'package:workmanager/workmanager.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -33,27 +34,54 @@ import '../../infrastructure/services/notifications/push_notification_service.da
 class BackgroundService {
   static const String simpleTaskKey = 'simpleTask';
   static const String syncTaskKey = 'syncTask';
+  static Future<void>? _initializeFuture;
+  static Future<void>? _registerPeriodicSyncFuture;
 
   /// Initialize WorkManager
   static Future<void> initialize() async {
-    await Workmanager().initialize(
-      callbackDispatcher,
-      isInDebugMode: kDebugMode,
-    );
+    final pendingInitialize =
+        _initializeFuture ??
+        Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
+    _initializeFuture = pendingInitialize;
+
+    try {
+      await pendingInitialize;
+    } catch (_) {
+      if (identical(_initializeFuture, pendingInitialize)) {
+        _initializeFuture = null;
+      }
+      rethrow;
+    }
   }
 
   /// Register a periodic sync task
   static Future<void> registerPeriodicSync() async {
-    await Workmanager().registerPeriodicTask(
-      syncTaskKey,
-      simpleTaskKey,
-      frequency: const Duration(hours: 4),
-      constraints: Constraints(
-        networkType: NetworkType.connected,
-        requiresBatteryNotLow: true,
-      ),
-      initialDelay: const Duration(minutes: 5),
-    );
+    final pendingRegister =
+        _registerPeriodicSyncFuture ??
+        () async {
+          await initialize();
+          await Workmanager().registerPeriodicTask(
+            syncTaskKey,
+            simpleTaskKey,
+            frequency: const Duration(hours: 4),
+            constraints: Constraints(
+              networkType: NetworkType.connected,
+              requiresBatteryNotLow: true,
+            ),
+            initialDelay: const Duration(minutes: 5),
+            existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
+            tag: syncTaskKey,
+          );
+        }();
+    _registerPeriodicSyncFuture = pendingRegister;
+
+    try {
+      await pendingRegister;
+    } finally {
+      if (identical(_registerPeriodicSyncFuture, pendingRegister)) {
+        _registerPeriodicSyncFuture = null;
+      }
+    }
   }
 
   /// Cancel all tasks
@@ -68,6 +96,12 @@ class BackgroundService {
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
+    PushNotificationService? pushNotifService;
+    http.Client? httpClient;
+    AppNetworkService? networkService;
+    AppDatabase? db;
+    NewsRepositoryImpl? newsRepo;
+
     try {
       if (kDebugMode) {
         debugPrint("🔄 [Background] Starting task: $task");
@@ -92,9 +126,7 @@ void callbackDispatcher() {
       var firebaseReady = Firebase.apps.isNotEmpty;
       if (Firebase.apps.isEmpty) {
         try {
-          await Firebase.initializeApp(
-            options: DefaultFirebaseOptions.currentPlatform,
-          );
+          await DefaultFirebaseOptions.initializeApp();
         } catch (e) {
           if (kDebugMode) {
             debugPrint('⚠️ [Background] Firebase init unavailable: $e');
@@ -138,13 +170,9 @@ void callbackDispatcher() {
       }
 
       // 5. Instantiate PushNotificationService
-      final pushNotifService = PushNotificationService(
-        logger,
-        prefs,
-        securePrefs,
-      );
+      pushNotifService = PushNotificationService(logger, prefs, securePrefs);
       try {
-        await pushNotifService.initialize();
+        await pushNotifService.initialize(deferRemoteRegistration: true);
       } catch (e) {
         if (kDebugMode) {
           debugPrint(' [Background] PushNotificationService init failed: $e');
@@ -153,16 +181,18 @@ void callbackDispatcher() {
 
       // 7. Instantiate NewsRepository
       await SSLPinning.initialize();
-      final httpClient = SSLPinning.createHttpClient();
-      final networkService = AppNetworkService();
+      httpClient = SSLPinning.createHttpClient();
+      networkService = AppNetworkService();
       final rssService = RssService(httpClient, networkService, logger);
-      final db = AppDatabase();
+      db = AppDatabase();
 
-      final newsRepo = NewsRepositoryImpl(
+      newsRepo = NewsRepositoryImpl(
         db,
         rssService,
         NewsFeedCategoryClassifier.instance,
         runBootstrap: false,
+        scheduleLocalReclassificationBackfill: false,
+        prefs: prefs,
       );
 
       // 8. Execute Task Logic
@@ -188,24 +218,26 @@ void callbackDispatcher() {
               logger.error('Background sync failed', failure);
             case Right(value: final newCount):
               if (newCount > 0 && pushNotifService.isEnabled) {
-                
-                final watermark = dedupStore.lastNotifiedAt ??
+                final watermark =
+                    dedupStore.lastNotifiedAt ??
                     DateTime.now().subtract(const Duration(hours: 6));
 
                 // Query article IDs published after the watermark.
-                final recentArticles = await (db.select(db.articles)
-                      ..where((t) => t.publishedAt.isBiggerThanValue(watermark))
-                      ..orderBy([
-                        (t) => OrderingTerm(
+                final recentArticles =
+                    await (db.select(db.articles)
+                          ..where(
+                            (t) => t.publishedAt.isBiggerThanValue(watermark),
+                          )
+                          ..orderBy([
+                            (t) => OrderingTerm(
                               expression: t.publishedAt,
                               mode: OrderingMode.desc,
                             ),
-                      ])
-                      ..limit(50))
-                    .get();
+                          ])
+                          ..limit(50))
+                        .get();
 
-                final articleIds =
-                    recentArticles.map((a) => a.id).toList();
+                final articleIds = recentArticles.map((a) => a.id).toList();
 
                 // Filter out articles already shown in a previous notification.
                 final unseenIds = dedupStore.filterUnseen(articleIds);
@@ -231,10 +263,7 @@ void callbackDispatcher() {
                     title: title,
                     body: body,
                     notificationId: stableNotifId,
-                    payload: {
-                      'type': 'feed_update',
-                      'count': unseenIds.length,
-                    },
+                    payload: {'type': 'feed_update', 'count': unseenIds.length},
                   );
 
                   // Mark all notified articles as shown and update the watermark.
@@ -260,6 +289,14 @@ void callbackDispatcher() {
         debugPrint(stack.toString());
       }
       return Future.value(false);
+    } finally {
+      newsRepo?.dispose();
+      await pushNotifService?.dispose();
+      httpClient?.close();
+      networkService?.dispose();
+      if (db != null) {
+        await db.close();
+      }
     }
   });
 }

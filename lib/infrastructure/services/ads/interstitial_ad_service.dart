@@ -1,16 +1,25 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/config/performance_config.dart';
+import '../../../infrastructure/network/app_network_service.dart';
 import '../../../domain/repositories/premium_repository.dart';
+import 'ad_unit_config.dart';
 import 'ad_runtime_gate.dart';
 
 // Service to manage interstitial ads with automatic premium bypass.
 // Shows ads at strategic points to improve user engagement while
 // respecting premium user status.
-class InterstitialAdService {
-  InterstitialAdService(this._premiumRepository) {
+class InterstitialAdService with WidgetsBindingObserver {
+  InterstitialAdService(
+    this._premiumRepository, {
+    required AppNetworkService networkService,
+    required SharedPreferences? prefs,
+  }) : _networkService = networkService,
+       _prefs = prefs {
     _init();
   }
 
@@ -20,17 +29,27 @@ class InterstitialAdService {
 
   int _articleViewCount = 0;
   static const int _adFrequency = 4;
-  static const int _maxAdsPerSession = 4;
+  static const int _maxAdsPerSession = 3;
+  static const String _articleCountPrefsKey = 'interstitial_article_count';
+  static const String _articleCountDayPrefsKey =
+      'interstitial_article_count_day';
+  static const Duration _sessionResetThreshold = Duration(minutes: 30);
   int _adsShownThisSession = 0;
+  bool _hasPendingAdToShow = false;
 
   DateTime? _lastAdShownTime;
-  static const Duration _cooldownDuration = Duration(minutes: 45);
+  DateTime? _backgroundedAt;
+  static const Duration _cooldownDuration = Duration(minutes: 4);
 
   final PremiumRepository _premiumRepository;
+  final AppNetworkService _networkService;
+  final SharedPreferences? _prefs;
   Timer? _retryTimer;
   StreamSubscription<bool>? _premiumStatusSub;
 
   void _init() {
+    WidgetsBinding.instance.addObserver(this);
+    _restoreArticleViewCount();
     _premiumStatusSub = _premiumRepository.premiumStatusStream.listen((
       isPremium,
     ) {
@@ -40,6 +59,7 @@ class InterstitialAdService {
         _interstitialAd = null;
         _isAdLoaded = false;
         _isLoading = false;
+        _hasPendingAdToShow = false;
         return;
       }
       if (!_isAdLoaded && !_isLoading) {
@@ -54,19 +74,23 @@ class InterstitialAdService {
   static const int _maxRetryAttempts = 6;
 
   Future<void> _loadAd() async {
-    if (_isAdLoaded || _isLoading) return;
+    if (_isAdLoaded || _isLoading || _shouldSuppressAdLoads()) return;
 
     _isLoading = true;
 
     final sdkReady = await AdRuntimeGate.ensureInitializedIfEligible(
       _premiumRepository,
     );
-    if (!sdkReady || !_premiumRepository.shouldShowAds) {
+    if (!sdkReady || _shouldSuppressAdLoads()) {
       _isLoading = false;
       return;
     }
 
-    final String adUnitId = _resolveAdUnitId();
+    final String? adUnitId = _resolveAdUnitId();
+    if (adUnitId == null) {
+      _isLoading = false;
+      return;
+    }
 
     if (kDebugMode) {
       debugPrint('⏳ Loading Interstitial Ad...');
@@ -88,9 +112,14 @@ class InterstitialAdService {
 
             _interstitialAd!.fullScreenContentCallback =
                 FullScreenContentCallback(
+                  onAdShowedFullScreenContent: _onAdShown,
                   onAdDismissedFullScreenContent: _onAdDismissed,
                   onAdFailedToShowFullScreenContent: _onAdFailedToShow,
                 );
+
+            if (_hasPendingAdToShow) {
+              unawaited(_tryShowPendingAd());
+            }
           },
           onAdFailedToLoad: (LoadAdError error) {
             if (kDebugMode) {
@@ -149,6 +178,10 @@ class InterstitialAdService {
     unawaited(_loadAd());
   }
 
+  void _onAdShown(InterstitialAd ad) {
+    _lastAdShownTime = DateTime.now();
+  }
+
   void _onAdFailedToShow(InterstitialAd ad, AdError error) {
     if (kDebugMode) {
       debugPrint('⚠️ Ad Failed to Show: ${error.message}');
@@ -159,18 +192,36 @@ class InterstitialAdService {
     unawaited(_loadAd());
   }
 
-  String _resolveAdUnitId() {
-    final String? prod = dotenv.env['INTERSTITIAL_AD_UNIT_ID'];
-    final String? test = dotenv.env['INTERSTITIAL_AD_UNIT_ID_TEST'];
+  String? _resolveAdUnitId() {
+    return AdUnitConfig.resolve(
+      placement: AdPlacement.interstitial,
+      productionEnvKey: 'INTERSTITIAL_AD_UNIT_ID',
+      testEnvKey: 'INTERSTITIAL_AD_UNIT_ID_TEST',
+    );
+  }
 
-    if (prod != null && prod.isNotEmpty) return prod;
-    if (test != null && test.isNotEmpty) return test;
-
-    return 'ca-app-pub-3940256099942544/1033173712';
+  bool _shouldSuppressAdLoads() {
+    if (!AdRuntimeGate.isAdSdkAllowed) {
+      return true;
+    }
+    if (!_premiumRepository.shouldShowAds) {
+      return true;
+    }
+    if (_prefs?.getBool('data_saver') == true) {
+      return true;
+    }
+    if (_networkService.currentQuality == NetworkQuality.offline ||
+        _networkService.currentQuality == NetworkQuality.poor) {
+      return true;
+    }
+    if (_networkService.performanceTier == DevicePerformanceTier.lowEnd) {
+      return true;
+    }
+    return false;
   }
 
   bool _shouldShowAd() {
-    if (!(_premiumRepository.shouldShowAds)) {
+    if (_shouldSuppressAdLoads()) {
       if (kDebugMode) debugPrint('🚫 Ad blocked: Premium/unknown entitlement');
       return false;
     }
@@ -204,9 +255,11 @@ class InterstitialAdService {
   }
 
   Future<void> onArticleViewed() async {
-    if (!(_premiumRepository.shouldShowAds)) return;
+    if (_shouldSuppressAdLoads()) return;
 
+    _restoreArticleViewCount();
     _articleViewCount++;
+    _persistArticleViewCount();
     if (!_isAdLoaded && !_isLoading) {
       unawaited(_loadAd());
     }
@@ -216,11 +269,19 @@ class InterstitialAdService {
     }
 
     if (_articleViewCount % _adFrequency == 0) {
-      await showAd(reason: 'Article view threshold reached');
+      if (_isAdLoaded && _interstitialAd != null) {
+        _hasPendingAdToShow = false;
+        await showAd(reason: 'Article view threshold reached');
+      } else {
+        _hasPendingAdToShow = true;
+        if (!_isLoading) {
+          unawaited(_loadAd());
+        }
+      }
     }
   }
 
-  Future<void> showAd({String reason = 'Manual trigger'}) async {
+  Future<bool> showAd({String reason = 'Manual trigger'}) async {
     if (!_shouldShowAd()) {
       if (kDebugMode) {
         debugPrint('🚫 Ad not shown: Conditions not met ($reason)');
@@ -228,22 +289,66 @@ class InterstitialAdService {
       if (!_isAdLoaded && !_isLoading) {
         unawaited(_loadAd());
       }
-      return;
+      return false;
+    }
+
+    final ad = _interstitialAd;
+    if (ad == null) {
+      if (!_isLoading) {
+        unawaited(_loadAd());
+      }
+      return false;
     }
 
     if (kDebugMode) {
       debugPrint('🎬 Showing ad: $reason');
     }
 
-    _lastAdShownTime = DateTime.now();
-    await _interstitialAd?.show();
+    _interstitialAd = null;
+    _isAdLoaded = false;
+
+    try {
+      await ad.show();
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('⚠️ Interstitial ad show failed: $e');
+      }
+      ad.dispose();
+      _isAdLoaded = false;
+      unawaited(_loadAd());
+      return false;
+    }
   }
 
   Future<void> onManualRefresh() async {
     await showAd(reason: 'Manual refresh');
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _backgroundedAt = DateTime.now();
+      return;
+    }
+
+    if (state == AppLifecycleState.resumed) {
+      final backgroundedAt = _backgroundedAt;
+      if (backgroundedAt != null &&
+          DateTime.now().difference(backgroundedAt) >= _sessionResetThreshold) {
+        if (kDebugMode) {
+          debugPrint(
+            '🔄 App resumed after extended background; resetting session ad cap',
+          );
+        }
+        _adsShownThisSession = 0;
+      }
+      _backgroundedAt = null;
+    }
+  }
+
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _premiumStatusSub?.cancel();
     _premiumStatusSub = null;
     _retryTimer?.cancel();
@@ -256,5 +361,54 @@ class InterstitialAdService {
   void resetArticleCount() {
     _articleViewCount = 0;
     _adsShownThisSession = 0;
+    _hasPendingAdToShow = false;
+    _persistArticleViewCount();
+  }
+
+  Future<void> _tryShowPendingAd() async {
+    if (!_hasPendingAdToShow) {
+      return;
+    }
+
+    final shown = await showAd(reason: 'Pending threshold fulfilled');
+    if (shown) {
+      _hasPendingAdToShow = false;
+    }
+  }
+
+  void _restoreArticleViewCount() {
+    final prefs = _prefs;
+    if (prefs == null) {
+      return;
+    }
+
+    final today = _todayKey();
+    final storedDay = prefs.getString(_articleCountDayPrefsKey);
+    if (storedDay != today) {
+      _articleViewCount = 0;
+      unawaited(prefs.setString(_articleCountDayPrefsKey, today));
+      unawaited(prefs.remove(_articleCountPrefsKey));
+      return;
+    }
+
+    _articleViewCount = prefs.getInt(_articleCountPrefsKey) ?? 0;
+  }
+
+  void _persistArticleViewCount() {
+    final prefs = _prefs;
+    if (prefs == null) {
+      return;
+    }
+
+    final today = _todayKey();
+    unawaited(prefs.setString(_articleCountDayPrefsKey, today));
+    unawaited(prefs.setInt(_articleCountPrefsKey, _articleViewCount));
+  }
+
+  String _todayKey() {
+    final now = DateTime.now();
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    return '${now.year}-$month-$day';
   }
 }

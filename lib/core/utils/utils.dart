@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_classes_with_only_static_members
+
 import 'package:intl/intl.dart';
 
 class DateTimeUtils {
@@ -77,4 +79,3 @@ class StringUtils {
     return text[0].toUpperCase() + text.substring(1);
   }
 }
-

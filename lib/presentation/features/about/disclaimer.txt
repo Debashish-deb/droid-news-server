@@ -29,7 +29,7 @@ copyright laws of Bangladesh and international jurisdictions.
 
 1.4 DMCA & TAKEDOWN POLICY
 Copyright holders may request content removal by contacting: 
-customerservice@dsmobiles.com. We will respond to valid DMCA notices within 48 
+support@appcraftr.store. We will respond to valid DMCA notices within 48 
 hours and remove infringing content promptly.
 
 ───────────────────────────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ Each service has its own privacy policy. Users should review:
 4.4 GDPR & ePrivacy COMPLIANCE
 For EU users, we comply with GDPR and ePrivacy Directive:
   • Right to access personal data
-  • Right to deletion (contact customerservice@dsmobiles.com)
+  • Right to deletion (contact support@appcraftr.store)
   • Right to data portability
   • Consent-based advertising tracking
 
@@ -241,12 +241,12 @@ participate in class-action lawsuits.
 
 For questions, concerns, or legal inquiries:
 
-Email: customerservice@dsmobiles.com
-Developer: DS Mobiles
+Email: support@appcraftr.store
+Developer: AppCraftr
 Location: Dhaka, Bangladesh
 
-DMCA Takedown Requests: customerservice@dsmobiles.com (Subject: "DMCA Takedown")
-Data Privacy Requests: customerservice@dsmobiles.com (Subject: "GDPR Request")
+DMCA Takedown Requests: support@appcraftr.store (Subject: "DMCA Takedown")
+Data Privacy Requests: support@appcraftr.store (Subject: "GDPR Request")
 
 ───────────────────────────────────────────────────────────────────────────────
 12. FINAL PROVISIONS
@@ -270,5 +270,5 @@ right or future enforcement.
 BY USING THIS APP, YOU ACKNOWLEDGE AND ACCEPT ALL RISKS, LIMITATIONS, AND LEGAL 
 TERMS OUTLINED ABOVE. IF YOU DO NOT AGREE, UNINSTALL THE APP IMMEDIATELY.
 
-                          © 2024 DS Mobiles. All Rights Reserved.
+                          © 2024 AppCraftr. All Rights Reserved.
 ═══════════════════════════════════════════════════════════════════════════════

@@ -1,16 +1,10 @@
-import 'dart:async' show FutureOr, unawaited;
-
 import 'package:flutter/material.dart';
+import '../../../../core/theme/theme_skeleton.dart';
+
 import '../../../../domain/entities/news_article.dart';
-import '../../../../core/theme/design_tokens.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import 'webview_tokens.dart';
 
-// ─────────────────────────────────────────────
-// PREMIUM HEADER
-// Accepts a ValueNotifier<double> for progress so only
-// the progress bar repaints on load changes, not the entire header.
-// ─────────────────────────────────────────────
 class WebHeader extends StatelessWidget {
   const WebHeader({
     required this.article,
@@ -25,6 +19,7 @@ class WebHeader extends StatelessWidget {
     required this.onShare,
     this.onTtsSettings,
     this.onTranslate,
+    this.showTtsButton = true,
     super.key,
   });
 
@@ -40,262 +35,229 @@ class WebHeader extends StatelessWidget {
   final VoidCallback onShare;
   final VoidCallback? onTtsSettings;
   final VoidCallback? onTranslate;
+  final bool showTtsButton;
 
   @override
   Widget build(BuildContext context) {
-    final base = cs.onSurface;
-    final surfaceTone = cs.surface;
-    final content = Container(
-      decoration: BoxDecoration(
-        color: surfaceTone,
-        border: Border(
-          bottom: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.55),
-            width: 0.5,
-          ),
-        ),
-      ),
+    final textTheme = Theme.of(context).textTheme;
+    final compact = MediaQuery.sizeOf(context).width < 390;
+    final showDirectTtsSettings =
+        showTtsButton && onTtsSettings != null && !compact;
+
+    return Material(
+      color: cs.surface,
       child: SafeArea(
         bottom: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              height: WT.headerHeight,
-              child: Row(
-                children: [
-                  const SizedBox(width: 4),
-                  HeaderIconBtn(icon: Icons.arrow_back_rounded, onTap: onBack),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 56),
+                child: Row(
+                  children: [
+                    _HeaderActionButton(
+                      icon: Icons.arrow_back_rounded,
+                      onTap: onBack,
+                      cs: cs,
+                    ),
+                    const SizedBox(width: ThemeSkeleton.size8),
+                    Expanded(
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (article.source.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Text(
-                                article.source.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: cs.primary.withValues(alpha: 0.95),
-                                  letterSpacing: 1.2,
-                                ),
+                            Text(
+                              article.source.toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.labelSmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.6,
                               ),
                             ),
                           Text(
                             article.title,
-                            style: TextStyle(
-                              fontFamily: AppTypography.fontFamily,
-                              fontSize: 15,
+                            maxLines: compact ? 1 : 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.titleSmall?.copyWith(
+                              color: cs.onSurface,
                               fontWeight: FontWeight.w700,
-                              color: base.withValues(alpha: 0.95),
-                              letterSpacing: -0.2,
                               height: 1.2,
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  HeaderIconBtn(
-                    icon: isReader ? Icons.web_rounded : Icons.article_rounded,
-                    onTap: onReaderToggle,
-                  ),
-                  HeaderIconBtn(icon: ttsIcon, onTap: onTtsToggle),
-                  if (onTtsSettings != null)
-                    HeaderIconBtn(
-                      icon: Icons.tune_rounded,
-                      onTap: onTtsSettings!,
-                    ),
-                  PopupMenuButton<String>(
-                    icon: Icon(
-                      Icons.more_vert_rounded,
-                      color: base.withValues(alpha: 0.65),
-                    ),
-                    color: cs.surfaceContainerHighest,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 8,
-                    onSelected: (value) {
-                      if (value == 'translate' && onTranslate != null) {
-                        onTranslate?.call();
-                      }
-                      if (value == 'tts_settings' && onTtsSettings != null) {
-                        onTtsSettings?.call();
-                      }
-                      if (value == 'share') onShare();
-                    },
-                    itemBuilder: (context) {
-                      final loc = AppLocalizations.of(context);
-                      return [
-                        if (onTranslate != null)
-                          PopupMenuItem(
-                            value: 'translate',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.translate_rounded,
-                                  color: base.withValues(alpha: 0.7),
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  loc.translate,
-                                  style: TextStyle(
-                                    color: base.withValues(alpha: 0.9),
-                                  ),
-                                ),
-                              ],
-                            ),
+                    const SizedBox(width: ThemeSkeleton.size4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _HeaderActionButton(
+                          icon: isReader
+                              ? Icons.web_rounded
+                              : Icons.article_rounded,
+                          onTap: onReaderToggle,
+                          cs: cs,
+                        ),
+                        if (showTtsButton)
+                          _HeaderActionButton(
+                            icon: ttsIcon,
+                            onTap: onTtsToggle,
+                            cs: cs,
                           ),
-                        if (onTtsSettings != null)
-                          PopupMenuItem(
-                            value: 'tts_settings',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.tune_rounded,
-                                  color: base.withValues(alpha: 0.7),
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'TTS Mode',
-                                  style: TextStyle(
-                                    color: base.withValues(alpha: 0.9),
-                                  ),
-                                ),
-                              ],
-                            ),
+                        if (showDirectTtsSettings)
+                          _HeaderActionButton(
+                            icon: Icons.tune_rounded,
+                            onTap: onTtsSettings!,
+                            cs: cs,
                           ),
-                        PopupMenuItem(
-                          value: 'share',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.share_rounded,
-                                color: base.withValues(alpha: 0.7),
-                                size: 20,
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                loc.share,
-                                style: TextStyle(
-                                  color: base.withValues(alpha: 0.9),
-                                ),
-                              ),
-                            ],
+                        PopupMenuButton<String>(
+                          tooltip: '',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 48,
+                            minHeight: 48,
+                          ),
+                          color: cs.surfaceContainerHighest,
+                          surfaceTintColor: Colors.transparent,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: ThemeSkeleton.shared.circular(12),
+                          ),
+                          onSelected: (value) {
+                            if (value == 'translate' && onTranslate != null) {
+                              onTranslate?.call();
+                            }
+                            if (value == 'tts_settings' &&
+                                onTtsSettings != null) {
+                              onTtsSettings?.call();
+                            }
+                            if (value == 'share') {
+                              onShare();
+                            }
+                          },
+                          itemBuilder: (context) => _buildMenuItems(context),
+                          icon: Icon(
+                            Icons.more_vert_rounded,
+                            color: cs.onSurfaceVariant,
                           ),
                         ),
-                      ];
-                    },
-                  ),
-                  const SizedBox(width: 4),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-            // ValueListenableBuilder → only the progress bar repaints.
             RepaintBoundary(
               child: ValueListenableBuilder<double>(
                 valueListenable: progressNotifier,
-                builder: (context, progress, childWidget) =>
+                builder: (context, progress, _) =>
                     ReadingProgressBar(progress: progress),
               ),
+            ),
+            Divider(
+              height: 1,
+              thickness: 0.5,
+              color: cs.outlineVariant.withValues(alpha: 0.55),
             ),
           ],
         ),
       ),
     );
-    return content;
+  }
+
+  List<PopupMenuEntry<String>> _buildMenuItems(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    return <PopupMenuEntry<String>>[
+      if (onTranslate != null)
+        PopupMenuItem<String>(
+          value: 'translate',
+          child: Row(
+            children: [
+              Icon(
+                Icons.translate_rounded,
+                color: cs.onSurfaceVariant,
+                size: 20,
+              ),
+              const SizedBox(width: ThemeSkeleton.size12),
+              Text(loc.translate),
+            ],
+          ),
+        ),
+      if (showTtsButton && onTtsSettings != null)
+        PopupMenuItem<String>(
+          value: 'tts_settings',
+          child: Row(
+            children: [
+              Icon(Icons.tune_rounded, color: cs.onSurfaceVariant, size: 20),
+              const SizedBox(width: ThemeSkeleton.size12),
+              const Text('TTS Mode'),
+            ],
+          ),
+        ),
+      PopupMenuItem<String>(
+        value: 'share',
+        child: Row(
+          children: [
+            Icon(Icons.share_rounded, color: cs.onSurfaceVariant, size: 20),
+            const SizedBox(width: ThemeSkeleton.size12),
+            Text(loc.share),
+          ],
+        ),
+      ),
+    ];
   }
 }
 
 class ReadingProgressBar extends StatelessWidget {
   const ReadingProgressBar({required this.progress, super.key});
+
   final double progress;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: WT.progressHeight,
-      child: Stack(
-        children: [
-          const ColoredBox(color: WT.progressGoldBg, child: SizedBox.expand()),
-          AnimatedFractionallySizedBox(
-            duration: const Duration(milliseconds: 150),
-            widthFactor: progress.clamp(0.0, 1.0),
-            child: const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFB8892B), Color(0xFFD4A853)],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0x55D4A853),
-                    blurRadius: 6,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: ThemeSkeleton.shared.insetsSymmetric(horizontal: 8),
+      child: ClipRRect(
+        borderRadius: ThemeSkeleton.shared.circular(999),
+        child: LinearProgressIndicator(
+          value: progress.clamp(0.0, 1.0),
+          minHeight: WT.progressHeight,
+          backgroundColor: cs.surfaceContainerHighest,
+          valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
+        ),
       ),
     );
   }
 }
 
-class HeaderIconBtn extends StatefulWidget {
-  const HeaderIconBtn({required this.icon, required this.onTap, super.key});
+class _HeaderActionButton extends StatelessWidget {
+  const _HeaderActionButton({
+    required this.icon,
+    required this.onTap,
+    required this.cs,
+  });
+
   final IconData icon;
-  final FutureOr<void> Function() onTap;
-
-  @override
-  State<HeaderIconBtn> createState() => _HeaderIconBtnState();
-}
-
-class _HeaderIconBtnState extends State<HeaderIconBtn> {
-  bool _pressed = false;
-
-  void _triggerTap() {
-    final result = widget.onTap();
-    if (result is Future<void>) {
-      unawaited(result);
-    }
-  }
+  final VoidCallback onTap;
+  final ColorScheme cs;
 
   @override
   Widget build(BuildContext context) {
-    final base = Theme.of(context).colorScheme.onSurface;
-    final color = base.withValues(alpha: 0.55);
-
-    return GestureDetector(
-      onTap: _triggerTap,
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) => setState(() => _pressed = false),
-      onTapCancel: () => setState(() => _pressed = false),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedScale(
-        scale: _pressed ? 0.88 : 1.0,
-        duration: _pressed ? WT.toolPress : WT.toolRelease,
-        curve: _pressed ? Curves.easeIn : Curves.elasticOut,
-        child: AnimatedContainer(
-          duration: WT.toolPress,
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: Colors.transparent,
-          ),
-          child: Icon(widget.icon, size: 19, color: color),
-        ),
+    return IconButton(
+      onPressed: onTap,
+      icon: Icon(icon, size: 20),
+      color: cs.onSurfaceVariant,
+      style: IconButton.styleFrom(
+        backgroundColor: cs.surfaceContainerHigh,
+        foregroundColor: cs.onSurfaceVariant,
+        minimumSize: const Size.square(48),
+        padding: EdgeInsets.zero,
       ),
     );
   }

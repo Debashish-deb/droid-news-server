@@ -122,8 +122,13 @@ class SubscriptionFailure extends AppFailure {
   ]);
 
   @override
-  String get userMessage =>
-      'There was an issue with your subscription. Please try again.';
+  String get userMessage {
+    final msg = message.trim();
+    if (msg.isNotEmpty && msg.toLowerCase() != 'subscription error occurred.') {
+      return msg;
+    }
+    return 'There was an issue with your subscription. Please try again.';
+  }
 }
 
 /// Failure indicating the user has exceeded their quota.

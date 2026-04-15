@@ -1,4 +1,8 @@
+// ignore_for_file: avoid_classes_with_only_static_members
+
 import 'package:html/parser.dart' as html_parser;
+
+import 'bangla_tts_normalizer.dart';
 
 // Industrial-grade text cleaning for TTS
 //
@@ -18,8 +22,11 @@ class TextCleaner {
     text = _deduplicateLines(text);
     text = _removeImageCredits(text);
 
-    text = _normalizeNumbers(text);
-    text = _normalizeBengaliNumbers(text);
+    if (BanglaTtsNormalizer.hasBangla(text)) {
+      text = _normalizeBengaliNumbers(text);
+    } else {
+      text = _normalizeNumbers(text);
+    }
     text = _cleanPunctuation(text);
     text = _removeUrls(text);
     text = _removeAdMarkers(text);
@@ -30,9 +37,7 @@ class TextCleaner {
   }
 
   static String _applyPhoneticFixes(String text) {
-    // Reverting broad replacement as it causes issues like Sujit -> Chujit.
-    // Need more specific contextual rules if specific corrections are required.
-    return text;
+    return BanglaTtsNormalizer.normalize(text);
   }
 
   static String _normalizeTtsMarkup(String text) {
@@ -254,17 +259,13 @@ class TextCleaner {
   }
 
   static String _normalizeBengaliNumbers(String text) {
-    final String result = text
-        .replaceAll('।', '. ')
-        .replaceAll('ঃ', ':')
-        .replaceAll('—', ', ')
-        .replaceAll('–', ', ');
-
-    return result;
+    return BanglaTtsNormalizer.normalize(text);
   }
 
   static String _normalizeNumbers(String text) {
-    text = text.replaceAllMapped(RegExp(r'\b(\d{1,3})(,\d{3})+\b'), (match) {
+    text = text.replaceAllMapped(RegExp(r'(?<!\$)\b(\d{1,3})(,\d{3})+\b'), (
+      match,
+    ) {
       final numberStr = match.group(0)!.replaceAll(',', '');
       final number = int.tryParse(numberStr);
       if (number != null && number < 10000) {
@@ -277,14 +278,6 @@ class TextCleaner {
       final number = int.tryParse(match.group(1)!);
       if (number != null && number <= 100) {
         return '${_numberToWords(number)} percent';
-      }
-      return match.group(0)!;
-    });
-
-    text = text.replaceAllMapped(RegExp(r'\$(\d+)'), (match) {
-      final number = int.tryParse(match.group(1)!);
-      if (number != null && number < 1000) {
-        return '${_numberToWords(number)} dollars';
       }
       return match.group(0)!;
     });
@@ -350,11 +343,19 @@ class TextCleaner {
   static String _cleanPunctuation(String text) {
     text = text.replaceAll(RegExp(r'[ \t]+'), ' ');
     text = text.replaceAllMapped(
-      RegExp(r'[ \t]+([.,!?;:])'),
+      RegExp(r'[ \t]+([!?;:])'),
       (match) => match.group(1)!,
     );
     text = text.replaceAllMapped(
-      RegExp(r'([.,!?;:])[ \t]*'),
+      RegExp(r'[ \t]+([.,])(?!\d)'),
+      (match) => match.group(1)!,
+    );
+    text = text.replaceAllMapped(
+      RegExp(r'([!?;:])[ \t]*'),
+      (match) => '${match.group(1)} ',
+    );
+    text = text.replaceAllMapped(
+      RegExp(r'([.,])(?!\d)[ \t]*'),
       (match) => '${match.group(1)} ',
     );
     text = text.replaceAll(RegExp(r' *\n *'), '\n');

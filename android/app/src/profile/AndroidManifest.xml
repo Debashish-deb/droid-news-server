@@ -7,6 +7,7 @@
     <!-- ✅ SECURITY FIX: Explicitly set security settings -->
     <!-- Profile builds (performance testing) don't expose activities externally -->
     <application android:enableOnBackInvokedCallback="true" tools:replace="android:enableOnBackInvokedCallback">
+        <meta-data android:name="io.flutter.embedding.android.ImpellerBackend" android:value="opengles" />
         <!-- No activities defined here, inherits from main manifest -->
     </application>
 </manifest>

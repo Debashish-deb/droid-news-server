@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../../../core/theme/theme_skeleton.dart';
 import 'package:flutter/material.dart';
 import "../../../../domain/entities/news_article.dart";
 
@@ -13,22 +14,51 @@ class BreakingNewsTicker extends StatefulWidget {
 
 class _BreakingNewsTickerState extends State<BreakingNewsTicker> {
   late final ScrollController _scrollController;
-  late Timer _timer;
-  final bool _isScrolling = true;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
 
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startAutoScroll();
+      if (!mounted) return;
+      _syncAutoScroll();
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncAutoScroll();
+  }
+
+  @override
+  void didUpdateWidget(covariant BreakingNewsTicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.articles != widget.articles) {
+      _syncAutoScroll();
+    }
+  }
+
+  void _syncAutoScroll() {
+    final shouldScroll =
+        mounted && widget.articles.isNotEmpty && TickerMode.of(context);
+
+    if (shouldScroll) {
+      _startAutoScroll();
+    } else {
+      _stopAutoScroll();
+    }
+  }
+
   void _startAutoScroll() {
-    if (!mounted || !_isScrolling || widget.articles.isEmpty) return;
+    if (!mounted ||
+        widget.articles.isEmpty ||
+        !TickerMode.of(context) ||
+        (_timer?.isActive ?? false)) {
+      return;
+    }
 
     // Optimized from 50ms to 100ms (10 FPS instead of 20 FPS) for better battery performance
     const Duration tick = Duration(milliseconds: 100);
@@ -45,9 +75,14 @@ class _BreakingNewsTickerState extends State<BreakingNewsTicker> {
     });
   }
 
+  void _stopAutoScroll() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
   @override
   void dispose() {
-    _timer.cancel();
+    _stopAutoScroll();
     _scrollController.dispose();
     super.dispose();
   }
@@ -62,14 +97,11 @@ class _BreakingNewsTickerState extends State<BreakingNewsTicker> {
     return Container(
       width: double.infinity,
       height: 40,
-      color:
-          Theme.of(context).cardTheme.color ??
-          scheme.surface, 
+      color: Theme.of(context).cardTheme.color ?? scheme.surface,
       child: Row(
         children: <Widget>[
-      
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: ThemeSkeleton.shared.insetsSymmetric(horizontal: 12),
             height: double.infinity,
             color: scheme.error,
             alignment: Alignment.center,
@@ -84,9 +116,9 @@ class _BreakingNewsTickerState extends State<BreakingNewsTicker> {
             ),
           ),
 
-        
           Expanded(
-            child: ShaderMask(
+            child: RepaintBoundary(
+              child: ShaderMask(
               shaderCallback: (Rect bounds) {
                 return const LinearGradient(
                   colors: <Color>[
@@ -101,13 +133,14 @@ class _BreakingNewsTickerState extends State<BreakingNewsTicker> {
               child: ListView.builder(
                 controller: _scrollController,
                 scrollDirection: Axis.horizontal,
-                physics:
-                    const NeverScrollableScrollPhysics(), 
+                physics: const NeverScrollableScrollPhysics(),
                 itemCount: widget.articles.length,
                 itemBuilder: (BuildContext context, int index) {
                   final NewsArticle article = widget.articles[index];
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: ThemeSkeleton.shared.insetsSymmetric(
+                      horizontal: 20,
+                    ),
                     child: Center(
                       child: Text(
                         '•   ${article.title}',
@@ -122,10 +155,10 @@ class _BreakingNewsTickerState extends State<BreakingNewsTicker> {
                 },
               ),
             ),
+            ),
           ),
         ],
       ),
     );
   }
 }
-

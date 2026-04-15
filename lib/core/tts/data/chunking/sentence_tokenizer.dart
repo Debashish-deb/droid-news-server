@@ -39,7 +39,7 @@ class SentenceTokenizer {
 
   // ─── Abbreviations that must NOT trigger a sentence split ────────────────
   static final RegExp _enAbbreviations = RegExp(
-    r'\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|etc|e\.g|i\.e|approx|dept|est|no|vol|fig|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\.',
+    r'\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|etc|e\.g|i\.e|approx|dept|est|no|vol|fig|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec|Inc|Ltd|Gov|Rep|Sen|Gen|Capt|Col|U\.S|U\.K|U\.N)\.',
     caseSensitive: false,
   );
 
@@ -118,8 +118,8 @@ class SentenceTokenizer {
 
   static List<String> _splitBengali(String paragraph) {
     // Bengali terminators: ।  ?  !
-    // Also handle sequences like "।।" gracefully
-    final raw = RegExp(r'[^।?!]+[।?!]+').allMatches(paragraph);
+    // Added quote capture to avoid splitting dialog incorrectly.
+    final raw = RegExp(r'[^।?!]+[।?!]+(?:["”\u0027\u2019\u201D]{1,2})?').allMatches(paragraph);
     final results =
         raw.map((m) => m.group(0)!.trim()).where((s) => s.length > 2).toList();
 
@@ -138,7 +138,7 @@ class SentenceTokenizer {
       (m) => m.group(0)!.replaceAll('.', '\x01'),
     );
 
-    final raw = RegExp(r'[^.?!]+[.?!]+(?:\s|$)', dotAll: true)
+    final raw = RegExp(r'[^.?!]+[.?!]+(?:["”\u0027\u2019\u201D]{1,2})?(?:\s|$)', dotAll: true)
         .allMatches(protected);
     final results = raw
         .map((m) => m.group(0)!.replaceAll('\x01', '.').trim())
@@ -159,11 +159,43 @@ class SentenceTokenizer {
     final s = sentence.trim();
     if (s.isEmpty) return SentenceTone.statement;
 
-    final lastChar = s[s.length - 1];
-    if (lastChar == '?') return SentenceTone.question;
-    if (lastChar == '!') return SentenceTone.exclamation;
+    final isQuote = s.startsWith('"') || s.startsWith('“') || s.startsWith('\u0027');
+    final coreStr = isQuote ? s.replaceAll(RegExp(r'["”\u0027\u2019\u201D]'), '').trim() : s;
+    final lastChar = coreStr.isNotEmpty ? coreStr[coreStr.length - 1] : s[s.length - 1];
 
-    // Heuristic list detection: two or more serial comma groups
+    // ── Bengali Grammar: Interrogative Word Detection ────────────────────────
+    bool isBengaliQuestion = false;
+    if (lang == ArticleLanguage.bengali) {
+      // Common Bengali interrogative words
+      final interrogatives = RegExp(
+        r'(কি|কী|কেন|কীভাবে|কিভাবে|কখন|কোথায়|কোথা|কবে|কোন|কার|কাকে|কয়|কত)',
+      );
+      if (interrogatives.hasMatch(s)) {
+        isBengaliQuestion = true;
+      }
+    }
+
+    if (lastChar == '?' || isBengaliQuestion) {
+      return isQuote ? SentenceTone.exclamatoryQuestion : SentenceTone.question;
+    }
+    if (lastChar == '!') return SentenceTone.exclamation;
+    
+    if (isQuote) {
+       return SentenceTone.quote;
+    }
+
+    // ── Bengali Grammar: Emphasis Detection ──────────────────────────────────
+    if (lang == ArticleLanguage.bengali) {
+      // Particles like '-ই' (emphasis) or '-ও' (also/even)
+      if (s.contains('ই ') || s.endsWith('ই') || s.contains('ও ') || s.endsWith('ও')) {
+        // We'll treat emphasized sentences as slightly more "exclamatory" 
+        // to boost pitch/rate later in the engine.
+        // For now, if it's not a quote, let's keep it as statement but 
+        // the engine can check the text itself or we can add a new tone.
+        // I'll stick to statement but the engine logic already checks text.
+      }
+    }
+
     if (RegExp(r'(,\s*\S+){2,}').hasMatch(s)) return SentenceTone.listing;
 
     // Parenthetical / aside
@@ -172,6 +204,10 @@ class SentenceTokenizer {
         s.startsWith('\u2013') ||
         s.startsWith('–')) {
       return SentenceTone.parenthetical;
+    }
+
+    if (s.contains('"') || s.contains('“')) {
+       return SentenceTone.dialogue;
     }
 
     return SentenceTone.statement;

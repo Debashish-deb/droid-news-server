@@ -13,7 +13,7 @@ import '../../providers/theme_providers.dart' show navIconColorProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Premium Privacy & Data Management Screen
-import '../common/app_bar.dart';
+import '../../widgets/premium_screen_header.dart';
 
 class PrivacyDataScreen extends ConsumerStatefulWidget {
   const PrivacyDataScreen({super.key});
@@ -451,14 +451,7 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        toolbarHeight: 64,
-        title: AppBarTitle(loc.privacyData),
-        centerTitle: true,
-        backgroundColor: scheme.surface.withValues(alpha: 0.96),
-        elevation: 0,
-      ),
+      appBar: PremiumScreenHeader(title: loc.privacyData),
       body: ColoredBox(
         color: scheme.background,
         child: SafeArea(
@@ -588,7 +581,7 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
   }
 
   Future<void> _openPrivacyPolicy() async {
-    const url = 'https://droid-e9db9.web.app/privacy.html';
+    const url = 'https://www.appcraftr.store/privacy.html';
     final uri = Uri.parse(url);
 
     try {
@@ -607,7 +600,7 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
   }
 
   Future<void> _openTermsOfService() async {
-    const url = 'https://droid-e9db9.web.app/terms.html';
+    const url = 'https://www.appcraftr.store/terms.html';
     final uri = Uri.parse(url);
 
     try {
@@ -643,14 +636,14 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: scheme.error.withValues(alpha: 0.1),
+                  color: scheme.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
-                  border: Border.all(color: scheme.error, width: 2),
+                  border: Border.all(color: scheme.primary, width: 2),
                 ),
                 child: Icon(
                   Icons.error_outline_rounded,
                   size: 32,
-                  color: scheme.error,
+                  color: scheme.primary,
                 ),
               ),
               const SizedBox(height: 20),
@@ -676,8 +669,8 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: scheme.error,
-                  foregroundColor: scheme.onError,
+                  backgroundColor: scheme.primary,
+                  foregroundColor: scheme.onPrimary,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 32,
                     vertical: 14,
@@ -754,12 +747,10 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
         reason: 'Data export failed',
       );
       if (!mounted) return;
-      final scheme = Theme.of(context).colorScheme;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(loc.exportError(e.toString())),
-          backgroundColor: scheme.error,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -843,7 +834,9 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
                   decoration: BoxDecoration(
                     color: scheme.surfaceVariant.withValues(alpha: 0.22),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: scheme.outline.withValues(alpha: 0.2)),
+                    border: Border.all(
+                      color: scheme.outline.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: SingleChildScrollView(
                     child: SelectableText(
@@ -1021,7 +1014,9 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
                   decoration: BoxDecoration(
                     color: scheme.error.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: scheme.error.withValues(alpha: 0.2)),
+                    border: Border.all(
+                      color: scheme.error.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: Text(
                     loc.deleteAccountWarning,

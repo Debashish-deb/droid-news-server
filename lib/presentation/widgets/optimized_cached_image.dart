@@ -9,9 +9,9 @@ import '../providers/app_settings_providers.dart';
 
 /// Optimized cached image widget with consistent configuration
 class OptimizedCachedImage extends ConsumerWidget {
-
   const OptimizedCachedImage({
-    required this.imageUrl, super.key,
+    required this.imageUrl,
+    super.key,
     this.width,
     this.height,
     this.fit = BoxFit.cover,
@@ -19,6 +19,23 @@ class OptimizedCachedImage extends ConsumerWidget {
     this.errorWidget,
     this.semanticLabel,
   });
+
+  static const Set<String> _volatileQueryParams = <String>{
+    'utm_source',
+    'utm_medium',
+    'utm_campaign',
+    'utm_term',
+    'utm_content',
+    'fbclid',
+    'gclid',
+    'width',
+    'height',
+    'w',
+    'h',
+    'quality',
+    'q',
+  };
+
   final String imageUrl;
   final double? width;
   final double? height;
@@ -34,10 +51,18 @@ class OptimizedCachedImage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bool dataSaver = ref.watch(dataSaverProvider);
-    final network = ref.watch(appNetworkServiceProvider);
     final perf = PerformanceConfig.of(context);
-    final bool allowImages = network.shouldLoadImages(dataSaver: dataSaver);
-    final int adaptiveWidth = network.getImageCacheWidth(dataSaver: dataSaver);
+    final cacheKey = _normalizeCacheKey(imageUrl);
+    final bool allowImages = ref.watch(
+      appNetworkServiceProvider.select(
+        (network) => network.shouldLoadImages(dataSaver: dataSaver),
+      ),
+    );
+    final int adaptiveWidth = ref.watch(
+      appNetworkServiceProvider.select(
+        (network) => network.getImageCacheWidth(dataSaver: dataSaver),
+      ),
+    );
     final int adaptiveHeight = adaptiveWidth;
 
     if (!allowImages) {
@@ -51,22 +76,27 @@ class OptimizedCachedImage extends ConsumerWidget {
 
     final imageWidget = CachedNetworkImage(
       imageUrl: imageUrl,
-      cacheKey: imageUrl,
+      cacheKey: cacheKey,
       width: width,
       height: height,
       fit: fit,
       fadeInDuration: perf.reduceMotion
           ? const Duration()
-          : const Duration(milliseconds: 250),
+          : const Duration(milliseconds: 150),
       fadeOutDuration: perf.reduceMotion
           ? const Duration()
-          : const Duration(milliseconds: 150),
+          : const Duration(milliseconds: 80),
       memCacheHeight: safeDimension(height, adaptiveHeight),
       memCacheWidth: safeDimension(width, adaptiveWidth),
-      maxHeightDiskCache: dataSaver ? 600 : 800,
-      maxWidthDiskCache: dataSaver ? 1200 : 1600,
-      placeholder: (context, url) =>
-          perf.reduceEffects ? _buildPlaceholder(context) : _buildShimmer(context),
+      // Adaptive disk cache: match network-aware image width, capped sensibly.
+      // On poor network / data-saver, store compact thumbnails only.
+      maxWidthDiskCache: dataSaver ? 640 : (adaptiveWidth * 2).clamp(320, 900),
+      maxHeightDiskCache: dataSaver
+          ? 360
+          : (adaptiveHeight * 2).clamp(240, 450),
+      placeholder: (context, url) => _shouldAnimatePlaceholder(perf)
+          ? _buildShimmer(context)
+          : _buildPlaceholder(context),
       errorWidget: (context, url, error) => errorWidget ?? _buildError(context),
     );
 
@@ -81,6 +111,39 @@ class OptimizedCachedImage extends ConsumerWidget {
     }
 
     return wrapped;
+  }
+
+  static bool _shouldAnimatePlaceholder(PerformanceConfig perf) {
+    return !perf.reduceEffects &&
+        !perf.lowPowerMode &&
+        !perf.isLowEndDevice &&
+        perf.performanceTier == DevicePerformanceTier.flagship;
+  }
+
+  static String _normalizeCacheKey(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasQuery) return url;
+
+    final filteredEntries =
+        uri.queryParameters.entries
+            .where(
+              (entry) =>
+                  !_volatileQueryParams.contains(entry.key.toLowerCase()),
+            )
+            .toList()
+          ..sort((a, b) => a.key.compareTo(b.key));
+
+    if (filteredEntries.isEmpty) {
+      return uri.replace(queryParameters: const <String, String>{}).toString();
+    }
+
+    return uri
+        .replace(
+          queryParameters: <String, String>{
+            for (final entry in filteredEntries) entry.key: entry.value,
+          },
+        )
+        .toString();
   }
 
   Widget _buildShimmer(BuildContext context) {
@@ -125,9 +188,9 @@ class OptimizedCachedImage extends ConsumerWidget {
 
 /// Circular cached image for avatars
 class CircularCachedImage extends ConsumerWidget {
-
   const CircularCachedImage({
-    required this.imageUrl, super.key,
+    required this.imageUrl,
+    super.key,
     this.radius = 40,
   });
   final String imageUrl;
@@ -136,9 +199,13 @@ class CircularCachedImage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bool dataSaver = ref.watch(dataSaverProvider);
-    final network = ref.watch(appNetworkServiceProvider);
     final perf = PerformanceConfig.of(context);
-    final bool allowImages = network.shouldLoadImages(dataSaver: dataSaver);
+    final cacheKey = OptimizedCachedImage._normalizeCacheKey(imageUrl);
+    final bool allowImages = ref.watch(
+      appNetworkServiceProvider.select(
+        (network) => network.shouldLoadImages(dataSaver: dataSaver),
+      ),
+    );
     final size = radius * 2;
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -163,37 +230,36 @@ class CircularCachedImage extends ConsumerWidget {
           image: true,
           child: CachedNetworkImage(
             imageUrl: imageUrl,
-            cacheKey: imageUrl,
+            cacheKey: cacheKey,
             width: size,
             height: size,
             fit: BoxFit.cover,
             fadeInDuration: perf.reduceMotion
                 ? const Duration()
-                : const Duration(milliseconds: 200),
+                : const Duration(milliseconds: 120),
             memCacheHeight: size.toInt(),
             memCacheWidth: size.toInt(),
-            placeholder:
-                (context, url) => perf.reduceEffects
-                    ? Container(
-                        width: size,
-                        height: size,
-                        color: colorScheme.surfaceVariant,
-                      )
-                    : Shimmer.fromColors(
-                        baseColor: colorScheme.surface,
-                        highlightColor: colorScheme.surfaceVariant,
-                        child: Container(
-                          width: size,
-                          height: size,
-                          color: colorScheme.surface,
-                        ),
-                      ),
-            errorWidget:
-                (context, url, error) => Icon(
-                  Icons.person,
-                  size: radius,
-                  color: colorScheme.onSurfaceVariant,
-                ),
+            placeholder: (context, url) =>
+                OptimizedCachedImage._shouldAnimatePlaceholder(perf)
+                ? Shimmer.fromColors(
+                    baseColor: colorScheme.surface,
+                    highlightColor: colorScheme.surfaceVariant,
+                    child: Container(
+                      width: size,
+                      height: size,
+                      color: colorScheme.surface,
+                    ),
+                  )
+                : Container(
+                    width: size,
+                    height: size,
+                    color: colorScheme.surfaceVariant,
+                  ),
+            errorWidget: (context, url, error) => Icon(
+              Icons.person,
+              size: radius,
+              color: colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       ),
@@ -201,35 +267,24 @@ class CircularCachedImage extends ConsumerWidget {
   }
 }
 
-/// Image cache manager helper
-class ImageCacheHelper {
-  /// Clear all cached images
-  static Future<void> clearCache() async {
-    await CachedNetworkImage.evictFromCache('');
-  }
-
-  /// Clear specific image from cache
-  static Future<void> clearImageCache(String url) async {
-    if (url.isEmpty) return;
-    await CachedNetworkImage.evictFromCache(url);
-  }
-
-  /// Precache image for faster loading
-  static Future<void> precacheImage(String url, BuildContext context) async {
-    if (url.isEmpty) return;
-
-    final provider = CachedNetworkImageProvider(url);
-    await precacheImageFromProvider(provider, context);
-  }
-
-  /// Internal helper to avoid name collision with Flutter precacheImage()
-  static Future<void> precacheImageFromProvider(
-    ImageProvider provider,
-    BuildContext context,
-  ) async {
-    // Correctly call the global Flutter precacheImage instead of our shadowing static method
-    // which expects a String.
-    await ffw.precacheImage(provider, context);
-  }
+/// Clear all cached images.
+Future<void> clearImageCacheStore() async {
+  await CachedNetworkImage.evictFromCache('');
 }
 
+/// Clear a specific image from cache.
+Future<void> clearCachedImage(String url) async {
+  if (url.isEmpty) return;
+  await CachedNetworkImage.evictFromCache(url);
+}
+
+/// Precache image for faster loading.
+Future<void> precacheCachedNetworkImage(
+  String url,
+  BuildContext context,
+) async {
+  if (url.isEmpty) return;
+
+  final provider = CachedNetworkImageProvider(url);
+  await ffw.precacheImage(provider, context);
+}

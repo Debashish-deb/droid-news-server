@@ -38,7 +38,7 @@ void main() {
             sharedPreferencesProvider.overrideWith((ref) => prefs),
             startupControllerProvider.overrideWith((ref) => startupController),
           ],
-          child: MyApp(initialRoute: AppPaths.home),
+          child: const MyApp(initialRoute: AppPaths.home),
         ),
       );
 
@@ -61,7 +61,7 @@ void main() {
             sharedPreferencesProvider.overrideWith((ref) => prefs),
             startupControllerProvider.overrideWith((ref) => startupController),
           ],
-          child: MyApp(initialRoute: AppPaths.home),
+          child: const MyApp(initialRoute: AppPaths.home),
         ),
       );
 
@@ -85,7 +85,7 @@ void main() {
             sharedPreferencesProvider.overrideWith((ref) => prefs),
             startupControllerProvider.overrideWith((ref) => startupController),
           ],
-          child: MyApp(initialRoute: AppPaths.home),
+          child: const MyApp(initialRoute: AppPaths.home),
         ),
       );
       await tester.pumpAndSettle(const Duration(seconds: 1));
@@ -107,7 +107,7 @@ void main() {
             sharedPreferencesProvider.overrideWith((ref) => prefs),
             startupControllerProvider.overrideWith((ref) => startupController),
           ],
-          child: MyApp(initialRoute: AppPaths.home),
+          child: const MyApp(initialRoute: AppPaths.home),
         ),
       );
       await tester.pumpAndSettle(const Duration(seconds: 2));

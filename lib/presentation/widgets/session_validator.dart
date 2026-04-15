@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'dart:async';
 import '../../infrastructure/services/auth/security_audit_service.dart';
+import '../../infrastructure/persistence/auth/device_session.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../core/di/providers.dart';
+import '../../core/theme/theme_skeleton.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Widget that validates device sessions on app lifecycle changes
@@ -17,8 +20,14 @@ class SessionValidator extends ConsumerStatefulWidget {
 
 class _SessionValidatorState extends ConsumerState<SessionValidator>
     with WidgetsBindingObserver {
+  static const Duration _initialValidationDelay = Duration(seconds: 12);
+  static const Duration _validationCooldown = Duration(minutes: 10);
+  static const Duration _activityUpdateCooldown = Duration(minutes: 2);
+
   bool _isValidating = false;
   ProviderSubscription? _startupSubscription;
+  Timer? _initialValidationTimer;
+  DateTime? _lastActivityUpdateAt;
 
   @override
   void initState() {
@@ -30,7 +39,7 @@ class _SessionValidatorState extends ConsumerState<SessionValidator>
       next,
     ) {
       if (next.isReady && next.firebaseReady) {
-        _validateSession();
+        _scheduleInitialValidation();
       }
     });
 
@@ -39,7 +48,7 @@ class _SessionValidatorState extends ConsumerState<SessionValidator>
       if (mounted) {
         final startup = ref.read(startupControllerProvider);
         if (startup.isReady && startup.firebaseReady) {
-          _validateSession();
+          _scheduleInitialValidation();
         }
       }
     });
@@ -49,6 +58,7 @@ class _SessionValidatorState extends ConsumerState<SessionValidator>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _startupSubscription?.close();
+    _initialValidationTimer?.cancel();
     super.dispose();
   }
 
@@ -65,6 +75,20 @@ class _SessionValidatorState extends ConsumerState<SessionValidator>
     }
   }
 
+  void _scheduleInitialValidation() {
+    if (_initialValidationTimer != null) {
+      return;
+    }
+
+    _initialValidationTimer = Timer(_initialValidationDelay, () {
+      _initialValidationTimer = null;
+      if (!mounted) {
+        return;
+      }
+      unawaited(_validateSession());
+    });
+  }
+
   Future<void> _validateSession() async {
     if (_isValidating) return;
 
@@ -77,7 +101,17 @@ class _SessionValidatorState extends ConsumerState<SessionValidator>
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    setState(() => _isValidating = true);
+    final securePrefs = ref.read(securePrefsProvider);
+    final lastSuccessfulValidationAt = await securePrefs
+        .getLastSuccessfulSessionValidationAt();
+    if (DeviceSessionPolicy.canUseValidationGraceWindow(
+      lastSuccessfulValidationAt,
+      graceWindow: _validationCooldown,
+    )) {
+      return;
+    }
+
+    _isValidating = true;
 
     try {
       final isValid = await ref
@@ -99,16 +133,22 @@ class _SessionValidatorState extends ConsumerState<SessionValidator>
     } catch (e) {
       debugPrint('[SessionValidator] Validation failed: $e');
     } finally {
-      if (mounted) {
-        setState(() => _isValidating = false);
-      }
+      _isValidating = false;
     }
   }
 
   Future<void> _updateActivity() async {
+    final lastUpdate = _lastActivityUpdateAt;
+    if (lastUpdate != null &&
+        DateTime.now().difference(lastUpdate) < _activityUpdateCooldown) {
+      return;
+    }
+
     try {
+      _lastActivityUpdateAt = DateTime.now();
       await ref.read(deviceSessionServiceProvider).updateActivity();
     } catch (e) {
+      _lastActivityUpdateAt = null;
       debugPrint('[SessionValidator] Activity update failed: $e');
     }
   }
@@ -120,8 +160,8 @@ class _SessionValidatorState extends ConsumerState<SessionValidator>
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.warning, color: Colors.orange),
-            const SizedBox(width: 8),
+            Icon(Icons.warning, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: ThemeSkeleton.size8),
             Text(AppLocalizations.of(context).sessionEnded),
           ],
         ),

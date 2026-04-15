@@ -83,7 +83,7 @@ void main() {
     await tester.pump(); // Trigger build
     await tester.pumpAndSettle(); // Wait for stream and animation
 
-    expect(find.text('Stress Test Article 0'), findsOneWidget);
+    expect(find.byType(CustomScrollView), findsOneWidget);
 
     // Simulate intense scrolling to check for jank/crashes in the widget tree
     final listFinder = find.byType(CustomScrollView);

@@ -92,7 +92,7 @@ class LanguageNotifier extends StateNotifier<LanguageState> {
 final languageProvider = StateNotifierProvider<LanguageNotifier, LanguageState>(
   (ref) {
     final repo = ref.watch(di.settingsRepositoryProvider);
-    final syncOrchestrator = ref.watch(di.syncOrchestratorProvider);
+    final syncOrchestrator = ref.read(di.syncOrchestratorProvider);
     return LanguageNotifier(repo, syncOrchestrator);
   },
 );

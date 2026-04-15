@@ -1,86 +1,108 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
+import '../../../../core/theme/theme_skeleton.dart';
 import '../../../../core/config/performance_config.dart' show PerformanceConfig;
-import 'shimmer_loading.dart';
 
 class NewsFeedSkeleton extends StatelessWidget {
   const NewsFeedSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final baseColor = isDark ? Colors.grey.shade800 : Colors.grey.shade300;
+    final highlightColor = isDark ? Colors.grey.shade700 : Colors.grey.shade100;
+
+    final listView = ListView.builder(
       itemCount: 6,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: ThemeSkeleton.shared.insetsSymmetric(
+        horizontal: 16,
+        vertical: 8,
+      ),
       physics: const NeverScrollableScrollPhysics(),
       itemBuilder: (context, index) {
         return Container(
-          margin: const EdgeInsets.symmetric(vertical: 6),
+          margin: ThemeSkeleton.shared.insetsSymmetric(vertical: 6),
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(24),
+            color: theme.cardColor.withValues(alpha: 0.5),
+            borderRadius: ThemeSkeleton.shared.circular(24),
             border: Border.all(
-              color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+              color: theme.dividerColor.withValues(alpha: 0.1),
             ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (!PerformanceConfig.of(context).dataSaver)
-                const ShimmerLoading(
+                Container(
                   height: 100,
-                  borderRadius: 24,
-                  margin: EdgeInsets.zero,
+                  decoration: BoxDecoration(
+                    color: baseColor,
+                    borderRadius: ThemeSkeleton.shared.circular(24),
+                  ),
                 ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+              Padding(
+                padding: ThemeSkeleton.shared.insetsSymmetric(
+                  horizontal: 12.0,
+                  vertical: 10.0,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    ShimmerLoading(
+                  children: [
+                    Container(
                       height: 16,
-                      borderRadius: 4,
-                      margin: EdgeInsets.only(bottom: 4),
+                      margin: ThemeSkeleton.shared.insetsOnly(bottom: 4),
+                      decoration: BoxDecoration(
+                        color: baseColor,
+                        borderRadius: ThemeSkeleton.shared.circular(4),
+                      ),
                     ),
-                    ShimmerLoading(
+                    Container(
                       height: 16,
                       width: 250,
-                      borderRadius: 4,
-                      margin: EdgeInsets.only(bottom: 12),
+                      margin: ThemeSkeleton.shared.insetsOnly(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: baseColor,
+                        borderRadius: ThemeSkeleton.shared.circular(4),
+                      ),
                     ),
-                    ShimmerLoading(
+                    Container(
                       height: 12,
-                      borderRadius: 4,
-                      margin: EdgeInsets.only(bottom: 4),
+                      margin: ThemeSkeleton.shared.insetsOnly(bottom: 4),
+                      decoration: BoxDecoration(
+                        color: baseColor,
+                        borderRadius: ThemeSkeleton.shared.circular(4),
+                      ),
                     ),
-                    ShimmerLoading(
+                    Container(
                       height: 12,
                       width: 180,
-                      borderRadius: 4,
-                      margin: EdgeInsets.only(bottom: 12),
+                      margin: ThemeSkeleton.shared.insetsOnly(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: baseColor,
+                        borderRadius: ThemeSkeleton.shared.circular(4),
+                      ),
                     ),
                     Row(
                       children: [
-                        ShimmerLoading(
-                          height: 20,
-                          width: 20,
-                          borderRadius: 6,
+                        Container(
+                          height: 20, width: 20,
+                          decoration: BoxDecoration(color: baseColor, borderRadius: ThemeSkeleton.shared.circular(6)),
                         ),
-                        SizedBox(width: 8),
-                        ShimmerLoading(
-                          height: 12,
-                          width: 80,
-                          borderRadius: 4,
+                        const SizedBox(width: ThemeSkeleton.size8),
+                        Container(
+                          height: 12, width: 80,
+                          decoration: BoxDecoration(color: baseColor, borderRadius: ThemeSkeleton.shared.circular(4)),
                         ),
-                        Spacer(),
-                        ShimmerLoading(
-                          height: 24,
-                          width: 24,
-                          borderRadius: 8,
+                        const Spacer(),
+                        Container(
+                          height: 24, width: 24,
+                          decoration: BoxDecoration(color: baseColor, borderRadius: ThemeSkeleton.shared.circular(8)),
                         ),
-                        SizedBox(width: 6),
-                        ShimmerLoading(
-                          height: 24,
-                          width: 24,
-                          borderRadius: 8,
+                        const SizedBox(width: ThemeSkeleton.size6),
+                        Container(
+                          height: 24, width: 24,
+                          decoration: BoxDecoration(color: baseColor, borderRadius: ThemeSkeleton.shared.circular(8)),
                         ),
                       ],
                     ),
@@ -91,6 +113,19 @@ class NewsFeedSkeleton extends StatelessWidget {
           ),
         );
       },
+    );
+
+    final shouldAnimate = !PerformanceConfig.of(context).reduceEffects &&
+        !PerformanceConfig.of(context).lowPowerMode &&
+        !PerformanceConfig.of(context).isLowEndDevice;
+
+    if (!shouldAnimate) return listView;
+
+    return Shimmer.fromColors(
+      baseColor: baseColor,
+      highlightColor: highlightColor,
+      period: const Duration(milliseconds: 1500),
+      child: listView,
     );
   }
 }

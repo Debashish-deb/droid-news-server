@@ -6,12 +6,14 @@ import '../../../domain/entities/news_article.dart';
 
 /// WebSocket service to connect to the backend server for real-time news updates
 class WebSocketNewsService {
-
-  WebSocketNewsService({String? serverUrl}) 
-      : _serverUrl = serverUrl ?? 'http://localhost:3000';
+  WebSocketNewsService({String? serverUrl})
+    : _serverUrl = serverUrl?.trim().isNotEmpty == true
+          ? serverUrl!.trim()
+          : const String.fromEnvironment('NEWS_SOCKET_URL');
   io.Socket? _socket;
   final String _serverUrl;
-  final StreamController<NewsArticle> _newsController = StreamController<NewsArticle>.broadcast();
+  final StreamController<NewsArticle> _newsController =
+      StreamController<NewsArticle>.broadcast();
   final List<NewsArticle> _cachedArticles = [];
   bool _isConnected = false;
 
@@ -31,9 +33,16 @@ class WebSocketNewsService {
       return;
     }
 
+    if (_serverUrl.trim().isEmpty) {
+      debugPrint(
+        'ℹ️ WebSocket server URL is not configured; skipping connect.',
+      );
+      return;
+    }
+
     try {
       debugPrint('🔌 Connecting to WebSocket at $_serverUrl');
-      
+
       _socket = io.io(
         _serverUrl,
         io.OptionBuilder()
@@ -78,10 +87,9 @@ class WebSocketNewsService {
       });
 
       _socket!.connect();
-      
+
       // Wait for connection with timeout
       await Future.delayed(const Duration(seconds: 3));
-      
     } catch (e) {
       debugPrint('❌ Failed to connect to WebSocket: $e');
       _isConnected = false;
@@ -91,8 +99,8 @@ class WebSocketNewsService {
   /// Parse news update from server
   NewsArticle? _parseNewsUpdate(dynamic data) {
     try {
-      final Map<String, dynamic> newsData = data is String 
-          ? json.decode(data) 
+      final Map<String, dynamic> newsData = data is String
+          ? json.decode(data)
           : Map<String, dynamic>.from(data);
 
       return NewsArticle(
@@ -101,7 +109,9 @@ class WebSocketNewsService {
         url: newsData['url'] ?? '',
         source: 'Google News',
         publishedAt: DateTime.now(),
-        imageUrl: newsData['imageUrl'] ?? 'https://via.placeholder.com/400x180?text=No+Image',
+        imageUrl:
+            newsData['imageUrl'] ??
+            'https://via.placeholder.com/400x180?text=No+Image',
         fullContent: newsData['snippet'] ?? '',
       );
     } catch (e) {
@@ -124,4 +134,3 @@ class WebSocketNewsService {
     _newsController.close();
   }
 }
-

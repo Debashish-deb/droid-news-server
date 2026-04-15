@@ -1,22 +1,45 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'dart:ui' show ImageFilter;
+import '../../../core/theme/theme.dart';
 
 class BootstrapScreen extends StatelessWidget {
   const BootstrapScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final appColors = theme.extension<AppColorsExtension>()!;
+    final isDark = theme.brightness == Brightness.dark;
+    final baseGradient = <Color>[
+      theme.scaffoldBackgroundColor,
+      appColors.surface.withValues(alpha: isDark ? 1 : 0.98),
+    ];
+
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      // Android already owns the launch experience via the platform splash.
+      // Keep the Flutter-side bootstrap surface visually neutral so there is
+      // not a second branded splash layer after the native one.
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: const SizedBox.expand(),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: <Color>[
-              Color(0x332A4D69),
-              Color(0x1A0A0A12),
-              Color(0x333C8DBC),
+              baseGradient[0],
+              Color.alphaBlend(
+                appColors.proBlue.withValues(alpha: isDark ? 0.08 : 0.06),
+                baseGradient[0],
+              ),
+              baseGradient[1],
             ],
           ),
         ),
@@ -29,18 +52,24 @@ class BootstrapScreen extends StatelessWidget {
                 width: 220,
                 height: 220,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
+                  color: theme.colorScheme.surface.withValues(
+                    alpha: isDark ? 0.20 : 0.72,
+                  ),
                   borderRadius: BorderRadius.circular(28),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.35),
+                    color: theme.colorScheme.outlineVariant.withValues(
+                      alpha: isDark ? 0.45 : 0.65,
+                    ),
                     width: 1.2,
                   ),
-                  boxShadow: const <BoxShadow>[
+                  boxShadow: <BoxShadow>[
                     BoxShadow(
-                      color: Color(0x22000000),
+                      color: Colors.black.withValues(
+                        alpha: isDark ? 0.22 : 0.12,
+                      ),
                       blurRadius: 30,
                       spreadRadius: 4,
-                      offset: Offset(0, 12),
+                      offset: const Offset(0, 12),
                     ),
                   ],
                 ),

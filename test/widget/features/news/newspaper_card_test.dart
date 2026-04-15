@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bdnewsreader/presentation/providers/theme_providers.dart';
 import 'package:bdnewsreader/presentation/features/news/widgets/newspaper_card.dart';
+import 'package:bdnewsreader/core/enums/theme_mode.dart';
 import 'package:bdnewsreader/infrastructure/repositories/settings_repository_impl.dart';
 import 'package:bdnewsreader/application/sync/sync_orchestrator.dart';
 import 'package:bdnewsreader/domain/repositories/premium_repository.dart';
@@ -64,6 +65,7 @@ void main() {
         wrapWithProviders(
           NewspaperCard(
             news: testNews,
+            mode: AppThemeMode.system,
             isFavorite: false,
             onFavoriteToggle: () {},
             searchQuery: '',
@@ -75,11 +77,14 @@ void main() {
       expect(find.byType(NewspaperCard), findsOneWidget);
     });
 
-    testWidgets('TC-WIDGET-022: Favorite button is visible', (tester) async {
+    testWidgets('TC-WIDGET-022: No legacy favorite button is rendered', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         wrapWithProviders(
           NewspaperCard(
             news: testNews,
+            mode: AppThemeMode.system,
             isFavorite: false,
             onFavoriteToggle: () {},
             searchQuery: '',
@@ -88,43 +93,43 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Favorite icon should be present
-      expect(find.byIcon(Icons.favorite_border), findsOneWidget);
+      expect(find.byType(NewspaperCard), findsOneWidget);
+      expect(find.byIcon(Icons.favorite_border), findsNothing);
     });
 
-    testWidgets('TC-WIDGET-023: Favorite button toggles state', (tester) async {
-      var isFavorite = false;
+    testWidgets('TC-WIDGET-023: Card tap invokes publisher handler', (
+      tester,
+    ) async {
+      var tapped = false;
 
       await tester.pumpWidget(
         wrapWithProviders(
-          StatefulBuilder(
-            builder: (context, setState) => NewspaperCard(
-              news: testNews,
-              isFavorite: isFavorite,
-              onFavoriteToggle: () => setState(() => isFavorite = !isFavorite),
-              searchQuery: '',
-            ),
+          NewspaperCard(
+            news: testNews,
+            mode: AppThemeMode.system,
+            isFavorite: false,
+            onFavoriteToggle: () {},
+            searchQuery: '',
+            onTap: () => tapped = true,
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      // Find the favorite icon
-      expect(find.byIcon(Icons.favorite_border), findsOneWidget);
-
-      // Tap it
-      await tester.tap(find.byIcon(Icons.favorite_border));
+      await tester.tap(find.byType(NewspaperCard));
       await tester.pumpAndSettle();
 
-      // Should now show filled heart
-      expect(isFavorite, isTrue);
+      expect(tapped, isTrue);
     });
 
-    testWidgets('TC-WIDGET-024: Share button is present', (tester) async {
+    testWidgets('TC-WIDGET-024: No legacy share button is rendered', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         wrapWithProviders(
           NewspaperCard(
             news: testNews,
+            mode: AppThemeMode.system,
             isFavorite: false,
             onFavoriteToggle: () {},
             searchQuery: '',
@@ -133,7 +138,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.share), findsOneWidget);
+      expect(find.byType(NewspaperCard), findsOneWidget);
+      expect(find.byIcon(Icons.share), findsNothing);
     });
 
     testWidgets('TC-WIDGET-025: NewspaperCard can render in a list', (
@@ -163,6 +169,7 @@ void main() {
               itemCount: newsList.length,
               itemBuilder: (context, index) => NewspaperCard(
                 news: newsList[index],
+                mode: AppThemeMode.system,
                 isFavorite: false,
                 onFavoriteToggle: () {},
                 searchQuery: '',
@@ -175,6 +182,29 @@ void main() {
 
       expect(find.byType(NewspaperCard), findsWidgets);
     });
+
+    testWidgets(
+      'TC-WIDGET-026: lightweight NewspaperCard renders quick layout without action icons',
+      (tester) async {
+        await tester.pumpWidget(
+          wrapWithProviders(
+            NewspaperCard(
+              news: testNews,
+              mode: AppThemeMode.system,
+              isFavorite: false,
+              onFavoriteToggle: () {},
+              searchQuery: '',
+              lightweightMode: true,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Breaking News: Important Event'), findsOneWidget);
+        expect(find.byIcon(Icons.favorite_border), findsNothing);
+        expect(find.byIcon(Icons.share), findsNothing);
+      },
+    );
   });
 }
 

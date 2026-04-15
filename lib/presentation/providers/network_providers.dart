@@ -9,15 +9,21 @@ import '../../core/di/providers.dart';
 
 /// Current connection status
 final isConnectedProvider = Provider<bool>((ref) {
-  return ref.watch(appNetworkServiceProvider).isConnected;
+  return ref.watch(
+    appNetworkServiceProvider.select((network) => network.isConnected),
+  );
 });
 
 /// Current network quality
 final networkQualityProvider = Provider<NetworkQuality>((ref) {
-  return ref.watch(appNetworkServiceProvider).currentQuality;
+  return ref.watch(
+    appNetworkServiceProvider.select((network) => network.currentQuality),
+  );
 });
 
 /// Human-readable quality description
 final networkQualityDescriptionProvider = Provider<String>((ref) {
-  return ref.watch(appNetworkServiceProvider).qualityDescription;
+  return ref.watch(
+    appNetworkServiceProvider.select((network) => network.qualityDescription),
+  );
 });

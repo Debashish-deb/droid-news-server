@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:hardwareAccelerated">true</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@color/status_bar_transparent</item>
+        <item name="android:navigationBarColor">@color/nav_bar_transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowActivityTransitions">true</item>
+        <item name="android:windowDisablePreview">false</item>
+    </style>
+
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/window_background_night</item>
+        <item name="android:hardwareAccelerated">true</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowActivityTransitions">true</item>
+        <item name="android:windowContentTransitions">true</item>
+        <item name="android:windowAllowEnterTransitionOverlap">true</item>
+        <item name="android:windowAllowReturnTransitionOverlap">true</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+
+    <style name="PremiumDialog" parent="@android:style/Theme.Material.Dialog">
+        <item name="android:windowBackground">@color/dialog_background_night</item>
+        <item name="android:windowElevation">24dp</item>
+        <item name="android:colorAccent">@color/accent_gold</item>
+        <item name="android:textColorPrimary">@color/text_on_dark</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:hardwareAccelerated">true</item>
+    </style>
+</resources>

@@ -77,6 +77,13 @@ void main() {
       ).thenAnswer((_) async => []);
 
       when(
+        mockRss.wasLastFetchSuccessful(
+          category: 'entertainment',
+          language: 'en',
+        ),
+      ).thenReturn(true);
+
+      when(
         mockClassifier.classify(
           title: anyNamed('title'),
           description: anyNamed('description'),
@@ -100,6 +107,7 @@ void main() {
         category: 'entertainment',
       );
 
+      print('syncNews result: $result');
       expect(result.isRight(), true);
       // It returns the count of inserted articles.
       // Since it's a new article, it should be 1.

@@ -27,7 +27,6 @@ void main() {
           url: parsed['url'] ?? '',
           imageUrl: parsed['imageUrl'],
           source: parsed['source'] ?? 'Unknown',
-          language: 'en',
           publishedAt:
               DateTime.tryParse(parsed['publishedAt'] ?? '') ?? DateTime.now(),
         );
@@ -57,7 +56,6 @@ void main() {
           url: parsed['url'] ?? '',
           imageUrl: parsed['imageUrl'],
           source: parsed['source'] ?? 'Unknown',
-          language: 'en',
           publishedAt:
               DateTime.tryParse(parsed['publishedAt'] ?? '') ?? DateTime.now(),
         );
@@ -92,7 +90,6 @@ void main() {
           url: parsed['url'] ?? '',
           imageUrl: parsed['imageUrl'],
           source: parsed['source'] ?? 'Unknown',
-          language: 'en',
           publishedAt:
               DateTime.tryParse(parsed['publishedAt'] ?? '') ?? DateTime.now(),
         );
@@ -129,7 +126,6 @@ void main() {
           url: parsed['url'] ?? '',
           imageUrl: parsed['imageUrl'],
           source: parsed['source'] ?? 'Unknown',
-          language: 'en',
           publishedAt:
               DateTime.tryParse(parsed['publishedAt'] ?? '') ?? DateTime.now(),
         );
@@ -170,7 +166,6 @@ void main() {
           url: parsed['url'] ?? '',
           imageUrl: parsed['imageUrl'],
           source: parsed['source'] ?? 'Unknown',
-          language: 'en',
           publishedAt:
               DateTime.tryParse(parsed['publishedAt'] ?? '') ?? DateTime.now(),
         );
@@ -206,7 +201,6 @@ void main() {
           url: parsed['url'] ?? '',
           imageUrl: parsed['imageUrl'],
           source: parsed['source'] ?? 'Unknown',
-          language: 'en',
           publishedAt:
               DateTime.tryParse(parsed['publishedAt'] ?? '') ?? DateTime.now(),
         );
@@ -241,7 +235,6 @@ void main() {
           url: parsed['url'] ?? '',
           imageUrl: parsed['imageUrl'],
           source: parsed['source'] ?? 'Unknown',
-          language: 'en',
           publishedAt:
               DateTime.tryParse(parsed['publishedAt'] ?? '') ?? DateTime.now(),
         );
@@ -274,7 +267,6 @@ void main() {
           url: parsed['url'] ?? '',
           imageUrl: parsed['imageUrl'],
           source: parsed['source'] ?? 'Unknown',
-          language: 'en',
           publishedAt:
               DateTime.tryParse(parsed['publishedAt'] ?? '') ?? DateTime.now(),
         );

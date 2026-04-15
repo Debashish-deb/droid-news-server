@@ -20,7 +20,7 @@ Future<void> logArticleOpened({
       parameters: {
         'article_id': articleId,
         'source': source,
-        if (category != null) 'category': category,
+        'category': ?category,
       },
     );
   }

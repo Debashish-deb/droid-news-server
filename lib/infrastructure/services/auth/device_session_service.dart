@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:uuid/uuid.dart';
 import '../../persistence/auth/device_session.dart';
 import 'security_audit_service.dart';
 import 'app_verification_service.dart';
@@ -32,14 +33,20 @@ class DeviceSessionService {
 
   static final Map<String, DateTime> _lastRegistration = {};
   static const Duration _registrationCooldown = Duration(minutes: 5);
+  static bool _sessionStoreUnavailable = false;
+  static bool _sessionStoreUnavailableLogged = false;
 
   static const int maxFreeAndroidDevices = 1;
   static const int maxFreeIosDevices = 1;
   static const int maxPremiumAndroidDevices = 2;
   static const int maxPremiumIosDevices = 1;
   static const Duration sessionTimeout = Duration(days: 30);
+  static const Uuid _uuid = Uuid();
 
   Future<DeviceRegistrationResult> registerDevice() async {
+    if (_sessionStoreUnavailable) {
+      return DeviceRegistrationResult.sessionStoreUnavailable();
+    }
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -53,14 +60,19 @@ class DeviceSessionService {
         );
       }
 
-      final deviceId = await _getDeviceId();
-      final deviceInfo = await _getDeviceInfo();
-      final appVersion = await _getAppVersion();
-      final fcmToken = await _getFCMToken();
-
-      final isVerified = await _appVerification.validateApp(
+      final deviceIdFuture = _getDeviceId();
+      final deviceInfoFuture = _getDeviceInfo();
+      final appVersionFuture = _getAppVersion();
+      final fcmTokenFuture = _getFCMToken();
+      final isVerifiedFuture = _appVerification.validateApp(
         operation: 'device_registration',
       );
+
+      var deviceId = await deviceIdFuture;
+      final deviceInfo = await deviceInfoFuture;
+      final appVersion = await appVersionFuture;
+      final fcmToken = await fcmTokenFuture;
+      final isVerified = await isVerifiedFuture;
 
       if (!isVerified) {
         await _auditService.logEvent(SecurityEventType.suspiciousActivity, {
@@ -75,8 +87,21 @@ class DeviceSessionService {
       final validatedPlatform = _validatePlatform(
         deviceInfo['platform'] ?? 'unknown',
       );
+      final reclaimedDeviceId = await _reclaimExistingSessionForSameDevice(
+        userId: user.uid,
+        currentDeviceId: deviceId,
+        currentDeviceName: sanitizedDeviceName,
+        currentPlatform: validatedPlatform,
+      );
+      if (reclaimedDeviceId != null && reclaimedDeviceId.isNotEmpty) {
+        deviceId = reclaimedDeviceId;
+      }
 
-      final limitCheck = await _checkDeviceLimit(user.uid, deviceId);
+      final limitCheck = await _checkDeviceLimit(
+        user.uid,
+        deviceId,
+        validatedPlatform,
+      );
       if (!limitCheck.allowed) {
         return DeviceRegistrationResult.limitExceeded(
           maxDevices: limitCheck.maxDevices,
@@ -107,6 +132,8 @@ class DeviceSessionService {
 
       await _securePrefs.setRegisteredDeviceId(deviceId);
       await _securePrefs.setLastSuccessfulSessionValidationAt(DateTime.now());
+      _sessionStoreUnavailable = false;
+      _sessionStoreUnavailableLogged = false;
 
       _lastRegistration[user.uid] = DateTime.now();
 
@@ -124,6 +151,10 @@ class DeviceSessionService {
     } on SecurityException {
       return DeviceRegistrationResult.untrustedDevice();
     } on FirebaseException catch (e) {
+      if (_isSessionStoreAccessError(e)) {
+        _markSessionStoreUnavailable(e, operation: 'registerDevice');
+        return DeviceRegistrationResult.sessionStoreUnavailable();
+      }
       if (kDebugMode) {
         debugPrint('[DeviceSession] Registration failed: $e');
       }
@@ -139,12 +170,14 @@ class DeviceSessionService {
   Future<DeviceLimitCheck> _checkDeviceLimit(
     String userId,
     String currentDeviceId,
+    String currentPlatform,
   ) async {
-    final userDoc = await _firestore.collection('users').doc(userId).get();
+    final userDocFuture = _firestore.collection('users').doc(userId).get();
+    final activeDevicesFuture = _getActiveDeviceSessionsForUser(userId);
+
+    final userDoc = await userDocFuture;
     final isPremium = _isPremiumUser(userDoc.data());
-    final deviceInfo = await _getDeviceInfo();
-    final currentPlatform = deviceInfo['platform']?.toLowerCase() ?? 'unknown';
-    final activeDevices = await _getActiveDeviceSessionsForUser(userId);
+    final activeDevices = await activeDevicesFuture;
 
     return DeviceSessionPolicy.evaluateDeviceLimit(
       isPremium: isPremium,
@@ -170,21 +203,32 @@ class DeviceSessionService {
   }
 
   Future<void> updateActivity() async {
+    if (_sessionStoreUnavailable) {
+      return;
+    }
     try {
       final user = _auth.currentUser;
       if (user == null) return;
 
-      final deviceId = await _getDeviceId();
+      final deviceId = await _securePrefs.getRegisteredDeviceId();
+      if (deviceId == null || deviceId.isEmpty) {
+        return;
+      }
       await _firestore
           .collection('user_sessions')
           .doc(user.uid)
           .collection('devices')
           .doc(deviceId)
           .update({'lastActive': FieldValue.serverTimestamp()});
-    } catch (e) {
-      if (e.toString().contains('permission-denied')) {
+    } on FirebaseException catch (e) {
+      if (_isSessionStoreAccessError(e)) {
+        _markSessionStoreUnavailable(e, operation: 'updateActivity');
         return;
       }
+      if (kDebugMode) {
+        debugPrint('[DeviceSession] Activity update failed: $e');
+      }
+    } catch (e) {
       if (kDebugMode) {
         debugPrint('[DeviceSession] Activity update failed: $e');
       }
@@ -274,6 +318,9 @@ class DeviceSessionService {
   }
 
   Future<bool> validateSession() async {
+    if (_sessionStoreUnavailable) {
+      return _allowSessionWhileStoreUnavailable();
+    }
     try {
       final user = _auth.currentUser;
       if (user == null) return true;
@@ -291,23 +338,23 @@ class DeviceSessionService {
           : null;
 
       if (session == null) {
-        // Attempt silent registration for legacy sessions missing a device document. 
+        // Attempt silent registration for legacy sessions missing a device document.
         final regResult = await registerDevice();
         if (regResult.success) {
           await _securePrefs.setRegisteredDeviceId(deviceId);
-          await _securePrefs.setLastSuccessfulSessionValidationAt(DateTime.now());
+          await _securePrefs.setLastSuccessfulSessionValidationAt(
+            DateTime.now(),
+          );
           return true;
-        } else if (regResult.failureCode == DeviceRegistrationFailureCode.limitExceeded ||
-             regResult.failureCode == DeviceRegistrationFailureCode.untrustedDevice ||
-             regResult.failureCode == DeviceRegistrationFailureCode.verificationFailed) {
+        } else if (regResult.failureCode ==
+                DeviceRegistrationFailureCode.limitExceeded ||
+            regResult.failureCode ==
+                DeviceRegistrationFailureCode.untrustedDevice ||
+            regResult.failureCode ==
+                DeviceRegistrationFailureCode.verificationFailed) {
           return false;
         } else {
-          // If registration fails due to temporary network error, fallback to grace window.
-          final lastSuccessfulValidationAt = await _securePrefs
-              .getLastSuccessfulSessionValidationAt();
-          return DeviceSessionPolicy.canUseValidationGraceWindow(
-            lastSuccessfulValidationAt,
-          );
+          return _allowSessionWhileStoreUnavailable();
         }
       }
 
@@ -320,6 +367,10 @@ class DeviceSessionService {
       }
       return decision.isValid;
     } on FirebaseException catch (e) {
+      if (_isSessionStoreAccessError(e)) {
+        _markSessionStoreUnavailable(e, operation: 'validateSession');
+        return _allowSessionWhileStoreUnavailable();
+      }
       if (_isTransientSessionStoreError(e)) {
         final lastSuccessfulValidationAt = await _securePrefs
             .getLastSuccessfulSessionValidationAt();
@@ -345,17 +396,7 @@ class DeviceSessionService {
       return cachedId;
     }
 
-    final deviceInfo = DeviceInfoPlugin();
-    String deviceId;
-    if (Platform.isAndroid) {
-      final androidInfo = await deviceInfo.androidInfo;
-      deviceId = androidInfo.id;
-    } else if (Platform.isIOS) {
-      final iosInfo = await deviceInfo.iosInfo;
-      deviceId = iosInfo.identifierForVendor ?? 'unknown-ios';
-    } else {
-      deviceId = 'unknown-platform';
-    }
+    final deviceId = _uuid.v4();
 
     await _securePrefs.setDeviceId(deviceId);
     return deviceId;
@@ -405,8 +446,62 @@ class DeviceSessionService {
         .toList(growable: false);
   }
 
+  Future<String?> _reclaimExistingSessionForSameDevice({
+    required String userId,
+    required String currentDeviceId,
+    required String currentDeviceName,
+    required String currentPlatform,
+  }) async {
+    final activeDevices = await _getActiveDeviceSessionsForUser(userId);
+    if (activeDevices.any((device) => device.deviceId == currentDeviceId)) {
+      return currentDeviceId;
+    }
+
+    final normalizedCurrentName = _normalizeDeviceNameForMatch(
+      currentDeviceName,
+    );
+    if (normalizedCurrentName.isEmpty) {
+      return null;
+    }
+
+    final matchingDevices = activeDevices
+        .where((device) {
+          return device.platform.toLowerCase() == currentPlatform &&
+              _normalizeDeviceNameForMatch(device.deviceName) ==
+                  normalizedCurrentName;
+        })
+        .toList(growable: false);
+
+    if (matchingDevices.length != 1) {
+      return null;
+    }
+
+    final existingDevice = matchingDevices.single;
+    await _securePrefs.setDeviceId(existingDevice.deviceId);
+    await _securePrefs.setRegisteredDeviceId(existingDevice.deviceId);
+
+    if (kDebugMode) {
+      debugPrint(
+        '[DeviceSession] Reclaimed existing device session '
+        '${existingDevice.deviceId} for $currentDeviceName',
+      );
+    }
+
+    return existingDevice.deviceId;
+  }
+
   bool _isPremiumUser(Map<String, dynamic>? data) {
-    return data?['isPremium'] == true || data?['is_premium'] == true;
+    final canonicalValue = data?['is_premium'];
+    if (canonicalValue is bool) {
+      return canonicalValue;
+    }
+
+    final legacyValue = data?['isPremium'];
+    if (legacyValue is bool) {
+      return legacyValue;
+    }
+
+    return false;
   }
 
   bool _isTransientSessionStoreError(FirebaseException error) {
@@ -419,6 +514,46 @@ class DeviceSessionService {
       'unavailable',
       'unknown',
     }.contains(error.code);
+  }
+
+  bool _isSessionStoreAccessError(FirebaseException error) {
+    return const <String>{
+      'permission-denied',
+      'failed-precondition',
+    }.contains(error.code);
+  }
+
+  void _markSessionStoreUnavailable(
+    FirebaseException error, {
+    required String operation,
+  }) {
+    _sessionStoreUnavailable = true;
+    if (_sessionStoreUnavailableLogged || !kDebugMode) {
+      return;
+    }
+    _sessionStoreUnavailableLogged = true;
+    debugPrint(
+      '[DeviceSession] Session store unavailable during $operation '
+      '(${error.code}); suppressing further startup writes for this session.',
+    );
+  }
+
+  Future<bool> _allowSessionWhileStoreUnavailable() async {
+    final lastSuccessfulValidationAt = await _securePrefs
+        .getLastSuccessfulSessionValidationAt();
+    if (DeviceSessionPolicy.canUseValidationGraceWindow(
+      lastSuccessfulValidationAt,
+    )) {
+      return true;
+    }
+
+    final user = _auth.currentUser;
+    if (user == null) {
+      return false;
+    }
+
+    await _securePrefs.setLastSuccessfulSessionValidationAt(DateTime.now());
+    return true;
   }
 
   ({bool allowed, int waitMinutes}) _checkRateLimit(String userId) {
@@ -457,8 +592,24 @@ class DeviceSessionService {
     return name;
   }
 
+  String _normalizeDeviceNameForMatch(String name) {
+    return name
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll(RegExp(r'[^a-z0-9\s\-\(\)]'), '')
+        .trim();
+  }
+
   String _validatePlatform(String platform) {
-    const allowedPlatforms = ['android', 'ios', 'macos', 'web', 'windows', 'linux', 'unknown'];
+    const allowedPlatforms = [
+      'android',
+      'ios',
+      'macos',
+      'web',
+      'windows',
+      'linux',
+      'unknown',
+    ];
     final normalized = platform.toLowerCase().trim();
 
     return allowedPlatforms.contains(normalized) ? normalized : 'unknown';

@@ -2,6 +2,7 @@
 // ENHANCED VERSION with Fixed Category Display
 
 import 'dart:ui';
+import '../../../../core/theme/theme_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -18,6 +19,21 @@ import '../../growth/smart_share_service.dart';
 import '../../../widgets/glass_icon_button.dart';
 import '../../../../core/config/performance_config.dart';
 import '../../../widgets/optimized_cached_image.dart' show OptimizedCachedImage;
+import '../../../widgets/platform_surface_treatment.dart';
+
+typedef _NewsCardThemeSnapshot = ({
+  AppThemeMode themeMode,
+  Color selectionColor,
+  Color borderColor,
+});
+
+final _newsCardThemeProvider = Provider<_NewsCardThemeSnapshot>((ref) {
+  return (
+    themeMode: ref.watch(currentThemeModeProvider),
+    selectionColor: ref.watch(navIconColorProvider),
+    borderColor: ref.watch(borderColorProvider),
+  );
+});
 
 class NewsCard extends ConsumerStatefulWidget {
   const NewsCard({
@@ -44,48 +60,45 @@ class NewsCard extends ConsumerStatefulWidget {
 }
 
 class _NewsCardState extends ConsumerState<NewsCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _elevationAnimation;
-  late Animation<double> _borderAnimation;
+    with TickerProviderStateMixin {
+  AnimationController? _controller;
+  Animation<double> _scaleAnimation = const AlwaysStoppedAnimation(1.0);
+  Animation<double> _elevationAnimation = const AlwaysStoppedAnimation(1.0);
   double _parallaxOffset = 0.0;
   Future<SentimentResult>? _sentimentFuture;
+  bool _motionEffectsEnabled = false;
+  Object? _lastMotionProfileKey;
+  String? _cachedTaxonomyLocale;
+  String? _cachedTaxonomyCategory;
+  String? _cachedTaxonomyTagsKey;
+  String? _cachedLocalizedCategoryLabel;
+  List<String>? _cachedVisibleTaxonomyTags;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
-
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.98,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-
-    _elevationAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.5,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-
-    _borderAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final perf = PerformanceConfig.of(context);
+    final nextMotionProfileKey = Object.hash(
+      perf.reduceMotion,
+      perf.reduceEffects,
+      perf.lowPowerMode,
+      perf.isLowEndDevice,
+      perf.performanceTier,
+    );
+    if (_lastMotionProfileKey != nextMotionProfileKey) {
+      _lastMotionProfileKey = nextMotionProfileKey;
+      _syncMotionController(perf);
+    }
 
     if (!widget.showSentimentBadge) return;
 
-    // Cache the sentiment future - Defer to microtask to keep UI thread responsive
-    // Safe to access PerformanceConfig.of(context) here
+    // Cache the sentiment future - Defer to microtask to keep UI thread responsive.
     if (_sentimentFuture == null) {
-      final perf = PerformanceConfig.of(context);
       if (!perf.lowPowerMode && !perf.dataSaver) {
         // [DATA SAVER] skip sentiment
         _sentimentFuture = Future.microtask(
@@ -101,18 +114,55 @@ class _NewsCardState extends ConsumerState<NewsCard>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
-  void _onTapDown(_) => _controller.forward();
-  void _onTapUp(_) {
-    _controller.reverse().then((_) {
-      widget.onTap?.call();
-    });
+  void _syncMotionController([PerformanceConfig? perf]) {
+    final resolvedPerf = perf ?? PerformanceConfig.of(context);
+    final shouldEnable =
+        !resolvedPerf.reduceMotion &&
+        !resolvedPerf.reduceEffects &&
+        !resolvedPerf.lowPowerMode &&
+        !resolvedPerf.isLowEndDevice &&
+        resolvedPerf.performanceTier == DevicePerformanceTier.flagship;
+
+    if (shouldEnable == _motionEffectsEnabled) return;
+    _motionEffectsEnabled = shouldEnable;
+
+    if (shouldEnable) {
+      _controller ??= AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 200),
+      );
+      final controller = _controller!;
+      _scaleAnimation = Tween<double>(begin: 1.0, end: 0.98).animate(
+        CurvedAnimation(parent: controller, curve: Curves.easeOutCubic),
+      );
+      _elevationAnimation = Tween<double>(begin: 1.0, end: 0.5).animate(
+        CurvedAnimation(parent: controller, curve: Curves.easeOutCubic),
+      );
+      return;
+    }
+
+    _controller?.dispose();
+    _controller = null;
+    _scaleAnimation = const AlwaysStoppedAnimation(1.0);
+    _elevationAnimation = const AlwaysStoppedAnimation(1.0);
   }
 
-  void _onTapCancel() => _controller.reverse();
+  void _onTapDown(_) => _controller?.forward();
+  void _onTapUp(_) {
+    final controller = _controller;
+    if (controller == null) {
+      widget.onTap?.call();
+      return;
+    }
+    controller.reverse();
+    widget.onTap?.call();
+  }
+
+  void _onTapCancel() => _controller?.reverse();
 
   void _handleHover(bool hovering) {}
 
@@ -131,16 +181,8 @@ class _NewsCardState extends ConsumerState<NewsCard>
     if (mounted) setState(() {});
   }
 
-  bool get isLive => widget.article.isLive;
-  bool get isBreaking =>
-      DateTime.now().difference(widget.article.publishedAt) <
-      const Duration(hours: 6);
-  bool get isFresh =>
-      DateTime.now().difference(widget.article.publishedAt) <
-      const Duration(minutes: 30);
-  bool get isPremiumContent => widget.article.tags?.contains('premium') == true;
-
-  static const Set<String> _excludedTagPrefixes = <String>{'format'};
+  static const Set<String> _excludedTagPrefixes = <String>{'format', 'topic'};
+  static const Set<String> _hiddenTagSemantics = <String>{'tax'};
   static const Map<String, String> _taxonomyAliases = <String, String>{
     'bd': 'bangladesh',
     'bangla': 'bangladesh',
@@ -158,6 +200,18 @@ class _NewsCardState extends ConsumerState<NewsCard>
     'opinions': 'opinion',
     'editorial': 'opinion',
   };
+  static const Map<String, Set<String>> _categorySemanticAliases =
+      <String, Set<String>>{
+        'national': <String>{'national', 'bangladesh', 'country bangladesh'},
+        'international': <String>{
+          'international',
+          'global',
+          'world',
+          'world affairs',
+        },
+        'sports': <String>{'sports', 'sport'},
+        'entertainment': <String>{'entertainment', 'showbiz'},
+      };
   static const Map<String, String> _bnTaxonomyFallback = <String, String>{
     'bangladesh': 'বাংলাদেশ',
     'generic': 'সাধারণ',
@@ -271,49 +325,65 @@ class _NewsCardState extends ConsumerState<NewsCard>
     'fact check': 'ফ্যাক্ট চেক',
     'timeline': 'সময়রেখা',
   };
-
-  Widget _buildPremiumBadge(AppLocalizations loc) {
-    return Positioned(
-      top: 12,
-      right: 12,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Colors.amber.withValues(alpha: 0.9),
-              Colors.orange.withValues(alpha: 0.9),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.amber.withValues(alpha: 0.3),
-              blurRadius: 10,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.star_rounded, size: 12, color: Colors.white),
-            const SizedBox(width: 4),
-            Text(
-              loc.premium,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  static const Map<String, String> _bnPublisherFallback = <String, String>{
+    'al jazeera': 'আল জাজিরা',
+    'alokito bangladesh': 'আলোকিত বাংলাদেশ',
+    'amader shomoy': 'আমাদের সময়',
+    'ars technica': 'আর্স টেকনিকা',
+    'bangla insider': 'বাংলা ইনসাইডার',
+    'bangla tribune': 'বাংলা ট্রিবিউন',
+    'bangladesh pratidin': 'বাংলাদেশ প্রতিদিন',
+    'banglanews24': 'বাংলানিউজ২৪',
+    'banglanews24 com': 'বাংলানিউজ২৪',
+    'bbc bangla': 'বিবিসি বাংলা',
+    'bbc bengali': 'বিবিসি বাংলা',
+    'bbc news': 'বিবিসি নিউজ',
+    'bd news 24': 'বিডিনিউজ২৪',
+    'bdnews24': 'বিডিনিউজ২৪',
+    'bdnews24 com': 'বিডিনিউজ২৪',
+    'bhorer kagoj': 'ভোরের কাগজ',
+    'bss': 'বাসস',
+    'bss news': 'বাসস',
+    'cnet': 'সিনেট',
+    'cnn': 'সিএনএন',
+    'dainik azadi': 'দৈনিক আজাদী',
+    'daily campus': 'দ্য ডেইলি ক্যাম্পাস',
+    'daily star': 'দ্য ডেইলি স্টার',
+    'dawn': 'ডন',
+    'dhaka post': 'ঢাকা পোস্ট',
+    'dhaka tribune': 'ঢাকা ট্রিবিউন',
+    'engadget': 'এনগ্যাজেট',
+    'gizmodo': 'গিজমোডো',
+    'google news': 'গুগল নিউজ',
+    'inqilab': 'ইনকিলাব',
+    'ittefaq': 'ইত্তেফাক',
+    'jai jai din': 'যায়যায়দিন',
+    'jugantor': 'যুগান্তর',
+    'kaler kantho': 'কালের কণ্ঠ',
+    'kalerkontho': 'কালের কণ্ঠ',
+    'khulna gazette': 'খুলনা গেজেট',
+    'lekhapora bd': 'লেখাপড়া বিডি',
+    'manab kantha': 'মানবকণ্ঠ',
+    'manab zamin': 'মানবজমিন',
+    'mashable': 'ম্যাশেবল',
+    'naya diganta': 'নয়া দিগন্ত',
+    'prothom alo': 'প্রথম আলো',
+    'prothomalo': 'প্রথম আলো',
+    'reuters': 'রয়টার্স',
+    'risingbd': 'রাইজিংবিডি',
+    'samakal': 'সমকাল',
+    'sangbad pratidin': 'সংবাদ প্রতিদিন',
+    'shiksha barta': 'শিক্ষাবার্তা',
+    'sylheter dak': 'সিলেটের ডাক',
+    'techcrunch': 'টেকক্রাঞ্চ',
+    'the daily campus': 'দ্য ডেইলি ক্যাম্পাস',
+    'the daily star': 'দ্য ডেইলি স্টার',
+    'the hindu': 'দ্য হিন্দু',
+    'the next web': 'দ্য নেক্সট ওয়েব',
+    'the verge': 'দ্য ভার্জ',
+    'wired': 'ওয়্যার্ড',
+    'zdnet': 'জেডডিনেট',
+  };
 
   Widget _buildImage(
     String imageUrl,
@@ -321,61 +391,63 @@ class _NewsCardState extends ConsumerState<NewsCard>
     Color selectionColor,
     PerformanceConfig perf,
     AppLocalizations loc,
+    double spacingScale,
   ) {
     return ClipRRect(
-      borderRadius: const BorderRadius.only(
-        topLeft: Radius.circular(24),
-        topRight: Radius.circular(24),
+      borderRadius: BorderRadius.only(
+        topLeft: ThemeSkeleton.shared.radius(24),
+        topRight: ThemeSkeleton.shared.radius(24),
       ),
       child: Stack(
         children: [
-          Transform.translate(
-            offset: Offset(_parallaxOffset, 0),
-            child: OptimizedCachedImage(
-              imageUrl: imageUrl,
-              height: 100,
-              width: double.infinity,
-              semanticLabel: 'Article image: ${widget.article.title}',
-              errorWidget: Container(
-                height: 100,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      isDark
-                          ? const Color(0xFF2C2C2E)
-                          : const Color(0xFFF2F2F7),
-                      isDark
-                          ? const Color(0xFF1C1C1E)
-                          : const Color(0xFFE5E5EA),
-                    ],
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Transform.translate(
+              offset: Offset(_parallaxOffset, 0),
+              child: OptimizedCachedImage(
+                imageUrl: imageUrl,
+                width: double.infinity,
+                semanticLabel: 'Article image: ${widget.article.title}',
+                errorWidget: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        isDark
+                            ? const Color(0xFF2C2C2E)
+                            : const Color(0xFFF2F2F7),
+                        isDark
+                            ? const Color(0xFF1C1C1E)
+                            : const Color(0xFFE5E5EA),
+                      ],
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.image_not_supported_rounded,
+                    size: 40 * spacingScale,
+                    color: isDark
+                        ? const Color(0xFF8E8E93)
+                        : const Color(0xFFAEAEB2),
                   ),
                 ),
-                child: Icon(
-                  Icons.image_not_supported_rounded,
-                  size: 40,
-                  color: isDark
-                      ? const Color(0xFF8E8E93)
-                      : const Color(0xFFAEAEB2),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.3),
+                  ],
                 ),
               ),
             ),
           ),
-          Container(
-            height: 100,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withValues(alpha: 0.3),
-                ],
-              ),
-            ),
-          ),
-          if (isPremiumContent) _buildPremiumBadge(loc),
         ],
       ),
     );
@@ -383,23 +455,22 @@ class _NewsCardState extends ConsumerState<NewsCard>
 
   Widget _buildSourceLogo(String path, Color selectionColor) {
     return Container(
-      width: 20,
-      height: 20,
+      width: 22,
+      height: 22,
+      padding: ThemeSkeleton.shared.insetsAll(3.5),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: selectionColor.withValues(alpha: 0.2)),
+        borderRadius: ThemeSkeleton.shared.circular(7),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 3,
+            spreadRadius: 0.5,
           ),
         ],
       ),
-      padding: const EdgeInsets.all(3),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(4),
+      child: Center(
         child: Image.asset(
           path,
           fit: BoxFit.contain,
@@ -407,8 +478,8 @@ class _NewsCardState extends ConsumerState<NewsCard>
           errorBuilder: (context, error, stackTrace) {
             return Icon(
               Icons.public_rounded,
-              size: 14,
-              color: selectionColor.withValues(alpha: 0.8),
+              size: 12,
+              color: selectionColor.withValues(alpha: 0.7),
             );
           },
         ),
@@ -421,45 +492,87 @@ class _NewsCardState extends ConsumerState<NewsCard>
     final perf = PerformanceConfig.of(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final themeMode = ref.watch(currentThemeModeProvider);
-
-    final selectionColor = ref.watch(navIconColorProvider);
-    final borderColor = ref.watch(borderColorProvider);
+    final cardTheme = ref.watch(_newsCardThemeProvider);
+    final themeMode = cardTheme.themeMode;
+    final selectionColor = cardTheme.selectionColor;
+    final borderColor = cardTheme.borderColor;
+    final preferMaterialChrome = preferAndroidMaterialSurfaceChrome(context);
     final cardSurfaceColor = _resolveCardSurfaceColor(themeMode, theme);
     final uniformCardBackground =
         themeMode == AppThemeMode.dark ||
-        themeMode == AppThemeMode.amoled ||
+        themeMode == AppThemeMode.bangladesh ||
         (themeMode == AppThemeMode.system &&
             theme.brightness == Brightness.dark);
 
-    final bool lowPowerMode = perf.lowPowerMode;
+    final mediaQuery = MediaQuery.of(context);
+    final double screenWidth = mediaQuery.size.width;
+    final double screenHeight = mediaQuery.size.height;
+
+    // Viewport scaling factors
+    final double textScale = (screenWidth < 360)
+        ? 0.92
+        : (screenWidth > 480 ? 1.08 : 1.0);
+    final double spacingScale = (screenHeight < 700) ? 0.85 : 1.0;
+
     final bool isLowEnd = perf.isLowEndDevice;
+    final bool lowPowerMode = perf.lowPowerMode;
+    final bool flagshipEffects =
+        perf.performanceTier == DevicePerformanceTier.flagship;
+    final Duration publishedAge = (() {
+      final diff = DateTime.now().difference(widget.article.publishedAt);
+      return diff.isNegative ? Duration.zero : diff;
+    })();
+    final bool isLive = widget.article.isLive;
+    final bool isBreaking = publishedAge < const Duration(hours: 6);
+
     final bool enableHover =
-        !perf.reduceMotion && !perf.reduceEffects && !lowPowerMode && !isLowEnd;
+        flagshipEffects &&
+        !perf.reduceMotion &&
+        !perf.reduceEffects &&
+        !lowPowerMode &&
+        !isLowEnd;
     final bool enableParallax =
+        flagshipEffects &&
         !perf.reduceMotion &&
         !perf.reduceEffects &&
         !lowPowerMode &&
         !isLowEnd &&
         widget.enableParallax;
 
-    // Disable blur if device is heating or low performance
-    final double blurSigma = (perf.reduceEffects || perf.dataSaver)
-        ? 0.0
-        : 12.0;
+    // Aggressive performance optimizations for non-flagship devices
+    // Blur is disabled globally since BackdropFilter inside scrollable lists generates
+    // multiple massive rendering wrappers without significant visual upside.
+    const bool allowCardBlur = false;
 
-    if (blurSigma <= 0) {
+    final bool allowComplexShadows =
+        !perf.reduceEffects &&
+        !lowPowerMode &&
+        !isLowEnd &&
+        perf.performanceTier == DevicePerformanceTier.flagship &&
+        !preferMaterialChrome;
+
+    const double blurSigma = allowCardBlur ? 4.0 : 0.0;
+
+    final controller = _controller;
+    if (blurSigma <= 0 || controller == null) {
       return _buildCardContent(
         context,
         isDark,
         selectionColor,
         cardSurfaceColor,
         borderColor,
+        themeMode,
         blurSigma,
         enableHover,
         enableParallax,
         perf,
         uniformCardBackground,
+        textScale,
+        spacingScale,
+        allowComplexShadows,
+        isLive,
+        isBreaking,
+        publishedAge,
       );
     }
 
@@ -468,7 +581,7 @@ class _NewsCardState extends ConsumerState<NewsCard>
       onExit: enableHover ? (_) => _handleHover(false) : null,
       onHover: enableParallax ? _updateParallax : null,
       child: AnimatedBuilder(
-        animation: _controller,
+        animation: controller,
         builder: (context, child) {
           return Transform.scale(
             scale: _scaleAnimation.value,
@@ -478,11 +591,18 @@ class _NewsCardState extends ConsumerState<NewsCard>
               selectionColor,
               cardSurfaceColor,
               borderColor,
+              themeMode,
               blurSigma,
               enableHover,
               enableParallax,
               perf,
               uniformCardBackground,
+              textScale,
+              spacingScale,
+              allowComplexShadows,
+              isLive,
+              isBreaking,
+              publishedAge,
             ),
           );
         },
@@ -496,65 +616,70 @@ class _NewsCardState extends ConsumerState<NewsCard>
     Color selectionColor,
     Color cardSurfaceColor,
     Color borderColor,
+    AppThemeMode themeMode,
     double blurSigma,
     bool enableHover,
     bool enableParallax,
     PerformanceConfig perf,
     bool uniformCardBackground,
+    double textScale,
+    double spacingScale,
+    bool allowComplexShadows,
+    bool isLive,
+    bool isBreaking,
+    Duration publishedAge,
   ) {
     final loc = AppLocalizations.of(context);
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 2),
+      margin: ThemeSkeleton.shared.insetsSymmetric(vertical: 2 * spacingScale),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: perf.reduceEffects || !isDark
+        borderRadius: ThemeSkeleton.shared.circular(24),
+        boxShadow: !allowComplexShadows || !isDark || !enableHover
             ? const []
             : [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 20 * _elevationAnimation.value,
-                  spreadRadius: 2 * _elevationAnimation.value,
-                  offset: Offset(0, 8 * _elevationAnimation.value),
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 10 * _elevationAnimation.value,
+                  offset: Offset(0, 4 * _elevationAnimation.value),
                 ),
-                if (_elevationAnimation.value > 0.5 && widget.highlight)
-                  BoxShadow(
-                    color: selectionColor.withValues(
-                      alpha: 0.2 * _borderAnimation.value,
-                    ),
-                    blurRadius: 30,
-                    spreadRadius: 2,
-                  ),
               ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: RepaintBoundary(
-          child: blurSigma > 0
-              ? BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: blurSigma,
-                    sigmaY: blurSigma,
-                  ),
-                  child: _buildInnerContent(
-                    isDark,
-                    cardSurfaceColor,
-                    selectionColor,
-                    borderColor,
-                    perf,
-                    loc,
-                    uniformCardBackground,
-                  ),
-                )
-              : _buildInnerContent(
+        borderRadius: ThemeSkeleton.shared.circular(24),
+        child: blurSigma > 0
+            ? BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+                child: _buildInnerContent(
                   isDark,
                   cardSurfaceColor,
                   selectionColor,
                   borderColor,
+                  themeMode,
                   perf,
                   loc,
                   uniformCardBackground,
+                  textScale,
+                  spacingScale,
+                  isLive,
+                  isBreaking,
+                  publishedAge,
                 ),
-        ),
+              )
+            : _buildInnerContent(
+                isDark,
+                cardSurfaceColor,
+                selectionColor,
+                borderColor,
+                themeMode,
+                perf,
+                loc,
+                uniformCardBackground,
+                textScale,
+                spacingScale,
+                isLive,
+                isBreaking,
+                publishedAge,
+              ),
       ),
     );
   }
@@ -564,11 +689,77 @@ class _NewsCardState extends ConsumerState<NewsCard>
     Color cardSurfaceColor,
     Color selectionColor,
     Color borderColor,
+    AppThemeMode themeMode,
     PerformanceConfig perf,
     AppLocalizations loc,
     bool uniformCardBackground,
+    double textScale,
+    double spacingScale,
+    bool isLive,
+    bool isBreaking,
+    Duration publishedAge,
+  ) {
+    final isBangladesh = themeMode == AppThemeMode.bangladesh;
+    final hasSolidSurface = cardSurfaceColor.alpha > 0;
+
+    return Stack(
+      children: [
+        // Emerald keeps the dark glass shape, but uses a white bloom instead of red.
+        if (isBangladesh && hasSolidSurface)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(
+                    0.0,
+                    -0.2,
+                  ), // Slightly offset like the flag disk
+                  radius: 0.8,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.10),
+                    Colors.white.withValues(alpha: 0.05),
+                    Colors.white.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        _buildActualInnerContent(
+          isDark,
+          cardSurfaceColor,
+          selectionColor,
+          borderColor,
+          themeMode,
+          perf,
+          loc,
+          uniformCardBackground,
+          textScale,
+          spacingScale,
+          isLive,
+          isBreaking,
+          publishedAge,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActualInnerContent(
+    bool isDark,
+    Color cardSurfaceColor,
+    Color selectionColor,
+    Color borderColor,
+    AppThemeMode themeMode,
+    PerformanceConfig perf,
+    AppLocalizations loc,
+    bool uniformCardBackground,
+    double textScale,
+    double spacingScale,
+    bool isLive,
+    bool isBreaking,
+    Duration publishedAge,
   ) {
     final article = widget.article;
+    final enableTapAnimation = _controller != null;
     final logoPath =
         SourceLogos.logos[article.sourceOverride ?? article.source];
     final taxonomyRow = perf.dataSaver
@@ -588,21 +779,25 @@ class _NewsCardState extends ConsumerState<NewsCard>
                   cardSurfaceColor.withValues(alpha: isDark ? 0.85 : 0.90),
                 ],
               ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: ThemeSkeleton.shared.circular(24),
         border: Border.all(
-          color: widget.highlight
-              ? selectionColor.withValues(alpha: 0.4 * _borderAnimation.value)
-              : borderColor.withValues(alpha: 0.3),
+          color: _resolveCardBorderColor(
+            mode: themeMode,
+            baseBorderColor: borderColor,
+            isDark: isDark,
+            isHighlighted: widget.highlight,
+          ),
           width: 1.5,
         ),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTapDown: _onTapDown,
-          onTapUp: _onTapUp,
-          onTapCancel: _onTapCancel,
-          borderRadius: BorderRadius.circular(24),
+          onTap: enableTapAnimation ? null : widget.onTap,
+          onTapDown: enableTapAnimation ? _onTapDown : null,
+          onTapUp: enableTapAnimation ? _onTapUp : null,
+          onTapCancel: enableTapAnimation ? _onTapCancel : null,
+          borderRadius: ThemeSkeleton.shared.circular(24),
           highlightColor: selectionColor.withValues(alpha: 0.1),
           splashColor: selectionColor.withValues(alpha: 0.2),
           child: Column(
@@ -615,26 +810,36 @@ class _NewsCardState extends ConsumerState<NewsCard>
                   selectionColor,
                   perf,
                   loc,
+                  spacingScale,
                 ),
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
+                padding: ThemeSkeleton.shared.insetsSymmetric(
+                  horizontal: 12 * textScale,
+                  vertical: 10 * spacingScale,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildTitle(isDark, selectionColor),
+                    _buildTitle(isDark, selectionColor, textScale),
                     if (article.snippet.isNotEmpty && !perf.dataSaver) ...[
-                      const SizedBox(height: 6),
-                      _buildSnippet(isDark),
+                      SizedBox(height: ThemeSkeleton.size6 * spacingScale),
+                      _buildSnippet(isDark, textScale),
                     ],
                     if (taxonomyRow != null) ...[
-                      const SizedBox(height: 8),
+                      SizedBox(height: ThemeSkeleton.size8 * spacingScale),
                       taxonomyRow,
                     ],
-                    const SizedBox(height: 10),
-                    _buildFooterRow(logoPath, selectionColor, isDark, perf),
+                    SizedBox(height: ThemeSkeleton.size10 * spacingScale),
+                    _buildFooterRow(
+                      logoPath,
+                      selectionColor,
+                      isDark,
+                      perf,
+                      textScale,
+                      isLive,
+                      isBreaking,
+                      publishedAge,
+                    ),
                   ],
                 ),
               ),
@@ -648,56 +853,60 @@ class _NewsCardState extends ConsumerState<NewsCard>
   Color _resolveCardSurfaceColor(AppThemeMode mode, ThemeData theme) {
     switch (mode) {
       case AppThemeMode.bangladesh:
-        // Subtle red tint for Desh theme to improve card/background separation.
-        return const Color(0xFF4D1F27).withValues(alpha: 0.58);
+        return Colors.transparent;
       case AppThemeMode.dark:
-        // White-ash tint in dark mode for stronger card visibility.
-        return Colors.white.withValues(alpha: 0.12);
-      case AppThemeMode.amoled:
-        return Colors.white.withValues(alpha: 0.10);
-      case AppThemeMode.light:
-        // Slightly dark ash in light mode for clearer contrast on bright bg.
-        return const Color(0xFFE2E5EA).withValues(alpha: 0.94);
+        return Colors.transparent;
       case AppThemeMode.system:
         final brightness = theme.brightness;
         if (brightness == Brightness.dark) {
-          return Colors.white.withValues(alpha: 0.12);
+          return theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.96,
+          );
         }
         return const Color(0xFFE2E5EA).withValues(alpha: 0.94);
     }
   }
 
-  Widget _buildTitle(bool isDark, Color selectionColor) {
+  Color _resolveCardBorderColor({
+    required AppThemeMode mode,
+    required Color baseBorderColor,
+    required bool isDark,
+    required bool isHighlighted,
+  }) {
+    final highlightScale = isHighlighted ? 1.0 : 0.85;
+    switch (mode) {
+      case AppThemeMode.bangladesh:
+        return Colors.white.withValues(alpha: 0.40 * highlightScale);
+      case AppThemeMode.dark:
+        return baseBorderColor.withValues(alpha: 0.58 * highlightScale);
+      case AppThemeMode.system:
+        final alpha = isDark ? 0.52 : 0.28;
+        return baseBorderColor.withValues(alpha: alpha * highlightScale);
+    }
+  }
+
+  Widget _buildTitle(bool isDark, Color selectionColor, double textScale) {
     return Text(
       widget.article.title,
       maxLines: 3,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
-        fontSize: 14.5,
+        fontSize: 14.5 * textScale,
         height: 1.2,
         fontWeight: FontWeight.w900,
         letterSpacing: -0.3,
         color: isDark ? Colors.white : Colors.black,
-        shadows: isPremiumContent
-            ? [
-                Shadow(
-                  color: Colors.amber.withValues(alpha: 0.2),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : null,
       ),
     );
   }
 
-  Widget _buildSnippet(bool isDark) {
+  Widget _buildSnippet(bool isDark, double textScale) {
     return Text(
       widget.article.snippet,
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
-        fontSize: 12.0,
+        fontSize: 12.0 * textScale,
         height: 1.4,
         fontWeight: FontWeight.w400,
         color: isDark
@@ -712,20 +921,23 @@ class _NewsCardState extends ConsumerState<NewsCard>
     Color selectionColor,
     AppLocalizations loc,
   ) {
+    _ensureTaxonomyCache(loc);
     final chips = <Widget>[];
     final category = widget.article.category.trim().toLowerCase();
 
-    if (widget.showCategoryBadge && category.isNotEmpty) {
+    if (widget.showCategoryBadge &&
+        category.isNotEmpty &&
+        _cachedLocalizedCategoryLabel != null) {
       chips.add(
         _buildTaxonomyChip(
-          label: _formatCategory(category, loc),
+          label: _cachedLocalizedCategoryLabel!,
           isDark: isDark,
           color: _colorForCategory(category, selectionColor),
         ),
       );
     }
 
-    for (final tag in _visibleTags(widget.article.tags, loc)) {
+    for (final tag in _cachedVisibleTaxonomyTags ?? const <String>[]) {
       chips.add(
         _buildTaxonomyChip(label: tag, isDark: isDark, color: selectionColor),
       );
@@ -735,11 +947,41 @@ class _NewsCardState extends ConsumerState<NewsCard>
     return Wrap(spacing: 6, runSpacing: 6, children: chips);
   }
 
-  List<String> _visibleTags(List<String>? rawTags, AppLocalizations loc) {
+  void _ensureTaxonomyCache(AppLocalizations loc) {
+    final category = widget.article.category.trim().toLowerCase();
+    final tagsKey = (widget.article.tags ?? const <String>[]).join('||');
+    final localeName = loc.localeName;
+
+    if (_cachedTaxonomyLocale == localeName &&
+        _cachedTaxonomyCategory == category &&
+        _cachedTaxonomyTagsKey == tagsKey) {
+      return;
+    }
+
+    _cachedTaxonomyLocale = localeName;
+    _cachedTaxonomyCategory = category;
+    _cachedTaxonomyTagsKey = tagsKey;
+    _cachedLocalizedCategoryLabel = category.isEmpty
+        ? null
+        : _formatCategory(category, loc);
+    _cachedVisibleTaxonomyTags = _visibleTags(
+      widget.article.tags,
+      loc,
+      primaryCategory: category,
+    );
+  }
+
+  List<String> _visibleTags(
+    List<String>? rawTags,
+    AppLocalizations loc, {
+    required String primaryCategory,
+  }) {
     if (rawTags == null || rawTags.isEmpty) return const <String>[];
 
     final labels = <String>[];
-    final seen = <String>{};
+    final seenLabels = <String>{};
+    final seenSemantics = <String>{};
+    final normalizedPrimary = _canonicalTagSemanticValue(primaryCategory);
 
     for (final raw in rawTags) {
       final normalized = raw.trim().toLowerCase();
@@ -749,14 +991,30 @@ class _NewsCardState extends ConsumerState<NewsCard>
           ? normalized.split(':').first
           : '';
       if (_excludedTagPrefixes.contains(prefix)) continue;
+      final semanticRaw = normalized.contains(':')
+          ? normalized.split(':').sublist(1).join(':')
+          : normalized;
+      final semantic = _canonicalTagSemanticValue(semanticRaw);
+      if (semantic.isEmpty) continue;
+      if (_hiddenTagSemantics.contains(semantic)) continue;
+      if (_isCategoryEquivalentSemantic(semantic, normalizedPrimary)) continue;
+      if (!seenSemantics.add(semantic)) continue;
 
       final label = _formatTagLabel(normalized, loc);
-      if (label.isEmpty || !seen.add(label)) continue;
+      if (label.isEmpty || !seenLabels.add(label)) continue;
       labels.add(label);
       if (labels.length >= 2) break;
     }
 
     return labels;
+  }
+
+  bool _isCategoryEquivalentSemantic(String semantic, String categorySemantic) {
+    final aliases =
+        _categorySemanticAliases[categorySemantic] ??
+        _categorySemanticAliases[_taxonomyAliases[categorySemantic] ?? ''] ??
+        const <String>{};
+    return aliases.contains(semantic);
   }
 
   Widget _buildTaxonomyChip({
@@ -765,10 +1023,10 @@ class _NewsCardState extends ConsumerState<NewsCard>
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: ThemeSkeleton.shared.insetsSymmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: isDark ? 0.18 : 0.12),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: ThemeSkeleton.shared.circular(999),
         border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Text(
@@ -812,6 +1070,17 @@ class _NewsCardState extends ConsumerState<NewsCard>
     final value = parts.length > 1 ? parts.sublist(1).join(':') : rawTag;
     if (value.isEmpty) return '';
     return _localizeTaxonomyValue(value, loc, prefix: prefix);
+  }
+
+  String _canonicalTagSemanticValue(String rawValue) {
+    final normalized = rawValue
+        .trim()
+        .toLowerCase()
+        .replaceAll('-', ' ')
+        .replaceAll('_', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ');
+    if (normalized.isEmpty) return '';
+    return _taxonomyAliases[normalized] ?? normalized;
   }
 
   String _localizeTaxonomyValue(
@@ -906,6 +1175,32 @@ class _NewsCardState extends ConsumerState<NewsCard>
     return _titleCase(canonical);
   }
 
+  String _localizedPublisherName(AppLocalizations loc) {
+    final source = (widget.article.sourceOverride ?? widget.article.source)
+        .trim();
+    if (source.isEmpty || !loc.localeName.startsWith('bn')) return source;
+
+    final normalized = _normalizePublisherKey(source);
+    return _bnPublisherFallback[normalized] ?? source;
+  }
+
+  static String _normalizePublisherKey(String source) {
+    var normalized = source
+        .trim()
+        .toLowerCase()
+        .replaceAll('&', ' and ')
+        .replaceAll(RegExp(r'[^a-z0-9\u0980-\u09FF]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (normalized.startsWith('www ')) {
+      normalized = normalized.substring(4);
+    }
+    if (normalized.endsWith(' com')) {
+      normalized = normalized.substring(0, normalized.length - 4);
+    }
+    return normalized;
+  }
+
   String _titleCase(String text) {
     return text
         .split(RegExp(r'\s+'))
@@ -919,20 +1214,22 @@ class _NewsCardState extends ConsumerState<NewsCard>
     Color selectionColor,
     bool isDark,
     PerformanceConfig perf,
+    double textScale,
+    bool isLive,
+    bool isBreaking,
+    Duration publishedAge,
   ) {
     final article = widget.article;
     final l10n = AppLocalizations.of(context);
-    final isFavorite = ref.watch(isFavoriteArticleProvider(article));
 
     String timestamp = '';
     try {
-      final diff = DateTime.now().difference(article.publishedAt);
-      if (diff.isNegative) {
+      if (publishedAge == Duration.zero) {
         timestamp = l10n.justNow;
-      } else if (diff.inMinutes < 60) {
-        timestamp = l10n.minutesAgo(diff.inMinutes);
-      } else if (diff.inHours < 24) {
-        timestamp = l10n.hoursAgo(diff.inHours);
+      } else if (publishedAge.inMinutes < 60) {
+        timestamp = l10n.minutesAgo(publishedAge.inMinutes);
+      } else if (publishedAge.inHours < 24) {
+        timestamp = l10n.hoursAgo(publishedAge.inHours);
       } else {
         timestamp = DateFormat('MMM d').format(article.publishedAt);
       }
@@ -947,22 +1244,22 @@ class _NewsCardState extends ConsumerState<NewsCard>
           _buildSourceLogo(logoPath, selectionColor)
         else if (!perf.dataSaver)
           Container(
-            width: 20,
-            height: 20,
+            width: 22,
+            height: 22,
             decoration: BoxDecoration(
-              color: selectionColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(6),
+              color: selectionColor.withValues(alpha: 0.15),
+              borderRadius: ThemeSkeleton.shared.circular(7),
               border: Border.all(color: selectionColor.withValues(alpha: 0.3)),
             ),
-            child: Icon(Icons.public_rounded, size: 12, color: selectionColor),
+            child: Icon(Icons.public_rounded, size: 13, color: selectionColor),
           ),
-        const SizedBox(width: 8),
+        const SizedBox(width: ThemeSkeleton.size8),
 
         // Middle: Source Name & Time
         Expanded(
           child: DefaultTextStyle(
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 11 * textScale,
               fontWeight: FontWeight.w600,
               color: isDark
                   ? Colors.white.withValues(alpha: 0.5)
@@ -972,7 +1269,7 @@ class _NewsCardState extends ConsumerState<NewsCard>
               children: [
                 Flexible(
                   child: Text(
-                    (article.sourceOverride ?? article.source).toUpperCase(),
+                    _localizedPublisherName(l10n).toUpperCase(),
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.5,
@@ -982,18 +1279,18 @@ class _NewsCardState extends ConsumerState<NewsCard>
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  padding: ThemeSkeleton.shared.insetsSymmetric(horizontal: 4),
                   child: Text(
                     '•',
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 10 * textScale,
                       color: selectionColor.withValues(alpha: 0.5),
                     ),
                   ),
                 ),
                 Text(timestamp),
                 if (isLive || isBreaking) ...[
-                  const SizedBox(width: 6),
+                  const SizedBox(width: ThemeSkeleton.size6),
                   Container(
                     width: 6,
                     height: 6,
@@ -1017,6 +1314,9 @@ class _NewsCardState extends ConsumerState<NewsCard>
             Consumer(
               builder: (context, ref, _) {
                 final favState = ref.watch(favoritesProvider);
+                final isFavorite = favState.articles.any(
+                  (favorite) => favorite.url == article.url,
+                );
                 final isPending = favState.isPending(article.url);
 
                 return GlassIconButton(
@@ -1037,9 +1337,9 @@ class _NewsCardState extends ConsumerState<NewsCard>
                   color: isFavorite
                       ? selectionColor
                       : (isPending ? Colors.grey : null),
-                  size: 14,
-                  padding: const EdgeInsets.all(4),
-                  innerPadding: const EdgeInsets.all(6),
+                  size: 14 * textScale,
+                  padding: ThemeSkeleton.shared.insetsAll(4),
+                  innerPadding: ThemeSkeleton.shared.insetsAll(6),
                   tooltip: isFavorite
                       ? l10n.removeFromFavorites
                       : l10n.addToFavorites,
@@ -1051,16 +1351,16 @@ class _NewsCardState extends ConsumerState<NewsCard>
                 );
               },
             ),
-            const SizedBox(width: 2),
+            const SizedBox(width: ThemeSkeleton.size2),
             GlassIconButton(
               icon: Icons.share_rounded,
               onPressed: () async {
                 await SmartShareService.shareArticle(article);
               },
               isDark: isDark,
-              size: 14,
-              padding: const EdgeInsets.all(4),
-              innerPadding: const EdgeInsets.all(6),
+              size: 14 * textScale,
+              padding: ThemeSkeleton.shared.insetsAll(4),
+              innerPadding: ThemeSkeleton.shared.insetsAll(6),
               semanticsLabel: l10n.share,
             ),
           ],

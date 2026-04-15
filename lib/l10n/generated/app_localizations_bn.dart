@@ -75,7 +75,7 @@ class AppLocalizationsBn extends AppLocalizations {
   String get contactSupport => 'সহায়তা দলের সাথে যোগাযোগ করুন';
 
   @override
-  String get contactEmail => 'customerservice@dsmobiles.com';
+  String get contactEmail => 'support@appcraftr.store';
 
   @override
   String get mailClientError => 'মেইল ক্লায়েন্ট খুলতে ব্যর্থ হয়েছে।';
@@ -269,7 +269,7 @@ class AppLocalizationsBn extends AppLocalizations {
 
   @override
   String companyFooter(Object year) {
-    return '© $year ড্রিমএসডি গ্রুপ';
+    return '© $year AppCraftr';
   }
 
   @override
@@ -416,7 +416,7 @@ class AppLocalizationsBn extends AppLocalizations {
   String get darkTheme => 'ডার্ক থিম';
 
   @override
-  String get bangladeshTheme => 'দেশ থিম';
+  String get bangladeshTheme => 'এমেরাল্ড থিম';
 
   @override
   String get adsRemoved => 'বিজ্ঞাপন সরানো হয়েছে';
@@ -574,7 +574,29 @@ class AppLocalizationsBn extends AppLocalizations {
   String get faqHowToUse => 'বিডি নিউজ রিডার কিভাবে ব্যবহার করবেন?';
 
   @override
-  String get faqHowToUseDesc => 'হোমপেজ থেকে নিউজ ক্যাটাগরি ব্রাউজ করুন।';
+  String get faqHowToUseDesc =>
+      'হোম থেকে ক্যাটাগরি ব্রাউজ করে যেকোনো খবর খুলুন। টপ স্টোরি স্ক্রল করুন, সার্চ দিয়ে নির্দিষ্ট বিষয় খুঁজুন, আর প্রিয় খবর সংরক্ষণ করে দ্রুত ফিরে যান।';
+
+  @override
+  String get helpReaderToolsTitle => 'রিডার মোড ও টিটিএস';
+
+  @override
+  String get helpReaderToolsDesc =>
+      'খবরের ভিতরে রিডার মোড চালু করলে পরিষ্কার টেক্সটে পড়তে পারবেন। শুনুন (Listen) ট্যাপ করে টেক্সট-টু-স্পিচ ব্যবহার করুন, এরপর স্পিড, ভয়েস ও ফন্ট/অ্যাপিয়ারেন্স নিজের মতো ঠিক করুন।';
+
+  @override
+  String get helpOfflineServiceTitle => 'অফলাইন সেবা';
+
+  @override
+  String get helpOfflineServiceDesc =>
+      'খবর Save/Download করে Extras-এর Offline Articles থেকে ইন্টারনেট ছাড়াই পড়ুন এবং সংরক্ষিত আইটেম ম্যানেজ করুন।';
+
+  @override
+  String get helpSourceManagementTitle => 'সোর্স ম্যানেজমেন্ট';
+
+  @override
+  String get helpSourceManagementDesc =>
+      'Settings > Manage Sources থেকে পছন্দের প্রকাশক নির্বাচন করুন। এতে আপনার ফিড আরও ব্যক্তিগতকৃত ও প্রাসঙ্গিক থাকবে।';
 
   @override
   String get faqDataSecure => 'আমার তথ্য কি নিরাপদ?';
@@ -598,7 +620,7 @@ class AppLocalizationsBn extends AppLocalizations {
 
   @override
   String get ourStoryDesc =>
-      'বিডি নিউজ রিডার হল ডিএস মোবাইলস গ্রুপের প্রথম মোবাইল অ্যাপ, যা দ্রুত এবং নির্ভরযোগ্য খবরের আপডেট প্রদান করে। আমাদের লক্ষ্য হল বিনামূল্যে, উচ্চ-মানের অ্যাপ তৈরি করা যা তথ্য প্রদান করে এবং ক্ষমতায়ন করে।';
+      'বিডি নিউজ রিডার হলো AppCraftr-এর প্রথম মোবাইল অ্যাপ, যা দ্রুত ও নির্ভরযোগ্য খবরের আপডেট দেয়। আমাদের লক্ষ্য হলো বিনামূল্যে, উচ্চ-মানের অ্যাপ তৈরি করা যা তথ্য দেয় এবং ব্যবহারকারীকে ক্ষমতায়ন করে।';
 
   @override
   String get ourVisionDesc =>
@@ -1133,10 +1155,13 @@ class AppLocalizationsBn extends AppLocalizations {
   String get themeLightLabel => 'লাইট';
 
   @override
+  String get themeAutoLabel => 'অটো';
+
+  @override
   String get themeDarkLabel => 'ডার্ক';
 
   @override
-  String get themeDeshLabel => 'দেশ';
+  String get themeDeshLabel => 'এমেরাল্ড';
 
   @override
   String get ttsLoading => 'লোড হচ্ছে...';
@@ -1485,7 +1510,7 @@ class AppLocalizationsBn extends AppLocalizations {
 
   @override
   String get privacyContactDesc =>
-      'গোপনীয়তা সংক্রান্ত যেকোনো প্রশ্নের জন্য আমাদের সাথে যোগাযোগ করুন: customerservice@dsmobiles.com';
+      'গোপনীয়তা সংক্রান্ত যেকোনো প্রশ্নের জন্য আমাদের সাথে যোগাযোগ করুন: support@appcraftr.store';
 
   @override
   String get privacyLastUpdated => 'সর্বশেষ আপডেট: মার্চ ২০২৬';
@@ -1514,4 +1539,33 @@ class AppLocalizationsBn extends AppLocalizations {
   String hoursAgo(Object hours) {
     return '$hours ঘণ্টা আগে';
   }
+
+  @override
+  String get verifyEmailTitle => 'আপনার ইমেল যাচাই করুন';
+
+  @override
+  String get verificationEmailSent =>
+      'যাচাইকরণ ইমেল পাঠানো হয়েছে। অনুগ্রহ করে ইমেল যাচাই করে তারপর সাইন ইন করুন।';
+
+  @override
+  String get emailNotVerified =>
+      'লগইন করার আগে অনুগ্রহ করে আপনার ইমেল ঠিকানা যাচাই করুন।';
+
+  @override
+  String get checkInboxPrompt =>
+      'ইনবক্স ও স্প্যাম ফোল্ডার দেখুন, তারপর আবার চেষ্টা করুন।';
+
+  @override
+  String get resendVerificationEmail => 'যাচাইকরণ ইমেল আবার পাঠান';
+
+  @override
+  String get verificationEmailResent =>
+      'যাচাইকরণ ইমেল পাঠানো হয়েছে। অনুগ্রহ করে আপনার ইনবক্স দেখুন।';
+
+  @override
+  String get iVerifiedTryAgain => 'আমি যাচাই করেছি, আবার চেষ্টা করুন';
+
+  @override
+  String get verificationEmailCooldown =>
+      'যাচাইকরণ ইমেল সম্প্রতি পাঠানো হয়েছে। আরেকটি অনুরোধ করার আগে অনুগ্রহ করে অপেক্ষা করুন।';
 }

@@ -179,5 +179,46 @@ void main() {
       expect(output.contaminationScore, greaterThan(0.55));
       expect(passesSoft, isFalse);
     });
+
+    test('fallback gate accepts short but coherent article text', () {
+      final accepted = passesReaderFallbackQualityGate(
+        contentLength: 78,
+        chunkCount: 1,
+        qualityScore: 0.82,
+      );
+
+      expect(accepted, isTrue);
+    });
+
+    test(
+      'fallback gate blocks feed-like classification for weak short body',
+      () {
+        final accepted = passesReaderFallbackQualityGate(
+          contentLength: 128,
+          chunkCount: 2,
+          qualityScore: 0.61,
+          classifiedPageType: ReaderPageType.listing,
+        );
+
+        expect(accepted, isFalse);
+      },
+    );
+
+    test('readable-body recovery allows low-score short article fallback', () {
+      const body = '''
+      ঢাকার বাজারে চাল, ডাল ও তেলের দাম নতুন করে বেড়েছে এবং ভোক্তারা চাপের মুখে পড়েছেন।
+      খুচরা ব্যবসায়ীরা বলছেন, পাইকারি বাজারে সরবরাহ কমে যাওয়ায় গত তিন দিনে দাম দ্রুত বেড়েছে।
+      ''';
+
+      expect(looksLikeReaderBodyText(body), isTrue);
+      final accepted = passesReaderFallbackQualityGate(
+        contentLength: 142,
+        chunkCount: 1,
+        qualityScore: 0.34,
+        likelyReadableBody: true,
+      );
+
+      expect(accepted, isTrue);
+    });
   });
 }

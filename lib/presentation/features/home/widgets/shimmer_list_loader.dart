@@ -1,7 +1,9 @@
 // path: lib/features/home/widgets/shimmer_list_loader.dart
 
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
+import '../../../../core/theme/theme_skeleton.dart';
+
+import '../../../widgets/adaptive_loading_placeholder.dart';
 
 class ShimmerListLoader extends StatelessWidget {
   const ShimmerListLoader({super.key});
@@ -9,24 +11,15 @@ class ShimmerListLoader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      itemCount: 6, 
-      itemBuilder:
-          (_, _) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Shimmer.fromColors(
-              baseColor: Colors.grey.shade300,
-              highlightColor: Colors.grey.shade100,
-              child: Container(
-                height: 240,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-            ),
-          ),
+      padding: ThemeSkeleton.shared.insetsSymmetric(
+        horizontal: 12,
+        vertical: 8,
+      ),
+      itemCount: 6,
+      itemBuilder: (_, _) => Padding(
+        padding: ThemeSkeleton.shared.insetsSymmetric(vertical: 8),
+        child: const AdaptiveLoadingPlaceholder(height: 240),
+      ),
     );
   }
 }
-

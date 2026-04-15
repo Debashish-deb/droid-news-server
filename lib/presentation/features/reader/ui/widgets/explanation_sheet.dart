@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import '../../../../../core/theme/theme_skeleton.dart';
 import '../../../../../l10n/generated/app_localizations.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../../widgets/glass_icon_button.dart';
 
 class ExplanationSheet extends StatelessWidget {
-
   const ExplanationSheet({
-    required this.term, required this.explanation, super.key,
+    required this.term,
+    required this.explanation,
+    super.key,
   });
   final String term;
   final String explanation;
@@ -16,10 +17,12 @@ class ExplanationSheet extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: ThemeSkeleton.shared.insetsAll(24),
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(
+          top: ThemeSkeleton.shared.radius(24),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -32,20 +35,20 @@ class ExplanationSheet extends StatelessWidget {
               height: 4,
               decoration: BoxDecoration(
                 color: theme.dividerColor,
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: ThemeSkeleton.shared.circular(2),
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: ThemeSkeleton.size20),
 
           Row(
             children: [
               const Icon(Icons.info_outline, color: Colors.blue, size: 24),
-              const SizedBox(width: 12),
+              const SizedBox(width: ThemeSkeleton.size12),
               Expanded(
                 child: Text(
                   AppLocalizations.of(context).readerAiExplanation,
-                  style: GoogleFonts.inter(
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                   ),
@@ -58,29 +61,29 @@ class ExplanationSheet extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          
+          const SizedBox(height: ThemeSkeleton.size16),
+
           Text(
             term,
-            style: GoogleFonts.inter(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
               color: theme.colorScheme.primary,
             ),
           ),
-          const SizedBox(height: 12),
-          
+          const SizedBox(height: ThemeSkeleton.size12),
+
           Text(
             explanation,
-            style: GoogleFonts.inter(
+            style: const TextStyle(
               fontSize: 15,
               height: 1.6,
               fontWeight: FontWeight.w500,
             ),
           ),
-          
-          const SizedBox(height: 32),
-          
+
+          const SizedBox(height: ThemeSkeleton.size32),
+
           SizedBox(
             width: double.infinity,
             child: TextButton(
@@ -88,7 +91,7 @@ class ExplanationSheet extends StatelessWidget {
               child: Text(AppLocalizations.of(context).readerGotIt),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: ThemeSkeleton.size12),
         ],
       ),
     );

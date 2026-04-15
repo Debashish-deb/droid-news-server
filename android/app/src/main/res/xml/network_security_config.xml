@@ -1,23 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    Network Security Configuration for BD News Reader.
-    
-    SECURITY:
-    - Cleartext traffic is forbidden for all domains
-    - Only system CAs are trusted in release builds
-    - Debug builds additionally trust user-installed CAs (for proxy debugging)
--->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system"/>
         </trust-anchors>
     </base-config>
-
-    <!-- Debug-only: trust user CAs for proxy tools (Charles, mitmproxy) -->
+    <!-- Debug-only override for local dev proxies -->
     <debug-overrides>
         <trust-anchors>
-            <certificates src="system"/>
             <certificates src="user"/>
         </trust-anchors>
     </debug-overrides>

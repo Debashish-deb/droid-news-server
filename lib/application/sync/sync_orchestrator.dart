@@ -19,13 +19,15 @@ import 'sync_tasks.dart';
 /// Refactored to use [PremiumRepository] and [get_it] DI.
 
 class SyncOrchestrator {
-  SyncOrchestrator(this._syncService, this._prefs) : _initialized = true;
+  SyncOrchestrator(SyncService syncService, this._prefs)
+    : _syncService = syncService,
+      _initialized = true;
 
   SyncOrchestrator.disabled(this._prefs)
     : _syncService = null,
       _initialized = false;
 
-  final SyncService? _syncService;
+  SyncService? _syncService;
   final SharedPreferences? _prefs;
 
   ThemeNotifier? _themeNotifier;
@@ -33,7 +35,7 @@ class SyncOrchestrator {
   AppSettingsNotifier? _appSettingsNotifier;
   AppLifecycleNotifier? _appLifecycleNotifier;
 
-  final bool _initialized;
+  bool _initialized;
   bool _listeningToRealtime = false;
 
   StreamSubscription<Map<String, dynamic>?>? _settingsSubscription;
@@ -44,8 +46,29 @@ class SyncOrchestrator {
   DateTime? _lastSettingsPush;
   Timer? _batchTimer;
   Map<String, dynamic> _pendingSettingsUpdates = {};
+  String? _lastQueuedSettingsFingerprint;
+  DateTime? _lastQueuedSettingsAt;
+  String? _pendingSettingsFingerprint;
+  static const Duration _redundantSettingsPushCooldown = Duration(seconds: 45);
+  String? _lastCloudAppliedSettingsFingerprint;
+  DateTime? _lastCloudAppliedSettingsAt;
+  static const Duration _cloudEchoSuppressionDuration = Duration(minutes: 2);
 
   bool get _canRunBasicSync => _initialized && _syncService != null;
+
+  void attachSyncService(SyncService? syncService) {
+    if (identical(_syncService, syncService) &&
+        _initialized == (syncService != null)) {
+      return;
+    }
+
+    if (!identical(_syncService, syncService) && _listeningToRealtime) {
+      stopRealtimeSync();
+    }
+
+    _syncService = syncService;
+    _initialized = syncService != null;
+  }
 
   /// Registers UI Notifiers for state propagation
   void connectProviders({
@@ -77,8 +100,8 @@ class SyncOrchestrator {
   /// Pull settings immediately after auth/entitlement becomes available.
   Future<void> syncSettingsAfterAuth() async {
     if (!_canRunBasicSync) return;
-    await pullSettings();
     startRealtimeSync();
+    await pullSettings();
   }
 
   /// Pushes all syncable data to the cloud (Premium Only)
@@ -100,6 +123,13 @@ class SyncOrchestrator {
     final prefs = _prefs;
     if (!_canRunBasicSync || prefs == null) return;
 
+    final settingsData = _captureCurrentSettingsData();
+
+    final fingerprint = _settingsFingerprint(settingsData);
+    if (_shouldSkipSettingsPush(fingerprint)) {
+      return;
+    }
+
     // 1. Calculate and save local update timestamp IMMEDIATELY
     // This prevents race conditions where pullSettings might run before the push completes
     final nowMs = DateTime.now().millisecondsSinceEpoch;
@@ -107,41 +137,21 @@ class SyncOrchestrator {
 
     void executePush() {
       _lastSettingsPush = DateTime.now();
-
-      final settingsData = {
-        'dataSaver':
-            _appSettingsNotifier?.current.dataSaver ??
-            prefs.getBool('data_saver') ??
-            false,
-        'pushNotif':
-            _appSettingsNotifier?.current.pushNotif ??
-            prefs.getBool('push_notif') ??
-            true,
-        'themeMode':
-            _themeNotifier?.current.mode.index ??
-            _resolveThemeModeIndexFromPrefs(),
-        'languageCode':
-            _languageNotifier?.current.languageCode ??
-            prefs.getString('language_code') ??
-            prefs.getString('languageCode') ??
-            'en',
-        'readerLineHeight':
-            _themeNotifier?.current.readerLineHeight ??
-            prefs.getDouble('reader_line_height') ??
-            1.6,
-        'readerContrast':
-            _themeNotifier?.current.readerContrast ??
-            prefs.getDouble('reader_contrast') ??
-            1.0,
-        // Pass the pre-calculated timestamp to ensure consistency
-        'clientUpdatedAtMs': nowMs,
-      };
+      _lastQueuedSettingsFingerprint = fingerprint;
+      _lastQueuedSettingsAt = _lastSettingsPush;
+      _pendingSettingsFingerprint = null;
 
       final syncService = _syncService;
       if (syncService == null) return;
 
       BackgroundTaskScheduler().schedule(
-        SyncSettingsTask(syncService: syncService, settingsData: settingsData),
+        SyncSettingsTask(
+          syncService: syncService,
+          settingsData: <String, dynamic>{
+            ...settingsData,
+            'clientUpdatedAtMs': nowMs,
+          },
+        ),
       );
     }
 
@@ -152,7 +162,40 @@ class SyncOrchestrator {
       return;
     }
 
+    _pendingSettingsFingerprint = fingerprint;
     _debounceTimer = Timer(_debounceDuration, executePush);
+  }
+
+  String _settingsFingerprint(Map<String, dynamic> settingsData) {
+    return <Object?>[
+      settingsData['dataSaver'],
+      settingsData['pushNotif'],
+      settingsData['themeMode'],
+      settingsData['languageCode'],
+      settingsData['readerLineHeight'],
+      settingsData['readerContrast'],
+    ].join('|');
+  }
+
+  bool _shouldSkipSettingsPush(String fingerprint) {
+    if (_pendingSettingsFingerprint == fingerprint) {
+      return true;
+    }
+
+    final cloudAppliedAt = _lastCloudAppliedSettingsAt;
+    if (cloudAppliedAt != null &&
+        _lastCloudAppliedSettingsFingerprint == fingerprint &&
+        DateTime.now().difference(cloudAppliedAt) <
+            _cloudEchoSuppressionDuration) {
+      return true;
+    }
+
+    final queuedAt = _lastQueuedSettingsAt;
+    if (queuedAt == null || _lastQueuedSettingsFingerprint != fingerprint) {
+      return false;
+    }
+
+    return DateTime.now().difference(queuedAt) < _redundantSettingsPushCooldown;
   }
 
   /// Force-pulls latest data from cloud
@@ -264,9 +307,7 @@ class SyncOrchestrator {
         final String v => int.tryParse(v),
         _ => null,
       };
-      if (cloudTheme == null ||
-          cloudTheme < 0 ||
-          cloudTheme >= AppThemeMode.values.length) {
+      if (cloudTheme == null || cloudTheme < 0 || cloudTheme > 4) {
         debugPrint('⚠️ Ignoring invalid cloud themeMode: $rawTheme');
       } else {
         final cloudMode = themeModeFromIndex(cloudTheme);
@@ -334,6 +375,45 @@ class SyncOrchestrator {
     if (changed) {
       debugPrint('☁️ Applied updated settings from cloud');
     }
+
+    _rememberCloudAppliedSettingsFingerprint();
+  }
+
+  Map<String, dynamic> _captureCurrentSettingsData() {
+    final prefs = _prefs;
+    return <String, dynamic>{
+      'dataSaver':
+          _appSettingsNotifier?.current.dataSaver ??
+          prefs?.getBool('data_saver') ??
+          false,
+      'pushNotif':
+          _appSettingsNotifier?.current.pushNotif ??
+          prefs?.getBool('push_notif') ??
+          true,
+      'themeMode': _themeNotifier != null
+          ? themeModeToStorageIndex(_themeNotifier!.current.mode)
+          : _resolveThemeModeIndexFromPrefs(),
+      'languageCode':
+          _languageNotifier?.current.languageCode ??
+          prefs?.getString('language_code') ??
+          prefs?.getString('languageCode') ??
+          'en',
+      'readerLineHeight':
+          _themeNotifier?.current.readerLineHeight ??
+          prefs?.getDouble('reader_line_height') ??
+          1.6,
+      'readerContrast':
+          _themeNotifier?.current.readerContrast ??
+          prefs?.getDouble('reader_contrast') ??
+          1.0,
+    };
+  }
+
+  void _rememberCloudAppliedSettingsFingerprint() {
+    final fingerprint = _settingsFingerprint(_captureCurrentSettingsData());
+    _lastCloudAppliedSettingsFingerprint = fingerprint;
+    _lastCloudAppliedSettingsAt = DateTime.now();
+    _pendingSettingsFingerprint = null;
   }
 
   int _resolveThemeModeIndexFromPrefs() {
@@ -342,13 +422,13 @@ class SyncOrchestrator {
     // 1. Try 'theme' string key (used by SettingsRepositoryImpl)
     final themeName = _prefs.getString('theme');
     if (themeName != null) {
-      return themeModeFromName(themeName).index;
+      return themeModeToStorageIndex(themeModeFromName(themeName));
     }
 
     // 2. Try 'theme_mode' int key (legacy or internal)
     final themeMode = _prefs.getInt('theme_mode');
     if (themeMode != null) {
-      return themeModeFromIndex(themeMode).index;
+      return themeModeToStorageIndex(themeModeFromIndex(themeMode));
     }
 
     // 3. Last resort: default to system

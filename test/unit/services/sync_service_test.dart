@@ -21,7 +21,7 @@ void main() {
           'readerLineHeight': 1.5,
           'readerContrast': 1.0,
         };
-        
+
         expect(settings['dataSaver'], isA<bool>());
         expect(settings['pushNotif'], isA<bool>());
         expect(settings['themeMode'], isA<int>());
@@ -30,18 +30,19 @@ void main() {
         expect(settings['readerContrast'], isA<double>());
       });
 
-      test('TC-UNIT-021: Theme mode has valid range', () {
-        // 0 = system, 1 = light, 2 = dark
-        const validThemeModes = [0, 1, 2];
-        
+      test('TC-UNIT-021: Theme mode accepts current and legacy values', () {
+        // Current storage: 0 = auto, 2 = dark, 3 = desh.
+        // Legacy storage: 1 = light(auto), 4 = amoled(dark).
+        const validThemeModes = [0, 1, 2, 3, 4];
+
         for (final mode in validThemeModes) {
-          expect(mode, inInclusiveRange(0, 2));
+          expect(mode, inInclusiveRange(0, 4));
         }
       });
 
       test('TC-UNIT-022: Language codes are valid', () {
         const supportedLanguages = ['en', 'bn'];
-        
+
         expect(supportedLanguages, contains('en'));
         expect(supportedLanguages, contains('bn'));
       });
@@ -55,9 +56,9 @@ void main() {
           source: 'Test Source',
           publishedAt: DateTime.now(),
         );
-        
+
         final map = article.toMap();
-        
+
         expect(map['title'], 'Test Article');
         expect(map['url'], 'https://example.com/test');
         expect(map['source'], 'Test Source');
@@ -69,7 +70,7 @@ void main() {
           'name': 'Test Magazine',
           'coverUrl': 'https://example.com/cover.jpg',
         };
-        
+
         expect(magazine['id'], isNotNull);
         expect(magazine['name'], isNotNull);
       });
@@ -80,7 +81,7 @@ void main() {
           'name': 'Prothom Alo',
           'logoUrl': 'https://example.com/logo.png',
         };
-        
+
         expect(newspaper['id'], isNotNull);
         expect(newspaper['name'], isNotNull);
       });
@@ -94,7 +95,7 @@ void main() {
           'newspapers': <Map<String, dynamic>>[],
           'timestamp': DateTime.now().toIso8601String(),
         };
-        
+
         expect(syncPayload['articles'], isA<List>());
         expect(syncPayload['magazines'], isA<List>());
         expect(syncPayload['newspapers'], isA<List>());
@@ -110,7 +111,7 @@ void main() {
           'readerContrast': 1.0,
           'timestamp': DateTime.now().toIso8601String(),
         };
-        
+
         expect(syncPayload.keys.length, 7);
       });
     });
@@ -119,16 +120,16 @@ void main() {
       test('TC-UNIT-028: Settings can be stored locally', () async {
         SharedPreferences.setMockInitialValues(<String, Object>{});
         final prefs = await SharedPreferences.getInstance();
-        
+
         await prefs.setBool('data_saver_mode', true);
         await prefs.setBool('push_notifications', true);
-        await prefs.setInt('theme_mode', 2);
+        await prefs.setInt('theme_mode', 1);
         await prefs.setString('language_code', 'bn');
         await prefs.setDouble('reader_line_height', 1.5);
         await prefs.setDouble('reader_contrast', 0.9);
-        
+
         expect(prefs.getBool('data_saver_mode'), isTrue);
-        expect(prefs.getInt('theme_mode'), 2);
+        expect(prefs.getInt('theme_mode'), 1);
         expect(prefs.getString('language_code'), 'bn');
       });
     });

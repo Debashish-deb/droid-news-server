@@ -168,8 +168,8 @@ You cannot assign these Terms. We may assign without restriction.
 
 For questions or concerns:
 
-**Email:** <legal@bdnewsreader.com>  
-**Support:** <support@bdnewsreader.com>  
+**Email:** <support@appcraftr.store>  
+**Support:** <support@appcraftr.store>  
 **In-App:** Settings → Help & Support
 
 ---

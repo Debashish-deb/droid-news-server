@@ -15,10 +15,39 @@ import 'package:mockito/mockito.dart';
 
 class _MockClassifier extends Mock implements NewsFeedCategoryClassifier {}
 
+class _FixedClassifier implements NewsFeedCategoryClassifier {
+  @override
+  Future<TagDrivenCategorizationResult> classify({
+    required String title,
+    required String description,
+    String? content,
+    String language = 'en',
+    String? articleId,
+    String? feedCategory,
+    bool collectAiSignals = true,
+    void Function(Map<String, dynamic> insight)? onAiInsight,
+  }) async {
+    return const TagDrivenCategorizationResult(
+      category: 'national',
+      confidence: 0.9,
+      source: 'test',
+      matchedTags: <String>[
+        'country:bangladesh',
+        'district:dhaka',
+        'topic:taxes',
+      ],
+    );
+  }
+
+  @override
+  void overrideTaxonomyForTesting(FeedCategoryTaxonomy taxonomy) {}
+}
+
 void main() {
   group('NewsRepository tags persistence', () {
     late AppDatabase db;
     late http.Client client;
+    late RssService rssService;
     late NewsRepositoryImpl repository;
     late _MockClassifier mockClassifier;
 
@@ -28,8 +57,13 @@ void main() {
       mockClassifier = _MockClassifier();
       final logger = StructuredLogger();
       final networkService = AppNetworkService();
-      final rssService = RssService(client, networkService, logger);
-      repository = NewsRepositoryImpl(db, rssService, mockClassifier);
+      rssService = RssService(client, networkService, logger);
+      repository = NewsRepositoryImpl(
+        db,
+        rssService,
+        mockClassifier,
+        runBootstrap: false,
+      );
     });
 
     tearDown(() async {
@@ -132,6 +166,54 @@ void main() {
       final articles = result.getOrElse(<NewsArticle>[]);
       expect(articles, hasLength(1));
       expect(articles.first.url, 'https://example.com/article-sports-strong');
+    });
+
+    test('local reclassification backfill is idempotent', () async {
+      final fixedRepository = NewsRepositoryImpl(
+        db,
+        rssService,
+        _FixedClassifier(),
+        runBootstrap: false,
+      );
+
+      await db
+          .into(db.articles)
+          .insert(
+            ArticlesCompanion.insert(
+              id: 'article-reclass-1',
+              title: 'Dhaka budget coordination meeting',
+              description: const Value('Bangladesh ministry issued guidance'),
+              url: 'https://example.com/article-reclass-1',
+              content: const Value('local governance content'),
+              source: 'Example Source',
+              language: const Value('en'),
+              publishedAt: DateTime(2026, 3, 6),
+              category: const Value('entertainment'),
+              tags: Value(jsonEncode(<String>['format:breaking', 'topic:tax'])),
+            ),
+          );
+
+      final firstRun = await fixedRepository.reclassifyRecentCachedArticles(
+        limit: 20,
+        batchSize: 5,
+      );
+      final secondRun = await fixedRepository.reclassifyRecentCachedArticles(
+        limit: 20,
+        batchSize: 5,
+      );
+
+      expect(firstRun, 1);
+      expect(secondRun, 0);
+
+      final row = await (db.select(
+        db.articles,
+      )..where((t) => t.id.equals('article-reclass-1'))).getSingle();
+      expect(row.category, 'national');
+      expect(row.tags, isNot(equals(null)));
+      final decoded = List<String>.from(jsonDecode(row.tags!));
+      expect(decoded, contains('district:dhaka'));
+      expect(decoded.where((tag) => tag.contains('tax')).length, 1);
+      expect(decoded.any((tag) => tag.startsWith('format:')), isFalse);
     });
   });
 }

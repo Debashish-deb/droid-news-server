@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../providers/theme_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,7 +16,7 @@ class AppBarTitle extends ConsumerWidget {
     final appBarTextStyle =
         styleOverride ??
         theme.appBarTheme.titleTextStyle ??
-        GoogleFonts.inter(
+        TextStyle(
           fontSize: 22,
           fontWeight: FontWeight.w400,
           color: scheme.onSurface,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../widgets/premium_screen_header.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
@@ -12,19 +13,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: scheme.surface,
-      appBar: AppBar(
-        title: Text(
-          loc.privacyPolicy,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      appBar: PremiumScreenHeader(title: loc.privacyPolicy),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Padding(
@@ -35,7 +24,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               // Compact Intro Card
               _CompactIntro(text: loc.privacyPolicyIntro, scheme: scheme),
               const SizedBox(height: 20),
-              
+
               // Section Title
               Text(
                 'Key Points',
@@ -46,7 +35,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              
+
               // Compact Policy Sections using ExpansionTiles
               _CompactPolicyTile(
                 title: loc.privacyCollectionTitle,
@@ -85,9 +74,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 scheme: scheme,
                 isLast: true,
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // Contact Action Button (Thumb friendly)
               SizedBox(
                 width: double.infinity,
@@ -105,9 +94,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Footer
               Center(
                 child: Text(
@@ -128,10 +117,10 @@ class PrivacyPolicyScreen extends StatelessWidget {
 }
 
 class _CompactIntro extends StatelessWidget {
-  final String text;
-  final ColorScheme scheme;
 
   const _CompactIntro({required this.text, required this.scheme});
+  final String text;
+  final ColorScheme scheme;
 
   @override
   Widget build(BuildContext context) {
@@ -147,18 +136,12 @@ class _CompactIntro extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: scheme.primary.withOpacity(0.1),
-        ),
+        border: Border.all(color: scheme.primary.withOpacity(0.1)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.info_outline_rounded,
-            color: scheme.primary,
-            size: 20,
-          ),
+          Icon(Icons.info_outline_rounded, color: scheme.primary, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -177,11 +160,6 @@ class _CompactIntro extends StatelessWidget {
 }
 
 class _CompactPolicyTile extends StatelessWidget {
-  final String title;
-  final String content;
-  final IconData icon;
-  final ColorScheme scheme;
-  final bool isLast;
 
   const _CompactPolicyTile({
     required this.title,
@@ -190,13 +168,16 @@ class _CompactPolicyTile extends StatelessWidget {
     required this.scheme,
     this.isLast = false,
   });
+  final String title;
+  final String content;
+  final IconData icon;
+  final ColorScheme scheme;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
     return Theme(
-      data: Theme.of(context).copyWith(
-        dividerColor: Colors.transparent,
-      ),
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
         tilePadding: EdgeInsets.zero,
         childrenPadding: const EdgeInsets.only(bottom: 12, left: 32),

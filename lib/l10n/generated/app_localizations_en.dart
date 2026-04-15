@@ -73,7 +73,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get contactSupport => 'Contact Support';
 
   @override
-  String get contactEmail => 'customerservice@dsmobiles.com';
+  String get contactEmail => 'support@appcraftr.store';
 
   @override
   String get mailClientError => 'Could not launch mail client.';
@@ -264,7 +264,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String companyFooter(Object year) {
-    return '© $year DreamSD Group';
+    return '© $year AppCraftr';
   }
 
   @override
@@ -411,7 +411,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get darkTheme => 'Dark Theme';
 
   @override
-  String get bangladeshTheme => 'Desh Theme';
+  String get bangladeshTheme => 'Emerald Theme';
 
   @override
   String get adsRemoved => 'Ads Removed';
@@ -569,7 +569,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get faqHowToUse => 'How to use BD News Reader?';
 
   @override
-  String get faqHowToUseDesc => 'Navigate news categories from the homepage.';
+  String get faqHowToUseDesc =>
+      'Start from Home to browse categories and open any article. Swipe through top stories, use Search for topics, and save favorites for quick access.';
+
+  @override
+  String get helpReaderToolsTitle => 'Reader Mode & TTS';
+
+  @override
+  String get helpReaderToolsDesc =>
+      'Inside an article, switch to Reader Mode for clean text. Tap Listen to use text-to-speech, then adjust speed, voice, and font/appearance for comfortable reading.';
+
+  @override
+  String get helpOfflineServiceTitle => 'Offline Service';
+
+  @override
+  String get helpOfflineServiceDesc =>
+      'Tap Download/Save on articles, then open Offline Articles from Extras to read without internet and manage saved items.';
+
+  @override
+  String get helpSourceManagementTitle => 'Source Management';
+
+  @override
+  String get helpSourceManagementDesc =>
+      'Open Settings > Manage Sources to choose your preferred publishers. This helps personalize your feed and keeps your homepage relevant.';
 
   @override
   String get faqDataSecure => 'Is my data secure?';
@@ -593,7 +615,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ourStoryDesc =>
-      'BD News Reader is the first mobile app by DSMobiles Group, delivering fast and reliable news updates. Our mission is to create free, high-quality apps that inform and empower.';
+      'BD News Reader is the first mobile app by AppCraftr, delivering fast and reliable news updates. Our mission is to create free, high-quality apps that inform and empower.';
 
   @override
   String get ourVisionDesc =>
@@ -1123,10 +1145,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeLightLabel => 'Light';
 
   @override
+  String get themeAutoLabel => 'Auto';
+
+  @override
   String get themeDarkLabel => 'Dark';
 
   @override
-  String get themeDeshLabel => 'Desh';
+  String get themeDeshLabel => 'Emerald';
 
   @override
   String get ttsLoading => 'Loading...';
@@ -1454,7 +1479,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get privacyThirdPartyDesc =>
-      'We partner with trusted services:\n• Google AdMob: For personalized or non-personalized ads.\n• Firebase: For authentication and analytics.\n• RevenueCat/Google Play: For secure subscription management.\n• News Publishers: When you view articles in WebView, the publisher\'s own privacy policy applies.';
+      'We partner with trusted services:\n• Google AdMob: For personalized or non-personalized ads.\n• Firebase: For authentication and analytics.\n• Google Play: For secure subscription management.\n• News Publishers: When you view articles in WebView, the publisher\'s own privacy policy applies.';
 
   @override
   String get privacySecurityTitle => '4. Data Security';
@@ -1475,7 +1500,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get privacyContactDesc =>
-      'For any privacy-related questions, contact us at: customerservice@dsmobiles.com';
+      'For any privacy-related questions, contact us at: support@appcraftr.store';
 
   @override
   String get privacyLastUpdated => 'Last Updated: March 2026';
@@ -1504,4 +1529,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String hoursAgo(Object hours) {
     return '${hours}h ago';
   }
+
+  @override
+  String get verifyEmailTitle => 'Verify your email';
+
+  @override
+  String get verificationEmailSent =>
+      'Verification email sent. Please verify your email, then sign in.';
+
+  @override
+  String get emailNotVerified =>
+      'Please verify your email address before logging in.';
+
+  @override
+  String get checkInboxPrompt =>
+      'Check your inbox and spam folder, then try again.';
+
+  @override
+  String get resendVerificationEmail => 'Resend verification email';
+
+  @override
+  String get verificationEmailResent =>
+      'Verification email sent. Please check your inbox.';
+
+  @override
+  String get iVerifiedTryAgain => 'I verified, try again';
+
+  @override
+  String get verificationEmailCooldown =>
+      'Verification email was sent recently. Please wait before requesting another one.';
 }

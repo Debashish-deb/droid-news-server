@@ -9,9 +9,6 @@ import org.gradle.api.tasks.compile.JavaCompile
 plugins {
     id("com.google.gms.google-services")      version "4.4.2"  apply false
     id("com.google.firebase.crashlytics")     version "3.0.3"  apply false
-    // ❌ MISSING: Crashlytics plugin must be declared at root to keep versions
-    //    consistent across modules; omitting it forces each module to re-declare
-    //    its own version, which can drift.
 }
 
 // ─── Global repositories ───────────────────────────────────────────────────────
